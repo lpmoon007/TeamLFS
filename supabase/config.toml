@@ -1,0 +1,29 @@
+# Supabase local config for The Signal.
+# Minimal config for `supabase start` / `supabase db reset` during Phase 1 dev.
+project_id = "the-signal"
+
+[db]
+port = 54322
+major_version = 15
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+# Participant onboarding is magic-link pre-assignment (handoff §2A). Email auth is
+# the optional identity layer on top of the opaque participant token.
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+enable_signup = true
+
+[realtime]
+enabled = true
