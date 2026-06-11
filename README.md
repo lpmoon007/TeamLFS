@@ -12,7 +12,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 | Phase | What | State |
 |------:|------|-------|
 | 1 | **Schema + auth** in Supabase; seed one scenario | ✅ done — schema + real "The Signal" seed |
-| 2 | Participant read path (render a seat from DB, Realtime subscribe) | ⬜ next |
+| 2 | Participant read path (render a seat from DB, Realtime subscribe) | ✅ done — Next.js app |
 | 3 | Messaging + presence live | ⬜ |
 | 4 | Email + documents (approve/return → events) | ⬜ |
 | 5 | Inject firing (manual, then make.com) | ⬜ |
@@ -78,7 +78,62 @@ deny** for browser (`anon`/`authenticated`) roles; all live writes go through th
 Supabase Auth layer lets an authenticated user *read* the rows tied to their own
 participant record. `events`/`injects`/`inject_fires` are server-only.
 
-## Running locally
+## The participant app (Phase 2 — read path)
+
+A **Next.js (App Router) + TypeScript** app that resolves a magic-link token → seat
+and renders it from the DB, then subscribes to Supabase Realtime for live updates.
+
+```
+app/
+  page.tsx                         /  → marketing / closed
+  s/[sessionId]/page.tsx           /s/:id?t=token → resolve token → seat (guards)
+  s/[sessionId]/lobby/page.tsx     fallback seat-claim roster (no/blank token)
+  globals.css                      dark "command" UI (dependency-light, no Tailwind)
+components/
+  Notice.tsx                       guard/closed notices
+  participant/                     ParticipantApp + Header, LeftPanel, ThreadView,
+                                   EmailView, CallOverlay, BriefModal, DisclaimerModal, Curtain
+lib/
+  data.ts                          resolveSeat() — token → seat bundle (service role)
+  actions.ts                       server actions: acceptDisclaimer, logEvent (capture log)
+  realtime.ts                      useParticipantChannel() — broadcast + presence
+  supabase/{admin,browser}.ts      service-role (server) + anon (browser) clients
+  types.ts, env.ts, ui.ts
+```
+
+**How it works**
+- **Token resolution is server-side** (handoff §2A): the seat route reads `?t=token`,
+  resolves it via the service-role client (RLS is default-deny for the browser), and
+  renders the seat bundle — identity, brief, situation, contacts (Team/External/Internal
+  with presence + unread), email, and existing threads.
+- **Guards**: missing token → lobby; invalid token / `draft` / `ended` session → notice.
+- **Disclaimer gate** shows once; accepting flips presence online and logs an event.
+- **Realtime** (`lib/realtime.ts`): one channel per seat
+  (`signal:session:<id>:seat:<seatKey>`) for presence + broadcast events
+  (`message`/`email`/`call`/`situation`). Later phases' server writes broadcast onto
+  this same channel, so the read path stays live without exposing privileged reads to
+  the anon client.
+- **Read-only by design**: composer, email Approve/Return, and the call overlay are
+  present but inert — sending (Phase 3), document actions (Phase 4), and the voice loop
+  (Phase 6) come next.
+
+The seed materializes each seat's T=0 messages into the demo session, so opening
+`/s/<demo-session-id>?t=demo-david-REPLACE` shows a populated seat.
+
+### Run the app
+
+```bash
+cp .env.example .env.local   # fill in NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY + SUPABASE_* 
+npm install
+npm run dev                  # http://localhost:3000
+```
+
+Needs a Supabase project (or `supabase start`) with the migrations + seed applied.
+Get a demo link's token + session id from the `participants` / `sessions` tables.
+Verified: `npm run build` compiles + type-checks clean; migrations + seed apply on
+PostgreSQL 16.
+
+## Running Supabase locally
 
 Requires the [Supabase CLI](https://supabase.com/docs/guides/cli).
 

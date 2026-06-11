@@ -651,10 +651,45 @@ for (const s of SEATS) {
 
 out.push(`\ncommit;`);
 
+// --- Materialize T=0 messages into the demo session (so the Phase 2 read path has
+//     content to render). Each seat's delay-0 message injects (private info + opening)
+//     become real thread + message rows for the demo participants. ---
+const callableBySeatKey = new Map(CONTACTS.map((c) => [`${c.seat}:${c.key}`, c]));
+const demoThreads = new Map(); // `${seat}::${contact}` -> { seat, contact, bodies: [] }
+for (const inj of injects) {
+  if (!inj.seat || inj.kind !== 'message' || inj.payload.delay_min !== 0) continue;
+  const key = `${inj.seat}::${inj.payload.thread}`;
+  if (!demoThreads.has(key)) demoThreads.set(key, { seat: inj.seat, contact: inj.payload.thread, bodies: [] });
+  demoThreads.get(key).bodies.push(inj.payload.body);
+}
+
+// Demo runtime fixture is appended as its own labeled section (still inside one file,
+// but after the authored-content commit, in its own transaction). The authored
+// cleanup DELETEs at the top cascade (sessions → threads → messages) on reseed.
+const demo = [];
+demo.push(`\n-- =============================================================================`);
+demo.push(`-- DEMO RUNTIME FIXTURE (Phase 2 read-path) — threads + T=0 messages for the demo`);
+demo.push(`-- session above. Clearly demo data; safe to drop. Re-running is idempotent.`);
+demo.push(`-- =============================================================================`);
+demo.push(`begin;`);
+let secs = 0;
+for (const { seat, contact, bodies } of demoThreads.values()) {
+  const threadId = uuid(`thread:demo:${seat}:${contact}`);
+  demo.push(`insert into threads (id, session_id, seat_id, contact_key, is_group) values (${q(threadId)}, ${q(SESSION_ID)}, ${q(seatId(seat))}, ${q(contact)}, false);`);
+  const c = callableBySeatKey.get(`${seat}:${contact}`);
+  const sender = c && c.callable ? 'npc' : 'system'; // desks/automated feeds render as system
+  bodies.forEach((body, n) => {
+    const mid = uuid(`msg:demo:${seat}:${contact}:${n}`);
+    demo.push(`insert into messages (id, thread_id, sender, body, sent_at) values (${q(mid)}, ${q(threadId)}, ${q(sender)}, ${q(body)}, now() + make_interval(secs => ${secs++}));`);
+  });
+}
+demo.push(`commit;`);
+
 mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(OUT, out.join('\n') + '\n', 'utf8');
+writeFileSync(OUT, out.join('\n') + '\n' + demo.join('\n') + '\n', 'utf8');
 
 console.error(
   `seed.sql written: ${SEATS.length} seats, ${CONTACTS.length} contacts, ` +
-  `${DOCUMENTS.length} documents, ${injects.length} injects.`
+  `${DOCUMENTS.length} documents, ${injects.length} injects, ` +
+  `${demoThreads.size} demo threads.`
 );
