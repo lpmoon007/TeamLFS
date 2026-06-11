@@ -11,7 +11,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 
 | Phase | What | State |
 |------:|------|-------|
-| 1 | **Schema + auth** in Supabase; seed one scenario | ✅ schema done · ⚠️ seed is placeholder (see below) |
+| 1 | **Schema + auth** in Supabase; seed one scenario | ✅ done — schema + real "The Signal" seed |
 | 2 | Participant read path (render a seat from DB, Realtime subscribe) | ⬜ next |
 | 3 | Messaging + presence live | ⬜ |
 | 4 | Email + documents (approve/return → events) | ⬜ |
@@ -20,17 +20,30 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 7 | Capture-log hardening + minimal debrief view | ⬜ |
 | 8 | Facilitator dashboard (separate phase) | ⬜ |
 
-## ⚠️ Phase 1 blocker — prototype seat files not provided
+## The seed — "The Signal" (Champion Iron executive team)
 
-The handoff says to seed one scenario by **porting `seats/*.js`** (plus `voices.js`
-for `contacts.voice_id`). Those prototype files (`InCommand - The Signal.html`,
-`incommand.css`, `call.js`, `voices.js`, `seats/*.js`, `Scenario Design Kit.html`)
-were **not present in this repo** when Phase 1 was built. The schema below is
-complete and faithful to handoff §4, but `supabase/seed.sql` currently contains
-**clearly-labeled placeholder data**, not the real scenario — porting the real
-identities, contacts, personas, voice IDs, documents and injects requires those
-source files. Drop them into the repo (e.g. a `prototype/` folder) and the seed
-can be replaced with the real port.
+`supabase/seed.sql` is **generated** from `scripts/seed/build_seed.mjs`, which holds
+the scenario v1.0 as structured data and emits SQL with correct escaping. Regenerate:
+
+```bash
+node scripts/seed/build_seed.mjs
+```
+
+It seeds: 1 org, the scenario, **7 seats** (David/Alex/Steve/Michael/François/Angela/
+Noémie), **19 contacts** (14 callable voiced NPCs incl. the shared Paul Arsenault +
+text-only desks), **9 documents** (opening brief + 7 role briefs + 1 attachment), and
+**66 injects** — the per-participant T=0 private info, opening NPC messages, the full
+timed/conditional escalation cadence, and the 4 propagation triggers. Message bodies
+are verbatim. A demo session + one magic-link token per seat are included for Phase 2
+read-path testing.
+
+Notes:
+- **Voice IDs are TBD.** ElevenLabs `voice_id` is `null`; the casting direction
+  (sex/age/accent/tone/sample) lives in `contacts.meta.voice` until concrete IDs are
+  assigned. The `npc-reply`/`tts` Edge Functions read `persona` / `voice_id`.
+- **Naming drift to reconcile:** the narrative says *Rana Gruber* / *Vermont* while the
+  casting sheet says *Nordveil Iron AS* / *Fermont* for the same people. Contacts use
+  the (matching) person names; some message bodies still say Rana/Vermont.
 
 ## What's in this repo (Phase 1)
 
@@ -42,7 +55,9 @@ supabase/
     0002_rls.sql                   RLS: default-deny; server (service_role) is the
                                    write path; optional auth read of own seat data
     0003_realtime.sql              Realtime publication for live tables (§6)
-  seed.sql                         ⚠️ PLACEHOLDER scenario (replace with seats/*.js port)
+    0004_contacts_meta.sql         contacts.meta (voice casting direction)
+  seed.sql                         GENERATED — "The Signal" scenario (do not hand-edit)
+scripts/seed/build_seed.mjs        seed authoring source-of-truth (edit + regenerate)
 .env.example                       required env vars (handoff §0)
 ```
 
