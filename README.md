@@ -38,12 +38,12 @@ are verbatim. A demo session + one magic-link token per seat are included for Ph
 read-path testing.
 
 Notes:
-- **Voice IDs are TBD.** ElevenLabs `voice_id` is `null`; the casting direction
-  (sex/age/accent/tone/sample) lives in `contacts.meta.voice` until concrete IDs are
-  assigned. The `npc-reply`/`tts` Edge Functions read `persona` / `voice_id`.
-- **Naming drift to reconcile:** the narrative says *Rana Gruber* / *Vermont* while the
-  casting sheet says *Nordveil Iron AS* / *Fermont* for the same people. Contacts use
-  the (matching) person names; some message bodies still say Rana/Vermont.
+- **Voice IDs are set** from the casting sheet — every callable NPC has an ElevenLabs
+  `voice_id` (13 distinct voices; Paul Arsenault shared across two seats). Casting
+  direction (sex/age/accent/tone/sample) is also retained in `contacts.meta.voice`. The
+  `npc-reply`/`tts` Edge Functions read `persona` / `voice_id`.
+- **Naming is reconciled** to the canonical *Nordveil Iron AS* / *Fermont* (the draft's
+  earlier *Rana Gruber* / *Vermont* aliases are normalized throughout).
 
 ## What's in this repo (Phase 1)
 

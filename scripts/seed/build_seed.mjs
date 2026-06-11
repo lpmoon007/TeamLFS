@@ -10,11 +10,10 @@
 // Mapping (handoff §4): org → scenario → seats → contacts → documents → injects.
 // Message bodies are VERBATIM from the scenario document v1.0.
 //
-// Naming note: the scenario narrative uses "Rana Gruber" / "Vermont" while the
-// voice casting sheet uses "Nordveil Iron AS" / "Fermont" for the SAME people
-// (Gunnar Olsen, K. Sørensen, Claude Gagnon). Person names match across docs, so
-// contacts use the person's name; message bodies are kept verbatim (so some still
-// say Rana/Vermont). Reconcile the org/place names when finalizing copy.
+// Naming: the canonical org/place names are "Nordveil Iron AS" and "Fermont"
+// (confirmed). The scenario draft's earlier "Rana Gruber" / "Vermont" aliases for the
+// same people (Gunnar Olsen, K. Sørensen, Claude Gagnon) have been normalized
+// throughout the contacts, briefs, and message bodies.
 // =============================================================================
 
 import { createHash } from 'node:crypto';
@@ -69,6 +68,24 @@ const SEATS = [
   { key: 'noemi',    name: 'Noémie Charlebois',  role: 'Director, Communications & Government Affairs' },
 ];
 const seatId = (k) => uuid(`seat:${k}`);
+
+// --- ElevenLabs voice IDs (casting sheet "Table 1"), keyed by contact ---------
+// Paul Arsenault is one voice shared across David's and Alex's seats.
+const VOICE_IDS = {
+  paul_arsenault:      'mrh6BGtvw1pAXXEjlsOg',
+  robert_vaillancourt: '4a0Khp1o5b79Ilkuf4ia',
+  gunnar_olsen:        '6XVxc5pFxXre3breYJhP',
+  christian_levesque:  'GWX9un23nl5PmLT9bXtH',
+  marc_beauchemin:     'ro97IE6kwE2PXqdaUoPE',
+  marie_pierre:        'sBYwotm75akIFTqdVCPT',
+  jonas_hartmann:      'lxvPH8fNJQrOdR4brk0c',
+  voss_stahl:          'A9evEp8yGjv4c3WslKuY',
+  jean_philippe_caron: 'xTZImU8dKXdyk4XGYGFg',
+  daniel_lefebvre:     '6rr4jpS124uCLNtgVdAk',
+  sorensen:            '1akQNyt9mMzTni2Y99lv',
+  helene_mercier:      'l2qjqoUskg4poHSh4wMx',
+  claude_gagnon:       '4GFYeFHbunxgGi5kJX68',
+};
 
 // --- Contacts (NPCs + system desks), per seat ---------------------------------
 // callable+voice NPCs carry persona (LLM) + meta.voice (casting direction) + opener.
@@ -155,6 +172,11 @@ const CONTACTS = [
   C({ seat: 'noemi', key: 'comms_team', full: 'Communications Team', role: 'Internal communications desk', section: 'INTERNAL', color: '#64748b', callable: false, persona: null, opener: null,
     meta: { type: 'desk', text_only: true } }),
 ];
+
+// Attach concrete ElevenLabs voice ids to callable contacts.
+for (const c of CONTACTS) {
+  if (VOICE_IDS[c.key]) c.voiceId = VOICE_IDS[c.key];
+}
 
 // --- Documents: opening brief + 7 role briefs + 1 attachment ------------------
 const OPENING_BRIEF = `07:45 AM, Tuesday
@@ -298,13 +320,13 @@ What you're learning during the simulation:
 At some point this morning you will receive an indirect inquiry from the federal government's office asking about Champion's consultation status. This will arrive before David has directly looped you into the partnership conversation. You will learn about the opportunity through a back channel before your own CEO tells you directly.
 
 What you're managing simultaneously:
-An HR matter from Rana Gruber requires your input this week. The Rana HR director wants guidance on aligning performance review processes. It is sensitive given the current cultural tensions and requires careful handling but is not urgent today.
+An HR matter from Nordveil Iron AS requires your input this week. The Nordveil HR director wants guidance on aligning performance review processes. It is sensitive given the current cultural tensions and requires careful handling but is not urgent today.
 
 What you're deciding today:
 Whether to surface the consultation gap immediately and proactively, investigate quietly to confirm its status before saying anything, or wait to see if it comes up in the conversation naturally. And separately: when the federal inquiry arrives in your inbox before David has told you about the opportunity — what you do with that information.
 
 One thing to keep in mind:
-You were right about Rana Gruber. You flagged the cultural risk before the acquisition. The team moved forward anyway. You have never said I told you so. That restraint has cost you something — not in terms of being right, but in terms of being heard. This morning you have information that is material to a decision the team is about to make. The question is not whether you have the right to surface it. You do. The question is whether you surface it in a way that serves the decision or in a way that serves the feeling of finally being heard. Those are different things. Only one of them helps Champion today.`,
+You were right about Nordveil Iron AS. You flagged the cultural risk before the acquisition. The team moved forward anyway. You have never said I told you so. That restraint has cost you something — not in terms of being right, but in terms of being heard. This morning you have information that is material to a decision the team is about to make. The question is not whether you have the right to surface it. You do. The question is whether you surface it in a way that serves the decision or in a way that serves the feeling of finally being heard. Those are different things. Only one of them helps Champion today.`,
 
   noemi: `BRIEF — NOEMI CHARLEBOIS — DIRECTOR, COMMUNICATIONS AND GOVERNMENT AFFAIRS
 Read this before you log in. This is your private context for the simulation. Do not share it with other participants unless you choose to.
@@ -318,15 +340,15 @@ You have known for four days that something like this was coming. You did not te
 You are also the most qualified person on this team to lead the government relations and communications response to this opportunity. You have existing relationships inside this ministry. You understand how federal partnership announcements work. You know how to manage the narrative around an initiative of this scale. You do not have the title that would give you formal authority to do so.
 
 What you're managing simultaneously:
-The Vermont GM — Claude Gagnon — is going to contact you during the simulation. He has seen wire service speculation about a federal natural resources announcement and he is connecting it to Champion. Vermont's relationship with Champion is already strained over the fly-in fly-out issue. A federal announcement that doesn't account for Vermont's concerns could reignite that tension publicly at the worst possible moment.
-You are the only person on the team who sees both the federal opportunity and the Vermont risk simultaneously. Nobody else is managing both threads. Your internal communications team also needs routine sign-offs this week that cannot wait indefinitely.
+The Fermont GM — Claude Gagnon — is going to contact you during the simulation. He has seen wire service speculation about a federal natural resources announcement and he is connecting it to Champion. Fermont's relationship with Champion is already strained over the fly-in fly-out issue. A federal announcement that doesn't account for Fermont's concerns could reignite that tension publicly at the worst possible moment.
+You are the only person on the team who sees both the federal opportunity and the Fermont risk simultaneously. Nobody else is managing both threads. Your internal communications team also needs routine sign-offs this week that cannot wait indefinitely.
 
 What you're deciding today:
-Whether to tell David you had advance intelligence before his call this morning. Whether to assert your expertise and lead the communications response or wait to be asked. Whether to connect the Vermont thread to the partnership conversation or manage it separately. And what to do when the media timeline starts compressing faster than the team is moving.
+Whether to tell David you had advance intelligence before his call this morning. Whether to assert your expertise and lead the communications response or wait to be asked. Whether to connect the Fermont thread to the partnership conversation or manage it separately. And what to do when the media timeline starts compressing faster than the team is moving.
 
 One thing to keep in mind:
 You have been told repeatedly that you are ready for more. You have been promised a title twice and it hasn't materialized. You have been doing the work of a VP without the authority of one for two years. This morning you have an opportunity to demonstrate exactly why that title matters — not by asking for it, but by doing what only you can do, in a way that nobody can ignore.
-The question is whether you wait for permission or whether you lead. If you wait, the Vermont situation compounds, the media narrative sets without Champion's voice, and the moment passes. If you lead without looping people in, you may be right about the outcome but wrong about the process — and that distinction matters for a team that is already struggling with who has authority to do what.
+The question is whether you wait for permission or whether you lead. If you wait, the Fermont situation compounds, the media narrative sets without Champion's voice, and the moment passes. If you lead without looping people in, you may be right about the outcome but wrong about the process — and that distinction matters for a team that is already struggling with who has authority to do what.
 There is a version of leadership here that threads that needle. It requires you to be direct with David about what you knew, clear about what you're proposing to do, and fast enough that the window doesn't close while you're waiting for his response.`,
 };
 
@@ -504,15 +526,15 @@ msg('angela', 'daniel_lefebvre', 'daniel_lefebvre', 32,
   "Following up on my earlier message. We're building the package today and need to know who to speak with about consultation status. If there's an open item we should know about, now is the time to flag it.",
   { kind: 'email', cond: 'Angela has not responded or told David' });
 msg('angela', 'sorensen', 'sorensen', 10,
-  "Angela -- Rana HR team is asking for guidance on the Q3 performance review process. They want to align with Champion's framework but there are some cultural friction points around the evaluation criteria. Gunnar has flagged it as low priority but the Rana HR director wants a call this week.");
+  "Angela -- Nordveil HR team is asking for guidance on the Q3 performance review process. They want to align with Champion's framework but there are some cultural friction points around the evaluation criteria. Gunnar has flagged it as low priority but the Nordveil HR director wants a call this week.");
 msg('angela', 'sorensen', 'sorensen', 25,
-  "Angela -- following up. The Rana HR director says the Q3 timeline is creating pressure. Can you give me a window this week?",
+  "Angela -- following up. The Nordveil HR director says the Q3 timeline is creating pressure. Can you give me a window this week?",
   { cond: 'No response' });
 msg('angela', 'sorensen', 'sorensen', 45,
   "Angela -- I need to give them something. Can I tell them you'll connect next week?",
   { cond: 'Still no response' });
 msg('angela', 'noemi', 'noemi', 35,
-  "Angela -- I think we need to talk. The Vermont GM just called me about the federal announcement rumors. I need to understand what our consultation position looks like before I respond to him. Do you have five minutes?",
+  "Angela -- I think we need to talk. The Fermont GM just called me about the federal announcement rumors. I need to understand what our consultation position looks like before I respond to him. Do you have five minutes?",
   { coordination_beat: true, note: 'Angela and Noemi either coordinate effectively or talk past each other.' });
 
 // ===================== NOEMI =====================
@@ -570,10 +592,9 @@ out.push(`-- ===================================================================
 -- GENERATED FILE — do not edit by hand. Edit scripts/seed/build_seed.mjs and run:
 --     node scripts/seed/build_seed.mjs
 --
--- Message bodies are verbatim from the scenario document. Naming note: contacts use
--- person names; some bodies still say "Rana Gruber"/"Vermont" where the casting sheet
--- uses "Nordveil"/"Fermont" (same people). ElevenLabs voice_id is TBD (null) — voice
--- casting direction is stored in contacts.meta.voice until concrete ids are assigned.
+-- Message bodies are verbatim from the scenario document (org/place names normalized
+-- to the canonical "Nordveil Iron AS" / "Fermont"). ElevenLabs voice_id is set per the
+-- casting sheet; voice casting direction is also retained in contacts.meta.voice.
 -- =============================================================================
 
 begin;
