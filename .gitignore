@@ -16,3 +16,8 @@ out/
 dist/
 *.log
 .DS_Store
+
+# Scratch: Be Legendary design-handoff preview (unpacked zip + headless-render tooling).
+# Not part of The Signal; kept out of this repo's history on purpose.
+_belegendary_unpack/
+_preview/
