@@ -110,32 +110,59 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
         const incoming = t.messages.filter((m) => m.sender !== 'me').length;
         setSeen((prev) => ({ ...prev, [t.thread.id]: incoming }));
       }
-      void logEvent({ sessionId: session.id, participantId: participant.id, type: 'thread_open', target: contactKey });
+      void logEvent({
+        sessionId: session.id,
+        participantId: participant.id,
+        seatId: seat.id,
+        type: 'thread_opened',
+        channel: 'message',
+        target: contactKey,
+      });
     },
-    [threads, session.id, participant.id],
+    [threads, session.id, participant.id, seat.id],
   );
 
   const selectEmail = useCallback(
     (id: string) => {
       setSelection({ kind: 'email', id });
-      void logEvent({ sessionId: session.id, participantId: participant.id, type: 'email_read', target: id });
+      void logEvent({
+        sessionId: session.id,
+        participantId: participant.id,
+        seatId: seat.id,
+        type: 'email_read',
+        channel: 'email',
+        target: id,
+      });
     },
-    [session.id, participant.id],
+    [session.id, participant.id, seat.id],
   );
 
   const openBrief = useCallback(() => {
     setBriefOpen(true);
-    void logEvent({ sessionId: session.id, participantId: participant.id, type: 'brief_opened' });
-  }, [session.id, participant.id]);
+    void logEvent({
+      sessionId: session.id,
+      participantId: participant.id,
+      seatId: seat.id,
+      type: 'brief_opened',
+      channel: 'brief',
+    });
+  }, [session.id, participant.id, seat.id]);
 
   const startCall = useCallback(() => {
     if (selection?.kind !== 'thread') return;
     const c = contactByKey.get(selection.contactKey);
     if (c?.callable) {
       setCallContact(c);
-      void logEvent({ sessionId: session.id, participantId: participant.id, type: 'call_placed', target: c.key });
+      void logEvent({
+        sessionId: session.id,
+        participantId: participant.id,
+        seatId: seat.id,
+        type: 'call_placed',
+        channel: 'call',
+        target: c.key,
+      });
     }
-  }, [selection, contactByKey, session.id, participant.id]);
+  }, [selection, contactByKey, session.id, participant.id, seat.id]);
 
   const selectedThread =
     selection?.kind === 'thread' ? threads.find((t) => t.thread.contact_key === selection.contactKey) : undefined;

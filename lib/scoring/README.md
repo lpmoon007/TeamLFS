@@ -1,0 +1,54 @@
+# Scoring pipeline (`lib/scoring`)
+
+The **load-bearing wall** of the product (Behavioral Memory Spine §3). A schema with
+no validated scoring is a filing cabinet, not an instrument — so this is built as its
+own module from day one, versioned, auditable, and re-runnable.
+
+## The contract (do not break)
+
+1. **Reads Layer 1 only.** `scoreSession()` takes raw `events` and nothing else, so
+   the entire historical corpus can be re-scored when a rubric improves — no re-run.
+2. **Every score cites evidence.** `evidence_event_ids` traces each claim back to the
+   exact raw acts. This is what survives scrutiny under premium pricing.
+3. **Everything above Layer 1 is versioned.** Each score carries `taxonomy_version`
+   (the rubric set) + `scorer_version` (this module's version). A re-score writes new
+   rows; it never mutates or deletes prior ones.
+4. **Hypothesis ≠ diagnostic.** A trait is a research hypothesis until its
+   `status` flips to `validated` (after inter-rater reliability is measured). Use
+   `isValidated(traitKey)` before letting a score drive a client-facing claim.
+
+## Files
+
+| File | Role |
+|---|---|
+| `types.ts` | `SpineEvent`, `TraitRubric`, `TraitScore`, `Evidence`. |
+| `registry.ts` | **v0.1 dynamics registry** (hypothesis). Each rubric's `evidence()` is a pure fn over events → cited signal/counter events. Canonical source that seeds `trait_registry`. |
+| `score.ts` | `scoreSession()` (deterministic v0.1) + `aiScoreSession()` (AI-first seam) + `SCORER_VERSION`. Confidence shrinks toward 0 when evidence is sparse. |
+| `index.ts` | Public surface + `isValidated()`. |
+
+## v0.1 status: hypothesis
+
+The 7 starter axes came from field anecdotes and are **v0.1, expected to change**.
+The heuristics in `registry.ts` are deliberately simple placeholders — their purpose
+is to make the pipeline *real* (versioning + citations + re-scorability), not to be
+accurate yet. They read explicit `payload_json` flags the capture layer should record
+(e.g. `discloses_private`, `tone`, `out_group`), which doubles as a spec for what to
+**over-capture now** so scoring can improve without a re-run. A missing flag yields no
+evidence — never a wrong-but-confident score.
+
+## What's next (post-core, per §9)
+
+- Replace the heuristic coder with the AI coder behind `aiScoreSession()` (Claude reads
+  cited evidence + versioned rubric → score + confidence).
+- Measure **inter-rater reliability** (AI vs human) per trait before any trait becomes
+  a product claim; flip `status` to `validated` only then.
+- Build the LDOL lens (Layer 3) as a versioned view that reads these scores + events.
+
+## Usage sketch
+
+```ts
+import { aiScoreSession, toTraitScoreRows } from '@/lib/scoring';
+
+const scores = await aiScoreSession(events, { participantId, sessionId });
+await db.from('trait_scores').insert(toTraitScoreRows(scores)); // server-side
+```

@@ -12,6 +12,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 | Phase | What | State |
 |------:|------|-------|
 | 1 | **Schema + auth** in Supabase; seed one scenario | ✅ done — schema + real "The Signal" seed |
+| 1b | **Behavioral Memory Spine** — lock event log, version traits, stub scoring | ✅ done — see below |
 | 2 | Participant read path (render a seat from DB, Realtime subscribe) | ✅ done — Next.js app |
 | 3 | Messaging + presence live | ⬜ |
 | 4 | Email + documents (approve/return → events) | ⬜ |
@@ -19,6 +20,25 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 6 | Voice (npc-reply + tts Edge Functions; call overlay) | ⬜ |
 | 7 | Capture-log hardening + minimal debrief view | ⬜ |
 | 8 | Facilitator dashboard (separate phase) | ⬜ |
+
+## Behavioral Memory Spine (the core IP)
+
+The persistent record of how a person behaves under load — the moat (founder decision:
+defensibility lives in the **engine**, not the lens). Three layers, built per its
+design doc; **Layer 1 is locked because the event schema can't be retrofitted**:
+
+- **Layer 1 — `events` (LOCKED, append-only):** maximal capture incl. the high-signal
+  negatives (un-sent drafts, ignored threads, silence) + `inject_delivered` pairing.
+  Enriched in `0005` (`seat_id`, `channel`, `scenario_ms`, `derived`, `ts`).
+- **Layer 2 — traits (VERSIONED):** `trait_registry` (v0.1, all `hypothesis`),
+  `trait_scores` (tagged `taxonomy_version` + `scorer_version`, cite `evidence_event_ids`).
+- **Scoring function** (`lib/scoring/`) — its own module: reads Layer 1 only, AI-first
+  seam, validated-vs-hypothesis gate. **The instrument, not a detail.**
+- **`behavioral_profile`** reserved (empty); **`consents`** for capture/retention (§8).
+
+Full notes: **`docs/behavioral-spine.md`** and **`lib/scoring/README.md`**.
+One-line rule: *lock the event schema; version the traits; version the lens; treat
+scoring as the instrument.*
 
 ## The seed — "The Signal" (Champion Iron executive team)
 
