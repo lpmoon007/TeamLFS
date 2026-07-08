@@ -40,6 +40,19 @@ Full notes: **`docs/behavioral-spine.md`** and **`lib/scoring/README.md`**.
 One-line rule: *lock the event schema; version the traits; version the lens; treat
 scoring as the instrument.*
 
+## Roadmap & reserved hooks
+
+The build map above the phases is **`docs/vision-roadmap.md`** (TLFS as a behavioral
+instrument; the moat is the engine). Its discipline: *reserve the hooks now so no later
+horizon needs a migration.* Reserved in-repo so far:
+
+- **Event richness** — `events`, locked & maximal (`0005`).
+- **Behavioral profile** — `behavioral_profile`, reserved empty (`0005`) — the Horizon-1
+  dependency for Director-AI / twin / NPC gossip / season.
+- **Casting** — seat ≠ participant, every seat Human-or-AI: `participants.cast_kind` +
+  `agent_json`, nullable `token` (`0006`). Reserved, not built.
+- **Consent/retention** — `consents` (`0005`).
+
 ## The seed — "The Signal" (Champion Iron executive team)
 
 `supabase/seed.sql` is **generated** from `scripts/seed/build_seed.mjs`, which holds
