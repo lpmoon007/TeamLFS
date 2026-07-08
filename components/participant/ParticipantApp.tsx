@@ -1,8 +1,9 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Contact, EmailRow, MessageRow, SeatBundle, ThreadView as ThreadViewT } from '@/lib/types';
-import { acceptDisclaimer, logEvent } from '@/lib/actions';
-import { useParticipantChannel, type RealtimeEvent } from '@/lib/realtime';
+import { acceptDisclaimer, logEvent, sendMessage } from '@/lib/actions';
+import { useParticipantChannel, useSessionPresence, type RealtimeEvent } from '@/lib/realtime';
+import { colorFrom } from '@/lib/ui';
 import { Header } from './Header';
 import { LeftPanel } from './LeftPanel';
 import { ThreadView } from './ThreadView';
@@ -32,7 +33,31 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
   const [callContact, setCallContact] = useState<Contact | null>(null);
   const [ended, setEnded] = useState(session.status === 'ended');
 
-  const contactByKey = useMemo(() => new Map(contacts.map((c) => [c.key, c])), [contacts]);
+  // Teammates (other real participants) are conversable too — synthesize pseudo-
+  // contacts so threads/selection resolve uniformly with NPC contacts.
+  const teammateContacts = useMemo<Contact[]>(
+    () =>
+      teammates.map((t) => ({
+        id: `team:${t.seat_key}`,
+        key: t.seat_key,
+        full: t.name,
+        role: t.role,
+        section: 'TEAM',
+        color: colorFrom(t.seat_key),
+        callable: false,
+        persona: null,
+        voice_id: null,
+        opener: null,
+        meta: {},
+      })),
+    [teammates],
+  );
+  const contactByKey = useMemo(
+    () => new Map([...contacts, ...teammateContacts].map((c) => [c.key, c])),
+    [contacts, teammateContacts],
+  );
+
+  const canSend = accepted && !ended && session.status === 'live';
 
   // Restore "accepted" from a prior visit (disclaimer shows once).
   useEffect(() => {
@@ -71,11 +96,18 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
     [contactByKey],
   );
 
-  const { online, connected } = useParticipantChannel({
+  const { connected } = useParticipantChannel({
     sessionId: session.id,
     seatKey: seat.key,
     enabled: accepted && !ended,
     onEvent,
+  });
+
+  const { online } = useSessionPresence({
+    sessionId: session.id,
+    seatKey: seat.key,
+    name: seat.name,
+    enabled: accepted && !ended,
   });
 
   // ---- derived: unread + last-message preview per contact ----
@@ -164,6 +196,63 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
     }
   }, [selection, contactByKey, session.id, participant.id, seat.id]);
 
+  // ---- send a message (Phase 3): optimistic append, then server persists/mirrors ----
+  const sendInThread = useCallback(
+    async (contactKey: string, body: string) => {
+      const tempId = `local:${crypto.randomUUID()}`;
+      const optimistic: MessageRow = {
+        id: tempId,
+        thread_id: `local:${contactKey}`,
+        sender: 'me',
+        body,
+        sent_at: new Date().toISOString(),
+      };
+      // Mark the thread read (my own send shouldn't inflate unread) + append.
+      setThreads((prev) => appendMessage(prev, contactByKey, contactKey, optimistic));
+
+      const res = await sendMessage({
+        sessionId: session.id,
+        participantId: participant.id,
+        token: participant.token,
+        contactKey,
+        body,
+      });
+      // Reconcile the optimistic row with the authoritative one.
+      if (res.ok && res.message) {
+        setThreads((prev) =>
+          prev.map((t) =>
+            t.thread.contact_key === contactKey
+              ? {
+                  ...t,
+                  thread: { ...t.thread, id: res.message!.thread_id },
+                  messages: t.messages.map((m) =>
+                    m.id === tempId ? { ...m, id: res.message!.id, thread_id: res.message!.thread_id, sent_at: res.message!.sent_at } : m,
+                  ),
+                }
+              : t,
+          ),
+        );
+      }
+    },
+    [contactByKey, session.id, participant.id, participant.token],
+  );
+
+  // The un-sent message: capture verbatim as an omission event (spine §1).
+  const draftDiscarded = useCallback(
+    (contactKey: string, text: string) => {
+      void logEvent({
+        sessionId: session.id,
+        participantId: participant.id,
+        seatId: seat.id,
+        type: 'message_draft_discarded',
+        channel: 'message',
+        target: contactKey,
+        payload: { text, length: text.length },
+      });
+    },
+    [session.id, participant.id, seat.id],
+  );
+
   const selectedThread =
     selection?.kind === 'thread' ? threads.find((t) => t.thread.contact_key === selection.contactKey) : undefined;
   const selectedContact = selection?.kind === 'thread' ? contactByKey.get(selection.contactKey) ?? null : null;
@@ -202,6 +291,9 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
             contact={selectedContact}
             contactKey={selection.contactKey}
             messages={selectedThread?.messages ?? []}
+            canSend={canSend}
+            onSend={(body) => void sendInThread(selection.contactKey, body)}
+            onDraftDiscarded={draftDiscarded}
             onCall={startCall}
           />
         ) : selection?.kind === 'email' && selectedEmail ? (
@@ -242,22 +334,30 @@ function applyIncomingMessage(
     body: String(payload?.body ?? ''),
     sent_at: payload?.sent_at ?? new Date().toISOString(),
   };
-  setThreads((prev) => {
-    const idx = prev.findIndex((t) => t.thread.contact_key === contactKey);
-    if (idx === -1) {
-      const newThread: ThreadViewT = {
-        thread: { id: msg.thread_id, seat_id: '', contact_key: contactKey, is_group: false },
-        contact: contactByKey.get(contactKey) ?? null,
-        messages: [msg],
-      };
-      return [newThread, ...prev];
-    }
-    const next = prev.slice();
-    const t = next[idx]!;
-    if (t.messages.some((m) => m.id === msg.id)) return prev; // de-dupe
-    next[idx] = { ...t, messages: [...t.messages, msg] };
-    // bubble active thread to top
-    next.unshift(next.splice(idx, 1)[0]!);
-    return next;
-  });
+  setThreads((prev) => appendMessage(prev, contactByKey, contactKey, msg));
+}
+
+// Append a message to a contact's thread (creating it if needed), de-duped by id,
+// bubbling the active thread to the top.
+function appendMessage(
+  prev: ThreadViewT[],
+  contactByKey: Map<string, Contact>,
+  contactKey: string,
+  msg: MessageRow,
+): ThreadViewT[] {
+  const idx = prev.findIndex((t) => t.thread.contact_key === contactKey);
+  if (idx === -1) {
+    const newThread: ThreadViewT = {
+      thread: { id: msg.thread_id, seat_id: '', contact_key: contactKey, is_group: false },
+      contact: contactByKey.get(contactKey) ?? null,
+      messages: [msg],
+    };
+    return [newThread, ...prev];
+  }
+  const next = prev.slice();
+  const t = next[idx]!;
+  if (t.messages.some((m) => m.id === msg.id)) return prev; // de-dupe
+  next[idx] = { ...t, messages: [...t.messages, msg] };
+  next.unshift(next.splice(idx, 1)[0]!); // bubble to top
+  return next;
 }

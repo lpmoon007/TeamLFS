@@ -1,26 +1,59 @@
 'use client';
 import type { Contact, MessageRow } from '@/lib/types';
 import { formatTime } from '@/lib/ui';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-// Read path: renders an existing thread. The composer is present but disabled —
-// sending lands in Phase 3 (messaging + presence). The Call button opens the call
+// Phase 3: live send. Enter sends, Shift+Enter newlines. The un-sent draft is
+// captured as `message_draft_discarded` when the thread is abandoned with unsent
+// text (the highest-signal omission, per the spine). The Call button opens the call
 // overlay; the live voice loop lands in Phase 6.
 export function ThreadView({
   contact,
   contactKey,
   messages,
+  canSend,
+  onSend,
+  onDraftDiscarded,
   onCall,
 }: {
   contact: Contact | null;
   contactKey: string;
   messages: MessageRow[];
+  canSend: boolean;
+  onSend: (body: string) => void;
+  onDraftDiscarded: (contactKey: string, text: string) => void;
   onCall: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [draft, setDraft] = useState('');
+  const draftRef = useRef('');
+  draftRef.current = draft;
+  const sentRef = useRef(false);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length]);
+
+  // Reset the composer when switching threads; capture the prior thread's un-sent
+  // draft as an omission event on unmount / thread change.
+  useEffect(() => {
+    setDraft('');
+    sentRef.current = false;
+    return () => {
+      const leftover = draftRef.current.trim();
+      if (leftover && !sentRef.current) onDraftDiscarded(contactKey, leftover);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactKey]);
+
+  const submit = () => {
+    const body = draft.trim();
+    if (!body || !canSend) return;
+    sentRef.current = true;
+    onSend(body);
+    setDraft('');
+    sentRef.current = false;
+  };
 
   const title = contact?.full ?? contactKey;
   return (
@@ -55,10 +88,18 @@ export function ThreadView({
 
       <div className="composer">
         <textarea
-          disabled
-          placeholder="Replying goes live in the next phase of the build (read-only preview)."
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
+          placeholder={canSend ? `Message ${title}…` : 'Messaging opens when the session is live.'}
+          disabled={!canSend}
         />
-        <button className="btn" disabled>
+        <button className="btn primary" onClick={submit} disabled={!canSend || !draft.trim()}>
           Send
         </button>
       </div>

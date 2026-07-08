@@ -88,13 +88,13 @@ export function LeftPanel({
               <ContactRow
                 key={`team-${t.seat_key}`}
                 name={t.name}
-                sub={t.role ?? ''}
+                sub={lastByContact[t.seat_key] ? truncate(lastByContact[t.seat_key]!, 38) : t.role ?? ''}
                 color={colorFrom(t.seat_key)}
                 online={online.has(t.seat_key) || t.present}
-                active={false}
+                active={selectedKey === t.seat_key}
                 callable={false}
-                unread={0}
-                onClick={undefined}
+                unread={unreadByContact[t.seat_key] ?? 0}
+                onClick={() => onSelectThread(t.seat_key)}
               />
             ))}
 

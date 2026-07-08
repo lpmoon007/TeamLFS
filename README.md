@@ -14,7 +14,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 1 | **Schema + auth** in Supabase; seed one scenario | ✅ done — schema + real "The Signal" seed |
 | 1b | **Behavioral Memory Spine** — lock event log, version traits, stub scoring | ✅ done — see below |
 | 2 | Participant read path (render a seat from DB, Realtime subscribe) | ✅ done — Next.js app |
-| 3 | Messaging + presence live | ⬜ |
+| 3 | Messaging + presence live | ✅ done — send + mirror + presence |
 | 4 | Email + documents (approve/return → events) | ⬜ |
 | 5 | Inject firing (manual, then make.com) | ⬜ |
 | 6 | Voice (npc-reply + tts Edge Functions; call overlay) | ⬜ |
@@ -146,9 +146,15 @@ lib/
   (`message`/`email`/`call`/`situation`). Later phases' server writes broadcast onto
   this same channel, so the read path stays live without exposing privileged reads to
   the anon client.
-- **Read-only by design**: composer, email Approve/Return, and the call overlay are
-  present but inert — sending (Phase 3), document actions (Phase 4), and the voice loop
-  (Phase 6) come next.
+- **Messaging is live (Phase 3)**: the composer sends (Enter to send). `sendMessage`
+  (server action) finds/creates the thread, writes the message, **mirrors** it into a
+  teammate's thread + **broadcasts** to their seat channel, and appends `message_sent`
+  to the capture log with scoring context (`target_kind`, `target_section`, `out_group`).
+  Presence is session-wide (`useSessionPresence`) so every seat sees who's online. The
+  **un-sent draft** is captured as `message_draft_discarded` on abandon (spine §1).
+  NPC auto-replies (scripted injects / LLM) come with Phases 5–6.
+- **Still inert** (by design): email Approve/Return (Phase 4) and the call voice loop
+  (Phase 6).
 
 The seed materializes each seat's T=0 messages into the demo session, so opening
 `/s/<demo-session-id>?t=demo-david-REPLACE` shows a populated seat.
