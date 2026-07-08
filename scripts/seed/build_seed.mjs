@@ -362,6 +362,27 @@ const DOCUMENTS = [
   { key: 'greensteel_model', title: 'GreenSteel_Opportunity_Model_v1.xlsx',
     meta: { type: 'attachment', file: 'GreenSteel_Opportunity_Model_v1.xlsx', from: 'jonas_hartmann', seat: 'michael' },
     body: { type: 'attachment', note: 'Rough financial model of the low-carbon offtake upside case (placeholder for the spreadsheet artifact).' } },
+  { key: 'loi_draft', title: 'Preliminary Letter of Intent — DRAFT', meta: { type: 'document', approvable: true, for_seat: 'david' },
+    body: { type: 'document', text:
+`PRELIMINARY LETTER OF INTENT — DRAFT (non-binding)
+
+Between: Champion Iron Limited ("Champion") and the Government of Canada,
+Ministry of Natural Resources ("the Ministry").
+
+Re: National green-steel anchor partnership — CAMI feasibility acceleration.
+
+1. Champion confirms its interest in serving as the anchor Canadian iron-ore
+   partner for the Ministry's green industrial initiative.
+2. The Ministry contemplates federal co-investment toward CAMI feasibility
+   acceleration and preferred introductions to three international steel producers
+   seeking low-carbon supply agreements.
+3. The parties intend a public announcement at the G7 summit, subject to timing.
+
+This letter is preliminary and non-binding, and is subject to due diligence, board
+approval, lender notification where required, and definitive agreements.
+
+Signed: ______________________________   Date: __________
+        David Cataford, Chief Executive Officer, Champion Iron` } },
 ];
 
 // --- Injects ------------------------------------------------------------------
@@ -682,6 +703,27 @@ for (const { seat, contact, bodies } of demoThreads.values()) {
     const mid = uuid(`msg:demo:${seat}:${contact}:${n}`);
     demo.push(`insert into messages (id, thread_id, sender, body, sent_at) values (${q(mid)}, ${q(threadId)}, ${q(sender)}, ${q(body)}, now() + make_interval(secs => ${secs++}));`);
   });
+}
+
+// Demo emails (Phase 4 read + document-action path). One with a document attachment
+// (the LOI draft → David, Approve/Return/Edit) and one plain gov inquiry (→ Angela).
+demo.push(`-- demo emails (Phase 4)`);
+const demoEmails = [
+  { seat: 'david', contact: 'paul_arsenault', subject: 'Preliminary Letter of Intent — for your review',
+    document: 'loi_draft',
+    text: 'David — as discussed, attached is the preliminary letter of intent for your review ahead of Thursday. It is non-binding. If you are comfortable, your sign-off lets us proceed to the announcement track. — Paul' },
+  { seat: 'angela', contact: 'daniel_lefebvre', subject: 'Stakeholder relations summary — preliminary due diligence',
+    document: null,
+    text: "Good morning -- this is coming through Champion Iron's general government relations contact. I'm reaching out on behalf of Paul Arsenault's office at Natural Resources Canada. We're compiling a preliminary stakeholder relations summary for a potential partnership announcement. We've been directed to contact whoever owns Indigenous and community consultation files for your Quebec and Labrador operations. Could you help us identify the right person?" },
+];
+for (const e of demoEmails) {
+  const eid = uuid(`email:demo:${e.seat}:${e.contact}`);
+  const docId = e.document ? uuid(`doc:${e.document}`) : null;
+  demo.push(
+    `insert into emails (id, session_id, seat_id, contact_key, subject, body_json, document_id, status, delivered_at) values (` +
+    `${q(eid)}, ${q(SESSION_ID)}, ${q(seatId(e.seat))}, ${q(e.contact)}, ${q(e.subject)}, ` +
+    `${j({ text: e.text })}, ${docId ? q(docId) : 'null'}, 'delivered', now());`,
+  );
 }
 demo.push(`commit;`);
 

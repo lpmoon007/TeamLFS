@@ -84,6 +84,9 @@ export interface EmailRow {
   delivered_at: string | null;
   read_at: string | null;
   created_at: string;
+  decision: 'approved' | 'returned' | null;
+  decision_json: Record<string, unknown>;
+  decided_at: string | null;
 }
 
 /** A teammate = another participant (real person) in the same session. */
@@ -114,6 +117,8 @@ export interface SeatBundle {
   seatBrief: DocumentRow | null;
   threads: ThreadView[];
   emails: EmailRow[];
+  /** Documents attached to this seat's emails, keyed by document id. */
+  documentsById: Record<string, DocumentRow>;
 }
 
 export type ResolveResult =

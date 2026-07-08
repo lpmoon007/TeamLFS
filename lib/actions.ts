@@ -179,6 +179,124 @@ export async function sendMessage(params: {
   return { ok: true, message: { id: myMsg.id, thread_id: myThread.id, sent_at: myMsg.sent_at } };
 }
 
+// Verify a token binds to this participant + live session; returns the seat_id.
+async function authParticipant(
+  db: ReturnType<typeof createAdminClient>,
+  p: { sessionId: string; participantId: string; token: string },
+): Promise<{ seatId: string } | null> {
+  const { data } = await db
+    .from('participants')
+    .select('id, seat_id, session:sessions!inner(status)')
+    .eq('id', p.participantId)
+    .eq('session_id', p.sessionId)
+    .eq('token', p.token)
+    .maybeSingle<any>();
+  if (!data || data.session?.status !== 'live') return null;
+  return { seatId: data.seat_id };
+}
+
+/** Phase 4 — mark an email read: stamp status/read_at and log `email_read` (Layer 1). */
+export async function markEmailRead(params: {
+  sessionId: string;
+  participantId: string;
+  token: string;
+  emailId: string;
+}): Promise<{ ok: boolean; read_at?: string }> {
+  const db = createAdminClient();
+  const auth = await authParticipant(db, params);
+  if (!auth) return { ok: false };
+
+  // Only mark the email if it belongs to this seat, and only stamp read_at once.
+  const { data: email } = await db
+    .from('emails')
+    .select('id, read_at')
+    .eq('id', params.emailId)
+    .eq('seat_id', auth.seatId)
+    .maybeSingle<{ id: string; read_at: string | null }>();
+  if (!email) return { ok: false };
+
+  const readAt = email.read_at ?? new Date().toISOString();
+  if (!email.read_at) {
+    await db.from('emails').update({ status: 'read', read_at: readAt }).eq('id', params.emailId);
+  }
+  await db.from('events').insert({
+    session_id: params.sessionId,
+    participant_id: params.participantId,
+    seat_id: auth.seatId,
+    type: 'email_read',
+    channel: 'email' as EventChannel,
+    target: params.emailId,
+    payload_json: { first_open: !email.read_at },
+  });
+  return { ok: true, read_at: readAt };
+}
+
+export type DocAction = 'approve' | 'return' | 'edit';
+
+/**
+ * Phase 4 — act on an email's attached document. Writes the canonical capture-log
+ * event (doc_approved | doc_returned | doc_edited, channel 'doc') and denormalizes
+ * the terminal decision onto the email. Approve/Return are terminal; Edit is not.
+ */
+export async function documentAction(params: {
+  sessionId: string;
+  participantId: string;
+  token: string;
+  emailId: string;
+  action: DocAction;
+  payload?: { reason?: string; text?: string };
+}): Promise<{ ok: boolean; decision?: 'approved' | 'returned' | null }> {
+  const db = createAdminClient();
+  const auth = await authParticipant(db, params);
+  if (!auth) return { ok: false };
+
+  const { data: email } = await db
+    .from('emails')
+    .select('id, document_id, decision')
+    .eq('id', params.emailId)
+    .eq('seat_id', auth.seatId)
+    .maybeSingle<{ id: string; document_id: string | null; decision: string | null }>();
+  if (!email) return { ok: false };
+  // A terminal decision is final.
+  if (email.decision) return { ok: false, decision: email.decision as 'approved' | 'returned' };
+
+  const type =
+    params.action === 'approve' ? 'doc_approved' : params.action === 'return' ? 'doc_returned' : 'doc_edited';
+
+  await db.from('events').insert({
+    session_id: params.sessionId,
+    participant_id: params.participantId,
+    seat_id: auth.seatId,
+    type,
+    channel: 'doc' as EventChannel,
+    target: email.document_id ?? params.emailId,
+    payload_json: {
+      email_id: params.emailId,
+      reason: params.payload?.reason ?? null,
+      edited_text: params.action === 'edit' ? params.payload?.text ?? null : null,
+    },
+  });
+
+  if (params.action === 'edit') {
+    await db
+      .from('emails')
+      .update({ decision_json: { edited_text: params.payload?.text ?? '' } })
+      .eq('id', params.emailId);
+    return { ok: true, decision: null };
+  }
+
+  const decision = params.action === 'approve' ? 'approved' : 'returned';
+  await db
+    .from('emails')
+    .update({
+      decision,
+      decided_at: new Date().toISOString(),
+      decision_json: { reason: params.payload?.reason ?? null },
+    })
+    .eq('id', params.emailId);
+  return { ok: true, decision };
+}
+
 /**
  * Capture-log helper for read-path interactions (Layer 1). Records the channel and
  * seat alongside the act so behavior is fully re-codable later (§1). Never writes

@@ -125,10 +125,23 @@ export async function resolveSeat(sessionId: string, token: string | undefined):
 
   const { data: emails } = await db
     .from('emails')
-    .select('id, contact_key, subject, body_json, document_id, status, delivered_at, read_at, created_at')
+    .select(
+      'id, contact_key, subject, body_json, document_id, status, delivered_at, read_at, created_at, decision, decision_json, decided_at',
+    )
     .eq('session_id', sessionId)
     .eq('seat_id', participant.seat_id)
     .order('created_at', { ascending: false });
+
+  // Documents attached to those emails, so the email view can render/edit them.
+  const docIds = (emails ?? []).map((e) => e.document_id).filter((x): x is string => !!x);
+  const documentsById: Record<string, DocumentRow> = {};
+  if (docIds.length) {
+    const { data: emailDocs } = await db
+      .from('documents')
+      .select('id, key, title, meta, body_json')
+      .in('id', docIds);
+    for (const d of emailDocs ?? []) documentsById[d.id] = d as DocumentRow;
+  }
 
   return {
     ok: true,
@@ -143,6 +156,7 @@ export async function resolveSeat(sessionId: string, token: string | undefined):
       seatBrief: seatBrief as DocumentRow | null,
       threads,
       emails: (emails ?? []) as EmailRow[],
+      documentsById,
     },
   };
 }

@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Contact, EmailRow, MessageRow, SeatBundle, ThreadView as ThreadViewT } from '@/lib/types';
-import { acceptDisclaimer, logEvent, sendMessage } from '@/lib/actions';
+import { acceptDisclaimer, documentAction, logEvent, markEmailRead, sendMessage, type DocAction } from '@/lib/actions';
 import { useParticipantChannel, useSessionPresence, type RealtimeEvent } from '@/lib/realtime';
 import { colorFrom } from '@/lib/ui';
 import { Header } from './Header';
@@ -157,16 +157,44 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
   const selectEmail = useCallback(
     (id: string) => {
       setSelection({ kind: 'email', id });
-      void logEvent({
+      // Server marks read (status/read_at) + logs email_read (Layer 1).
+      void markEmailRead({ sessionId: session.id, participantId: participant.id, token: participant.token, emailId: id }).then(
+        (res) => {
+          if (res.ok && res.read_at) {
+            setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, read_at: res.read_at!, status: 'read' } : e)));
+          }
+        },
+      );
+    },
+    [session.id, participant.id, participant.token],
+  );
+
+  // ---- document actions (Phase 4): approve / return / edit an email's attachment ----
+  const actOnDocument = useCallback(
+    async (emailId: string, action: DocAction, payload?: { reason?: string; text?: string }) => {
+      const res = await documentAction({
         sessionId: session.id,
         participantId: participant.id,
-        seatId: seat.id,
-        type: 'email_read',
-        channel: 'email',
-        target: id,
+        token: participant.token,
+        emailId,
+        action,
+        payload,
       });
+      if (!res.ok && res.decision === undefined) return;
+      setEmails((prev) =>
+        prev.map((e) => {
+          if (e.id !== emailId) return e;
+          if (action === 'edit') return { ...e, decision_json: { ...e.decision_json, edited_text: payload?.text ?? '' } };
+          return {
+            ...e,
+            decision: res.decision ?? e.decision,
+            decided_at: new Date().toISOString(),
+            decision_json: { ...e.decision_json, reason: payload?.reason ?? null },
+          };
+        }),
+      );
     },
-    [session.id, participant.id, seat.id],
+    [session.id, participant.id, participant.token],
   );
 
   const openBrief = useCallback(() => {
@@ -297,7 +325,14 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
             onCall={startCall}
           />
         ) : selection?.kind === 'email' && selectedEmail ? (
-          <EmailView email={selectedEmail} />
+          <EmailView
+            email={selectedEmail}
+            document={selectedEmail.document_id ? bundle.documentsById[selectedEmail.document_id] ?? null : null}
+            canAct={canSend}
+            onApprove={() => void actOnDocument(selectedEmail.id, 'approve')}
+            onReturn={(reason) => void actOnDocument(selectedEmail.id, 'return', { reason })}
+            onEdit={(text) => void actOnDocument(selectedEmail.id, 'edit', { text })}
+          />
         ) : (
           <div className="main">
             <div className="empty-main">

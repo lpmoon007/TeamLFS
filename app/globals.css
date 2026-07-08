@@ -141,7 +141,12 @@ button { font-family: inherit; cursor: pointer; }
 .email-formal .e-body { font-size: 14px; color: var(--text); white-space: pre-wrap; line-height: 1.65; }
 .attachment { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: var(--bg-elev); }
 .attachment .a-title { font-weight: 600; }
-.attachment .a-actions { display: flex; gap: 8px; margin-top: 10px; }
+.attachment .a-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.attachment .doc-body { margin-top: 10px; padding: 12px; background: var(--bg); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); white-space: pre-wrap; font-size: 13px; color: var(--text-dim); line-height: 1.6; max-height: 320px; overflow-y: auto; }
+.attachment .doc-edit { margin-top: 10px; width: 100%; min-height: 200px; resize: vertical; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); padding: 10px 12px; font-family: inherit; font-size: 13px; line-height: 1.6; }
+.decision { margin-top: 12px; font-weight: 600; font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm); }
+.decision.approved { color: var(--online); background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3); }
+.decision.returned { color: var(--warn); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); }
 
 /* ----- modals / overlays ----- */
 .scrim { position: fixed; inset: 0; background: rgba(4, 8, 12, 0.72); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 50; padding: 20px; }

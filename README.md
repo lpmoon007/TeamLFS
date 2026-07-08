@@ -15,7 +15,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 1b | **Behavioral Memory Spine** — lock event log, version traits, stub scoring | ✅ done — see below |
 | 2 | Participant read path (render a seat from DB, Realtime subscribe) | ✅ done — Next.js app |
 | 3 | Messaging + presence live | ✅ done — send + mirror + presence |
-| 4 | Email + documents (approve/return → events) | ⬜ |
+| 4 | Email + documents (approve/return → events) | ✅ done — read + Approve/Return/Edit |
 | 5 | Inject firing (manual, then make.com) | ⬜ |
 | 6 | Voice (npc-reply + tts Edge Functions; call overlay) | ⬜ |
 | 7 | Capture-log hardening + minimal debrief view | ⬜ |
@@ -153,8 +153,13 @@ lib/
   Presence is session-wide (`useSessionPresence`) so every seat sees who's online. The
   **un-sent draft** is captured as `message_draft_discarded` on abandon (spine §1).
   NPC auto-replies (scripted injects / LLM) come with Phases 5–6.
-- **Still inert** (by design): email Approve/Return (Phase 4) and the call voice loop
-  (Phase 6).
+- **Email + documents are live (Phase 4)**: opening an email marks it read
+  (`markEmailRead` → status/`read_at` + `email_read` event). If it carries a document
+  (e.g. the LOI draft → David), the participant can **Approve / Return (with reason) /
+  Edit** it — each writes a capture-log event (`doc_approved`/`doc_returned`/`doc_edited`,
+  channel `doc`) and the terminal decision is denormalized onto the email (`0007`).
+- **Still inert** (by design): the call **voice loop** (Phase 6). Inbound email/inject
+  *delivery* is wired for Realtime but fired by the facilitator/automation in Phase 5.
 
 The seed materializes each seat's T=0 messages into the demo session, so opening
 `/s/<demo-session-id>?t=demo-david-REPLACE` shows a populated seat.
