@@ -16,7 +16,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 2 | Participant read path (render a seat from DB, Realtime subscribe) | ✅ done — Next.js app |
 | 3 | Messaging + presence live | ✅ done — send + mirror + presence |
 | 4 | Email + documents (approve/return → events) | ✅ done — read + Approve/Return/Edit |
-| 5 | Inject firing (manual, then make.com) | ⬜ |
+| 5 | Inject firing (manual, then make.com) | ✅ done — fire-inject engine + endpoint |
 | 6 | Voice (npc-reply + tts Edge Functions; call overlay) | ⬜ |
 | 7 | Capture-log hardening + minimal debrief view | ⬜ |
 | 8 | Facilitator dashboard (separate phase) | ⬜ |
@@ -39,6 +39,32 @@ design doc; **Layer 1 is locked because the event schema can't be retrofitted**:
 Full notes: **`docs/behavioral-spine.md`** and **`lib/scoring/README.md`**.
 One-line rule: *lock the event schema; version the traits; version the lens; treat
 scoring as the instrument.*
+
+## Firing injects (Phase 5)
+
+Authored beats (`injects`) become live state via the **fire-inject engine**
+(`lib/inject.ts`): it materializes the beat (message/email/situation/call/group) into
+a runtime row per recipient, **broadcasts** it to the seat channel, records what fired
+(`inject_fires`), and logs the paired **`inject_delivered`** event — so every downstream
+behavior is tied to its stimulus (spine §4). A best-effort `cancelIf` skips a
+no-response nag if the recipient already replied on that thread ("reply defuses the
+nag").
+
+Triggered manually now via a bearer-guarded endpoint (make.com schedules the *same*
+endpoint later). Set `FACILITATOR_SECRET`, then:
+
+```bash
+# list fireable beats for a session
+curl -H "Authorization: Bearer $FACILITATOR_SECRET" \
+  "$APP_URL/api/facilitator/injects?sessionId=$SESSION_ID"
+
+# fire one (force bypasses the cancelIf check)
+curl -X POST -H "Authorization: Bearer $FACILITATOR_SECRET" -H 'Content-Type: application/json' \
+  -d '{"sessionId":"'"$SESSION_ID"'","injectId":"'"$INJECT_ID"'"}' \
+  "$APP_URL/api/facilitator/fire-inject"
+```
+
+The full facilitator dashboard (a UI over this endpoint) is Phase 8.
 
 ## Roadmap & reserved hooks
 

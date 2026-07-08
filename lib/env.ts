@@ -19,6 +19,17 @@ export function serviceRoleKey(): string {
   return key;
 }
 
+/** Server-only shared secret guarding the facilitator/automation endpoints (§5). */
+export function facilitatorSecret(): string {
+  const s = process.env.FACILITATOR_SECRET ?? '';
+  if (!s) {
+    throw new Error(
+      'FACILITATOR_SECRET is not set. The facilitator/make.com inject endpoints require it.',
+    );
+  }
+  return s;
+}
+
 export function assertPublicEnv(): void {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error(
