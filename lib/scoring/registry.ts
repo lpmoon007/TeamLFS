@@ -157,6 +157,20 @@ export const REGISTRY: TraitRubric[] = [
       return { signalEventIds: ids(attentive), counterEventIds: ids(dismissive) };
     },
   },
+  {
+    // Build Addendum A1.4 — DERIVED signal reserved. Detecting "raised then
+    // overridden" needs cross-thread analysis (a concern raised + the thread
+    // proceeding without engaging it), which the flat per-event heuristics here
+    // can't do. Stubbed to no evidence so it never emits a false score; the real
+    // extractor lands with the validated scoring work (spine §3).
+    trait_key: 'raised_then_overridden',
+    taxonomy_version: TAXONOMY_VERSION,
+    definition: 'A participant raised a material concern and the group dismissed or talked past it.',
+    observable_signals: ['raises a concern in a thread', 'thread continues without engaging it', 'decision proceeds unchanged'],
+    status: 'hypothesis',
+    poles: { positive: 'overridden', negative: 'engaged', neutral: 'mixed' },
+    evidence: (): Evidence => ({ signalEventIds: [], counterEventIds: [] }),
+  },
 ];
 
 export function getRubrics(taxonomyVersion = TAXONOMY_VERSION): TraitRubric[] {

@@ -174,6 +174,10 @@ export async function sendMessage(params: {
       target_kind: teammateSeat ? 'teammate' : 'npc',
       target_section: section,
       out_group: section === 'EXTERNAL',
+      // A1.1 — directed edge: explicit recipient(s) so the comms map is truthful.
+      // (Group addressing will add addressed[] here when group threads land.)
+      recipients: [params.contactKey],
+      addressed: [],
     },
   });
 

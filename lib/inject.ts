@@ -68,6 +68,17 @@ export async function fireInject(
   let delivered = 0;
   for (const r of recipients) {
     await materialize(db, session.scenario_id, sessionId, inject, payload, r);
+    // A1.2 — per-seat inject resolution (delivered now; reconciled at finalize).
+    await db.from('inject_resolution').upsert(
+      {
+        session_id: sessionId,
+        inject_id: inject.id,
+        seat_id: r.seatId,
+        contact_key: payload.thread ?? payload.contact_key ?? null,
+        state: 'delivered',
+      },
+      { onConflict: 'session_id,inject_id,seat_id' },
+    );
     // Paired stimulus event (Layer 1) — this is what makes behavior attributable.
     await db.from('events').insert({
       session_id: sessionId,

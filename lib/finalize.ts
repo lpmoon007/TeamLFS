@@ -38,6 +38,7 @@ export async function finalizeSession(sessionId: string): Promise<FinalizeResult
   }
 
   const omissions = await sweepOmissions(db, sessionId);
+  await reconcileInjectResolution(db, sessionId);
 
   await db.from('sessions').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', sessionId);
 
@@ -125,6 +126,43 @@ async function sweepOmissions(db: Db, sessionId: string): Promise<number> {
 
   if (rows.length) await db.from('events').insert(rows);
   return rows.length;
+}
+
+// A1.2 — reconcile each delivered inject to its final per-seat state from the log:
+//   addressed  = the seat sent a message to that inject's contact after delivery
+//   opened     = the seat opened that thread (but didn't address it)
+//   ignored    = neither
+async function reconcileInjectResolution(db: Db, sessionId: string): Promise<void> {
+  const { data: rows } = await db
+    .from('inject_resolution')
+    .select('id, seat_id, contact_key, delivered_at, state')
+    .eq('session_id', sessionId);
+  if (!rows?.length) return;
+
+  const { data: events } = await db
+    .from('events')
+    .select('seat_id, type, target, ts')
+    .eq('session_id', sessionId)
+    .in('type', ['message_sent', 'thread_opened', 'call_placed']);
+  const ev = events ?? [];
+
+  for (const r of rows as any[]) {
+    if (r.state === 'addressed') continue; // terminal
+    const key = r.contact_key;
+    const t0 = new Date(r.delivered_at).getTime();
+    const acted = ev.some(
+      (e: any) =>
+        e.seat_id === r.seat_id &&
+        e.target === key &&
+        (e.type === 'message_sent' || e.type === 'call_placed') &&
+        new Date(e.ts).getTime() >= t0,
+    );
+    const opened = ev.some(
+      (e: any) => e.seat_id === r.seat_id && e.target === key && e.type === 'thread_opened' && new Date(e.ts).getTime() >= t0,
+    );
+    const state = acted ? 'addressed' : opened ? 'opened' : 'ignored';
+    await db.from('inject_resolution').update({ state, updated_at: new Date().toISOString() }).eq('id', r.id);
+  }
 }
 
 // Compute + persist a trait-score snapshot from the raw event log (Layer 1 only).
