@@ -2,6 +2,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { broadcast } from '@/lib/realtime-server';
 import { seatChannel } from '@/lib/channels';
+import { authParticipant } from '@/lib/participant-auth';
 import type { EventChannel } from '@/lib/scoring/types';
 
 /**
@@ -179,22 +180,6 @@ export async function sendMessage(params: {
   return { ok: true, message: { id: myMsg.id, thread_id: myThread.id, sent_at: myMsg.sent_at } };
 }
 
-// Verify a token binds to this participant + live session; returns the seat_id.
-async function authParticipant(
-  db: ReturnType<typeof createAdminClient>,
-  p: { sessionId: string; participantId: string; token: string },
-): Promise<{ seatId: string } | null> {
-  const { data } = await db
-    .from('participants')
-    .select('id, seat_id, session:sessions!inner(status)')
-    .eq('id', p.participantId)
-    .eq('session_id', p.sessionId)
-    .eq('token', p.token)
-    .maybeSingle<any>();
-  if (!data || data.session?.status !== 'live') return null;
-  return { seatId: data.seat_id };
-}
-
 /** Phase 4 — mark an email read: stamp status/read_at and log `email_read` (Layer 1). */
 export async function markEmailRead(params: {
   sessionId: string;
@@ -323,4 +308,140 @@ export async function logEvent(params: {
     scenario_ms: params.scenarioMs ?? null,
     payload_json: params.payload ?? {},
   });
+}
+
+// =============================================================================
+// Phase 6 — call lifecycle. The voice loop itself (STT → npc-reply → tts) runs
+// through the /api/voice/* routes; these actions manage the call row + capture log.
+// =============================================================================
+
+/** Participant places an OUTBOUND call to a callable contact. Returns callId + opener. */
+export async function placeCall(params: {
+  sessionId: string;
+  participantId: string;
+  token: string;
+  contactKey: string;
+}): Promise<{ ok: boolean; callId?: string; opener?: string | null }> {
+  const db = createAdminClient();
+  const auth = await authParticipant(db, params);
+  if (!auth) return { ok: false };
+
+  const { data: contact } = await db
+    .from('contacts')
+    .select('callable, opener')
+    .eq('scenario_id', auth.scenarioId)
+    .eq('key', params.contactKey)
+    .limit(1)
+    .maybeSingle<{ callable: boolean; opener: string | null }>();
+  if (!contact?.callable) return { ok: false };
+
+  const { data: call } = await db
+    .from('calls')
+    .insert({
+      session_id: params.sessionId,
+      seat_id: auth.seatId,
+      contact_key: params.contactKey,
+      direction: 'out',
+      started_at: new Date().toISOString(),
+      accepted: true,
+    })
+    .select('id')
+    .single<{ id: string }>();
+  if (!call) return { ok: false };
+
+  // The NPC's opener is the first transcript turn.
+  if (contact.opener) {
+    await db.from('call_turns').insert({ call_id: call.id, who: 'them', text: contact.opener });
+  }
+  await db.from('events').insert({
+    session_id: params.sessionId,
+    participant_id: params.participantId,
+    seat_id: auth.seatId,
+    type: 'call_placed',
+    channel: 'call' as EventChannel,
+    target: params.contactKey,
+    payload_json: { call_id: call.id, direction: 'out' },
+  });
+
+  return { ok: true, callId: call.id, opener: contact.opener };
+}
+
+/** Accept or decline an INBOUND call (fired via inject). */
+export async function respondToCall(params: {
+  sessionId: string;
+  participantId: string;
+  token: string;
+  callId: string;
+  accept: boolean;
+}): Promise<{ ok: boolean; opener?: string | null }> {
+  const db = createAdminClient();
+  const auth = await authParticipant(db, params);
+  if (!auth) return { ok: false };
+
+  const { data: call } = await db
+    .from('calls')
+    .select('id, contact_key')
+    .eq('id', params.callId)
+    .eq('seat_id', auth.seatId)
+    .maybeSingle<{ id: string; contact_key: string }>();
+  if (!call) return { ok: false };
+
+  await db
+    .from('calls')
+    .update({ accepted: params.accept, started_at: params.accept ? new Date().toISOString() : null })
+    .eq('id', params.callId);
+
+  let opener: string | null = null;
+  if (params.accept) {
+    const { data: contact } = await db
+      .from('contacts')
+      .select('opener')
+      .eq('scenario_id', auth.scenarioId)
+      .eq('key', call.contact_key)
+      .limit(1)
+      .maybeSingle<{ opener: string | null }>();
+    opener = contact?.opener ?? null;
+    if (opener) await db.from('call_turns').insert({ call_id: call.id, who: 'them', text: opener });
+  }
+
+  await db.from('events').insert({
+    session_id: params.sessionId,
+    participant_id: params.participantId,
+    seat_id: auth.seatId,
+    type: params.accept ? 'call_accepted' : 'call_declined',
+    channel: 'call' as EventChannel,
+    target: call.contact_key,
+    payload_json: { call_id: params.callId },
+  });
+
+  return { ok: true, opener };
+}
+
+/** End an active call: stamp ended_at + log call_ended. */
+export async function endCall(params: {
+  sessionId: string;
+  participantId: string;
+  token: string;
+  callId: string;
+}): Promise<{ ok: boolean }> {
+  const db = createAdminClient();
+  const auth = await authParticipant(db, params);
+  if (!auth) return { ok: false };
+
+  await db
+    .from('calls')
+    .update({ ended_at: new Date().toISOString() })
+    .eq('id', params.callId)
+    .eq('seat_id', auth.seatId);
+
+  await db.from('events').insert({
+    session_id: params.sessionId,
+    participant_id: params.participantId,
+    seat_id: auth.seatId,
+    type: 'call_ended',
+    channel: 'call' as EventChannel,
+    target: params.callId,
+    payload_json: {},
+  });
+  return { ok: true };
 }

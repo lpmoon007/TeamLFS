@@ -19,6 +19,22 @@ export function serviceRoleKey(): string {
   return key;
 }
 
+/** Server-only AI/voice keys (handoff §7 — kept server-side). */
+export function anthropicApiKey(): string {
+  const k = process.env.ANTHROPIC_API_KEY ?? '';
+  if (!k) throw new Error('ANTHROPIC_API_KEY is not set (required for npc-reply).');
+  return k;
+}
+export function elevenLabsKey(): string {
+  const k = process.env.ELEVENLABS_KEY ?? '';
+  if (!k) throw new Error('ELEVENLABS_KEY is not set (required for tts).');
+  return k;
+}
+/** NPC reply model — defaults to Claude Opus 4.8; override for latency/cost. */
+export const VOICE_MODEL = process.env.VOICE_MODEL ?? 'claude-opus-4-8';
+/** ElevenLabs TTS model — turbo for low latency by default. */
+export const TTS_MODEL = process.env.ELEVENLABS_MODEL ?? 'eleven_turbo_v2_5';
+
 /** Server-only shared secret guarding the facilitator/automation endpoints (§5). */
 export function facilitatorSecret(): string {
   const s = process.env.FACILITATOR_SECRET ?? '';

@@ -30,7 +30,7 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
   const [seen, setSeen] = useState<Record<string, number>>({});
   const [briefOpen, setBriefOpen] = useState(false);
   const [fullSituationOpen, setFullSituationOpen] = useState(false);
-  const [callContact, setCallContact] = useState<Contact | null>(null);
+  const [call, setCall] = useState<{ contact: Contact; direction: 'in' | 'out'; callId?: string | null } | null>(null);
   const [ended, setEnded] = useState(session.status === 'ended');
 
   // Teammates (other real participants) are conversable too — synthesize pseudo-
@@ -81,10 +81,10 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
           setFeed((prev) => [{ id: crypto.randomUUID(), text: String(evt.payload?.text ?? evt.payload) }, ...prev]);
           break;
         case 'call':
-          // Incoming call: open overlay if we know the contact.
+          // Incoming call (fired via inject): open the overlay in Accept/Decline mode.
           {
             const c = contactByKey.get(evt.payload?.contact_key);
-            if (c) setCallContact(c);
+            if (c) setCall({ contact: c, direction: 'in', callId: evt.payload?.id ?? null });
           }
           break;
         case 'inject':
@@ -211,18 +211,9 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
   const startCall = useCallback(() => {
     if (selection?.kind !== 'thread') return;
     const c = contactByKey.get(selection.contactKey);
-    if (c?.callable) {
-      setCallContact(c);
-      void logEvent({
-        sessionId: session.id,
-        participantId: participant.id,
-        seatId: seat.id,
-        type: 'call_placed',
-        channel: 'call',
-        target: c.key,
-      });
-    }
-  }, [selection, contactByKey, session.id, participant.id, seat.id]);
+    // Outbound: the overlay's placeCall creates the row + logs call_placed.
+    if (c?.callable) setCall({ contact: c, direction: 'out' });
+  }, [selection, contactByKey]);
 
   // ---- send a message (Phase 3): optimistic append, then server persists/mirrors ----
   const sendInThread = useCallback(
@@ -349,7 +340,15 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
       {fullSituationOpen ? (
         <BriefModal title="Situation Brief" doc={bundle.openingBrief} onClose={() => setFullSituationOpen(false)} />
       ) : null}
-      {callContact ? <CallOverlay contact={callContact} onEnd={() => setCallContact(null)} /> : null}
+      {call ? (
+        <CallOverlay
+          contact={call.contact}
+          direction={call.direction}
+          incomingCallId={call.callId}
+          auth={{ sessionId: session.id, participantId: participant.id, token: participant.token }}
+          onEnd={() => setCall(null)}
+        />
+      ) : null}
       {ended ? <Curtain /> : null}
     </div>
   );

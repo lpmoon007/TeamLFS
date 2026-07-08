@@ -11,6 +11,7 @@
     "seed:build": "node scripts/seed/build_seed.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
     "@supabase/supabase-js": "^2.45.4",
     "next": "^15.1.6",
     "react": "^19.0.0",

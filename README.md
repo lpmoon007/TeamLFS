@@ -17,7 +17,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 3 | Messaging + presence live | ✅ done — send + mirror + presence |
 | 4 | Email + documents (approve/return → events) | ✅ done — read + Approve/Return/Edit |
 | 5 | Inject firing (manual, then make.com) | ✅ done — fire-inject engine + endpoint |
-| 6 | Voice (npc-reply + tts Edge Functions; call overlay) | ⬜ |
+| 6 | Voice (npc-reply + tts; call overlay) | ✅ done — STT → LLM → TTS loop |
 | 7 | Capture-log hardening + minimal debrief view | ⬜ |
 | 8 | Facilitator dashboard (separate phase) | ⬜ |
 
@@ -184,8 +184,15 @@ lib/
   (e.g. the LOI draft → David), the participant can **Approve / Return (with reason) /
   Edit** it — each writes a capture-log event (`doc_approved`/`doc_returned`/`doc_edited`,
   channel `doc`) and the terminal decision is denormalized onto the email (`0007`).
-- **Still inert** (by design): the call **voice loop** (Phase 6). Inbound email/inject
-  *delivery* is wired for Realtime but fired by the facilitator/automation in Phase 5.
+- **Voice is live (Phase 6)**: the call overlay drives a real two-way loop — place
+  (outbound) or Accept/Decline (inbound), play the NPC's opener, then **Web Speech STT
+  or typed input → `npc-reply` → `tts` → playback**, looping. `npc-reply`
+  (`/api/voice/npc-reply`) builds the reply from `contacts.persona` + recent `call_turns`
+  via Claude (default `claude-opus-4-8`, `VOICE_MODEL`-overridable); `tts`
+  (`/api/voice/tts`) proxies ElevenLabs using `contacts.voice_id` (keys server-side).
+  Every utterance is recorded as a `call_turn` row + event, and `call_placed`/
+  `call_accepted`/`call_declined`/`call_ended` land in the spine. The typed fallback is
+  always present.
 
 The seed materializes each seat's T=0 messages into the demo session, so opening
 `/s/<demo-session-id>?t=demo-david-REPLACE` shows a populated seat.
