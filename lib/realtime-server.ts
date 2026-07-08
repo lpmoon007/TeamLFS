@@ -1,0 +1,34 @@
+import 'server-only';
+import { SUPABASE_URL, serviceRoleKey } from '@/lib/env';
+
+// Server-side Realtime broadcast (handoff §6). The DB is the source of truth; a
+// broadcast is a low-latency delivery signal to already-connected participants.
+// Uses the Realtime broadcast HTTP endpoint so a server action doesn't have to
+// manage a socket lifecycle. Best-effort: a failed broadcast never fails the write
+// (the recipient still loads the row from the DB on next fetch).
+//
+// SECURITY NOTE (Phase 3): these are public channels keyed by session + seat. A
+// determined anon who guesses a channel name could subscribe. The authoritative,
+// RLS-protected store is Postgres; broadcast carries only delivery payloads. Harden
+// later with Realtime authorization (private channels) — tracked for Phase 7.
+
+export async function broadcast(
+  topic: string,
+  event: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const key = serviceRoleKey();
+    await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({ messages: [{ topic, event, payload }] }),
+    });
+  } catch {
+    // swallow — delivery is best-effort; the row is already committed.
+  }
+}

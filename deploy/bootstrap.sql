@@ -1,4 +1,810 @@
 -- =============================================================================
+-- The Signal — one-shot bootstrap for a Supabase project.
+-- Paste into the Supabase SQL Editor and Run. It:
+--   1) RESETS the public schema (drops any prior build), then
+--   2) applies migrations 0001-0008, then
+--   3) seeds the "The Signal" scenario (+ a demo session for testing).
+-- Generated — do not hand-edit; regenerate with scripts/build-bootstrap.sh.
+-- =============================================================================
+
+-- ---- 1. RESET public schema ----
+drop schema if exists public cascade;
+create schema public;
+grant usage on schema public to postgres, anon, authenticated, service_role;
+grant all on schema public to postgres, service_role;
+alter default privileges in schema public grant all on tables to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to postgres, anon, authenticated, service_role;
+
+
+-- ==== 0001_initial_schema.sql ====
+
+-- =============================================================================
+-- The Signal — Phase 1: Schema
+-- Source of truth: production handoff doc §4 (Supabase data model).
+--
+-- This migration creates the full participant-experience data model:
+--   authored content  : organizations, scenarios, seats, contacts, documents, injects
+--   live run state     : sessions, participants, threads, messages, emails, calls,
+--                        call_turns, inject_fires
+--   the capture log    : events (append-only — the debrief ROI)
+--
+-- Conventions:
+--   * uuid primary keys (gen_random_uuid)
+--   * timestamptz everywhere, default now()
+--   * enums for closed value-sets called out in the spec
+--   * FKs cascade from the owning aggregate (scenario / session)
+--   * RLS is enabled on every table; policies live in 0002_rls.sql
+-- =============================================================================
+
+create extension if not exists "pgcrypto";
+
+-- -----------------------------------------------------------------------------
+-- Enums (the spec's "kind ∈ …" / "type ∈ …" / "∈ …" value-sets)
+-- -----------------------------------------------------------------------------
+
+-- injects.kind — every authored scenario beat is one of these five
+create type inject_kind as enum ('message', 'group', 'situation', 'call', 'email');
+
+-- sessions.status — lifecycle of one live run
+create type session_status as enum ('draft', 'live', 'paused', 'ended');
+
+-- calls.direction — inbound (NPC calls participant) vs outbound (participant calls NPC)
+create type call_direction as enum ('in', 'out');
+
+-- emails.status — delivery lifecycle
+create type email_status as enum ('pending', 'delivered', 'read', 'archived');
+
+-- call_turns.who — who spoke this turn
+create type call_turn_who as enum ('them', 'me');
+
+-- =============================================================================
+-- AUTHORED CONTENT  (seeded from seats/*.js — one row-set per scenario)
+-- =============================================================================
+
+-- organizations — client orgs that own scenarios
+create table organizations (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  created_at  timestamptz not null default now()
+);
+
+-- scenarios — e.g. "The Signal"
+create table scenarios (
+  id          uuid primary key default gen_random_uuid(),
+  org_id      uuid not null references organizations (id) on delete cascade,
+  title       text not null,
+  summary     text,
+  created_at  timestamptz not null default now()
+);
+create index scenarios_org_id_idx on scenarios (org_id);
+
+-- seats — the playable positions (david, alex, …). `key` is the prototype seat id.
+create table seats (
+  id           uuid primary key default gen_random_uuid(),
+  scenario_id  uuid not null references scenarios (id) on delete cascade,
+  key          text not null,          -- prototype seat id, e.g. "david"
+  name         text not null,          -- person's name for this seat
+  role         text,                   -- job title / role description
+  meta         jsonb not null default '{}'::jsonb,
+  created_at   timestamptz not null default now(),
+  unique (scenario_id, key)
+);
+
+-- contacts — NPCs + other people a seat can interact with (per scenario, per seat).
+-- Carries the NPC persona + ElevenLabs voice_id (moved out of voices.js).
+create table contacts (
+  id           uuid primary key default gen_random_uuid(),
+  scenario_id  uuid not null references scenarios (id) on delete cascade,
+  seat_id      uuid references seats (id) on delete cascade,  -- null = scenario-wide
+  key          text not null,          -- prototype contact key
+  "full"       text not null,          -- full display name (quoted: FULL is reserved)
+  role         text,
+  section      text,                   -- TEAM | EXTERNAL | INTERNAL grouping
+  color        text,                   -- avatar/badge color token
+  callable     boolean not null default false,
+  persona      text,                   -- system prompt fragment for npc-reply
+  voice_id     text,                   -- ElevenLabs voice id
+  opener       text,                   -- first NPC line when a call connects
+  created_at   timestamptz not null default now(),
+  unique (scenario_id, seat_id, key)
+);
+create index contacts_scenario_id_idx on contacts (scenario_id);
+create index contacts_seat_id_idx on contacts (seat_id);
+
+-- documents — attachments / briefs / artifacts referenced by emails & briefs
+create table documents (
+  id           uuid primary key default gen_random_uuid(),
+  scenario_id  uuid not null references scenarios (id) on delete cascade,
+  key          text not null,
+  title        text not null,
+  meta         jsonb not null default '{}'::jsonb,
+  body_json    jsonb not null default '{}'::jsonb,
+  created_at   timestamptz not null default now(),
+  unique (scenario_id, key)
+);
+create index documents_scenario_id_idx on documents (scenario_id);
+
+-- injects — authored beats. payload_json holds the content for the kind.
+create table injects (
+  id           uuid primary key default gen_random_uuid(),
+  scenario_id  uuid not null references scenarios (id) on delete cascade,
+  seat_id      uuid references seats (id) on delete cascade,   -- null = all seats
+  kind         inject_kind not null,
+  payload_json jsonb not null default '{}'::jsonb,
+  order_idx    integer not null default 0,
+  created_at   timestamptz not null default now()
+);
+create index injects_scenario_id_order_idx on injects (scenario_id, order_idx);
+create index injects_seat_id_idx on injects (seat_id);
+
+-- =============================================================================
+-- LIVE RUN STATE  (one set of rows per live session)
+-- =============================================================================
+
+-- sessions — one live run of a scenario
+create table sessions (
+  id           uuid primary key default gen_random_uuid(),
+  scenario_id  uuid not null references scenarios (id) on delete restrict,
+  status       session_status not null default 'draft',
+  started_at   timestamptz,
+  ended_at     timestamptz,
+  created_at   timestamptz not null default now()
+);
+create index sessions_scenario_id_idx on sessions (scenario_id);
+create index sessions_status_idx on sessions (status);
+
+-- participants — a real person bound to a seat via an opaque magic-link token.
+-- token is a random, single-purpose string (NOT the seat key) — can't be guessed
+-- or swapped. user_id optionally links a Supabase Auth user.
+create table participants (
+  id           uuid primary key default gen_random_uuid(),
+  session_id   uuid not null references sessions (id) on delete cascade,
+  seat_id      uuid not null references seats (id) on delete restrict,
+  user_id      uuid references auth.users (id) on delete set null,
+  token        text not null unique,
+  name         text,
+  email        text,
+  joined_at    timestamptz,
+  present      boolean not null default false,
+  created_at   timestamptz not null default now(),
+  unique (session_id, seat_id)   -- one participant per seat per session (locks the seat)
+);
+create index participants_session_id_idx on participants (session_id);
+create index participants_user_id_idx on participants (user_id);
+
+-- threads — per participant/seat conversation with a contact
+create table threads (
+  id           uuid primary key default gen_random_uuid(),
+  session_id   uuid not null references sessions (id) on delete cascade,
+  seat_id      uuid not null references seats (id) on delete cascade,
+  contact_key  text not null,         -- contact.key or a group thread key
+  is_group     boolean not null default false,
+  created_at   timestamptz not null default now(),
+  unique (session_id, seat_id, contact_key)
+);
+create index threads_session_seat_idx on threads (session_id, seat_id);
+
+-- messages — sender is 'npc' | 'me' | 'system' | a contact_key (group fan-out)
+create table messages (
+  id           uuid primary key default gen_random_uuid(),
+  thread_id    uuid not null references threads (id) on delete cascade,
+  sender       text not null,         -- 'npc' | 'me' | 'system' | <contact_key>
+  body         text not null,
+  sent_at      timestamptz not null default now()
+);
+create index messages_thread_id_sent_at_idx on messages (thread_id, sent_at);
+
+-- emails — formal email channel; may carry a document attachment
+create table emails (
+  id            uuid primary key default gen_random_uuid(),
+  session_id    uuid not null references sessions (id) on delete cascade,
+  seat_id       uuid not null references seats (id) on delete cascade,
+  contact_key   text not null,
+  subject       text not null,
+  body_json     jsonb not null default '{}'::jsonb,
+  document_id   uuid references documents (id) on delete set null,
+  status        email_status not null default 'pending',
+  delivered_at  timestamptz,
+  read_at       timestamptz,
+  created_at    timestamptz not null default now()
+);
+create index emails_session_seat_idx on emails (session_id, seat_id);
+
+-- calls — in/out call instances
+create table calls (
+  id            uuid primary key default gen_random_uuid(),
+  session_id    uuid not null references sessions (id) on delete cascade,
+  seat_id       uuid not null references seats (id) on delete cascade,
+  contact_key   text not null,
+  direction     call_direction not null,
+  started_at    timestamptz,
+  ended_at      timestamptz,
+  accepted      boolean,
+  created_at    timestamptz not null default now()
+);
+create index calls_session_seat_idx on calls (session_id, seat_id);
+
+-- call_turns — transcript turns within a call (the voice loop record)
+create table call_turns (
+  id        uuid primary key default gen_random_uuid(),
+  call_id   uuid not null references calls (id) on delete cascade,
+  who       call_turn_who not null,
+  text      text not null,
+  at        timestamptz not null default now()
+);
+create index call_turns_call_id_at_idx on call_turns (call_id, at);
+
+-- inject_fires — what actually fired in a given session (vs the authored injects)
+create table inject_fires (
+  id          uuid primary key default gen_random_uuid(),
+  session_id  uuid not null references sessions (id) on delete cascade,
+  inject_id   uuid not null references injects (id) on delete cascade,
+  fired_at    timestamptz not null default now(),
+  fired_by    uuid references auth.users (id) on delete set null  -- facilitator/automation
+);
+create index inject_fires_session_id_idx on inject_fires (session_id);
+
+-- =============================================================================
+-- THE CAPTURE LOG  (append-only — this is the product's value)
+-- =============================================================================
+-- Log everything with a timestamp: what they decided, when, who they told,
+-- what they ignored, response latency. This is the debrief.
+--   types: thread_open, message_sent, email_read, doc_approved, doc_returned,
+--          call_placed, call_accepted, call_declined, brief_opened, idle, …
+create table events (
+  id             uuid primary key default gen_random_uuid(),
+  session_id     uuid not null references sessions (id) on delete cascade,
+  participant_id uuid references participants (id) on delete set null,
+  type           text not null,
+  target         text,
+  payload_json   jsonb not null default '{}'::jsonb,
+  at             timestamptz not null default now()
+);
+create index events_session_id_at_idx on events (session_id, at);
+create index events_participant_id_idx on events (participant_id);
+create index events_type_idx on events (type);
+
+-- Append-only guard: block UPDATE/DELETE on the capture log at the DB level.
+create or replace function prevent_mutation()
+returns trigger
+language plpgsql
+as $$
+begin
+  raise exception 'events is append-only; % is not permitted', tg_op;
+end;
+$$;
+
+create trigger events_no_update
+  before update on events
+  for each row execute function prevent_mutation();
+
+create trigger events_no_delete
+  before delete on events
+  for each row execute function prevent_mutation();
+
+-- ==== 0002_rls.sql ====
+
+-- =============================================================================
+-- The Signal — Phase 1: Row Level Security
+--
+-- Access model for Phase 1 (per handoff §2A "token resolves server-side"):
+--   * The participant magic-link token is resolved SERVER-SIDE (Edge Functions /
+--     server actions using the service_role key, which BYPASSES RLS). That is the
+--     primary read/write path for the live participant experience.
+--   * RLS is therefore default-DENY for the anon/authenticated roles on all
+--     tables; nothing is publicly readable or writable by a browser anon client.
+--   * As a convenience for the optional Supabase Auth layer (§2A "auth just proves
+--     identity"), an authenticated user MAY read the rows tied to their own
+--     participant record (their session/seat/threads/messages/emails/calls).
+--
+-- The capture log (events) is never client-readable here — debrief tooling reads
+-- it via the service role / facilitator dashboard (later phase).
+-- =============================================================================
+
+-- Enable RLS everywhere (default deny once enabled, no permissive policy = no access).
+alter table organizations enable row level security;
+alter table scenarios     enable row level security;
+alter table seats         enable row level security;
+alter table contacts      enable row level security;
+alter table documents     enable row level security;
+alter table injects       enable row level security;
+alter table sessions      enable row level security;
+alter table participants  enable row level security;
+alter table threads       enable row level security;
+alter table messages      enable row level security;
+alter table emails        enable row level security;
+alter table calls         enable row level security;
+alter table call_turns    enable row level security;
+alter table inject_fires  enable row level security;
+alter table events        enable row level security;
+
+-- -----------------------------------------------------------------------------
+-- Helper: is the current authenticated user the owner of this session's seat?
+-- -----------------------------------------------------------------------------
+create or replace function current_user_in_session(p_session_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from participants p
+    where p.session_id = p_session_id
+      and p.user_id = auth.uid()
+  );
+$$;
+
+create or replace function current_user_owns_seat(p_session_id uuid, p_seat_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from participants p
+    where p.session_id = p_session_id
+      and p.seat_id = p_seat_id
+      and p.user_id = auth.uid()
+  );
+$$;
+
+-- -----------------------------------------------------------------------------
+-- Authenticated participant read policies (optional auth layer)
+-- -----------------------------------------------------------------------------
+
+-- A participant can read their own participant row(s).
+create policy participants_self_select on participants
+  for select to authenticated
+  using (user_id = auth.uid());
+
+-- ... and the session they belong to.
+create policy sessions_member_select on sessions
+  for select to authenticated
+  using (current_user_in_session(id));
+
+-- ... their own threads / messages / emails / calls (scoped to their seat).
+create policy threads_owner_select on threads
+  for select to authenticated
+  using (current_user_owns_seat(session_id, seat_id));
+
+create policy messages_owner_select on messages
+  for select to authenticated
+  using (
+    exists (
+      select 1 from threads t
+      where t.id = messages.thread_id
+        and current_user_owns_seat(t.session_id, t.seat_id)
+    )
+  );
+
+create policy emails_owner_select on emails
+  for select to authenticated
+  using (current_user_owns_seat(session_id, seat_id));
+
+create policy calls_owner_select on calls
+  for select to authenticated
+  using (current_user_owns_seat(session_id, seat_id));
+
+create policy call_turns_owner_select on call_turns
+  for select to authenticated
+  using (
+    exists (
+      select 1 from calls c
+      where c.id = call_turns.call_id
+        and current_user_owns_seat(c.session_id, c.seat_id)
+    )
+  );
+
+-- Authored scenario content the participant's seat needs (read-only).
+-- Scenario/seat/contacts/documents tied to a session the user is in.
+create policy scenarios_member_select on scenarios
+  for select to authenticated
+  using (
+    exists (
+      select 1 from sessions s
+      where s.scenario_id = scenarios.id
+        and current_user_in_session(s.id)
+    )
+  );
+
+create policy seats_member_select on seats
+  for select to authenticated
+  using (
+    exists (
+      select 1 from sessions s
+      where s.scenario_id = seats.scenario_id
+        and current_user_in_session(s.id)
+    )
+  );
+
+create policy contacts_member_select on contacts
+  for select to authenticated
+  using (
+    exists (
+      select 1 from sessions s
+      where s.scenario_id = contacts.scenario_id
+        and current_user_in_session(s.id)
+    )
+  );
+
+create policy documents_member_select on documents
+  for select to authenticated
+  using (
+    exists (
+      select 1 from sessions s
+      where s.scenario_id = documents.scenario_id
+        and current_user_in_session(s.id)
+    )
+  );
+
+-- NOTE: no INSERT/UPDATE/DELETE policies for anon/authenticated are defined.
+-- All writes (sending a message, marking email read, logging an event, firing an
+-- inject, etc.) go through the service_role on the server, which bypasses RLS.
+-- The capture log `events`, `injects`, `inject_fires`, `organizations`, and
+-- `participants.*` writes are intentionally server-only for Phase 1.
+
+-- ==== 0003_realtime.sql ====
+
+-- =============================================================================
+-- The Signal — Phase 1: Realtime publication
+--
+-- The participant UI subscribes to row changes for live delivery (§6):
+--   * messages       — new chat / group messages
+--   * emails         — email arrival + status changes (read/delivered)
+--   * calls          — incoming/outbound call state
+--   * call_turns     — live transcript turns during a call
+--   * participants   — presence (present flag flips online/offline)
+--   * inject_fires   — facilitator fired a beat
+--
+-- Presence/typing also use Supabase Realtime presence + broadcast channels
+-- (no table needed for those ephemeral signals).
+--
+-- supabase_realtime is the default publication created by Supabase. We add the
+-- tables the participant app needs to subscribe to. Guard each add so the
+-- migration is idempotent across environments.
+-- =============================================================================
+
+do $$
+declare
+  t text;
+  tables text[] := array[
+    'messages', 'emails', 'calls', 'call_turns', 'participants', 'inject_fires'
+  ];
+begin
+  -- Create the publication if it does not exist (fresh/local projects).
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+
+  foreach t in array tables loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
+-- Ensure full row data on UPDATE/DELETE so the client sees changed columns
+-- (e.g. emails.status pending → read).
+alter table messages      replica identity full;
+alter table emails        replica identity full;
+alter table calls         replica identity full;
+alter table call_turns    replica identity full;
+alter table participants  replica identity full;
+alter table inject_fires  replica identity full;
+
+-- ==== 0004_contacts_meta.sql ====
+
+-- =============================================================================
+-- The Signal — Phase 1: contacts.meta
+--
+-- The voice casting sheet carries direction (sex/age/accent/tone/pace + a sample
+-- line) that is NOT the LLM persona and NOT yet a concrete ElevenLabs voice_id.
+-- Give contacts a jsonb `meta` to hold that casting intent (and any other authoring
+-- metadata) so persona stays a clean system-prompt fragment and voice_id stays the
+-- concrete provider id (assigned later when ElevenLabs voices are picked).
+-- =============================================================================
+
+alter table contacts add column if not exists meta jsonb not null default '{}'::jsonb;
+
+-- ==== 0005_behavioral_spine.sql ====
+
+-- =============================================================================
+-- The Signal — Behavioral Memory Spine (design doc: Behavioral Memory Spine.md)
+--
+-- Three layers. Layer 1 is LOCKED and maximal; Layers 2/3 are VERSIONED and
+-- re-computable from Layer 1. Founder decision: the moat is the ENGINE (raw event
+-- log + scoring function + longitudinal profile) — so we over-capture now and treat
+-- scoring as the instrument.
+--
+-- This migration runs AFTER 0001-0004 but BEFORE any real capture. The event schema
+-- cannot be retrofitted once sessions run; it is locked here first.
+--   §1 Layer 1  — enrich + lock `events` (maximal capture, incl. omissions)
+--   §2 Layer 2  — trait_registry (v0.1 hypothesis) + trait_scores (versioned)
+--   §7 profile  — behavioral_profile (reserved, empty)
+--   §8 consent  — consents (capture/retention/de-role legitimacy)
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- §1 Layer 1 — the Event Log. LOCK THIS. Append-only (trigger from 0001 stands).
+-- Enrich for maximal capture: seat, channel, scenario clock, derived flag.
+-- -----------------------------------------------------------------------------
+
+-- Channel the act occurred on (paired with `type`).
+create type event_channel as enum ('message', 'group', 'email', 'call', 'doc', 'brief', 'system');
+
+-- `ts` is the canonical server timestamp in the spine's vocabulary. 0001 created
+-- this column as `at`; rename for fidelity to the design (no data exists yet).
+alter table events rename column at to ts;
+
+alter table events
+  add column if not exists seat_id     uuid references seats (id) on delete set null,
+  add column if not exists channel     event_channel,
+  add column if not exists scenario_ms bigint,      -- ms from session start (scenario clock)
+  add column if not exists derived     boolean not null default false;  -- always false in Layer 1
+
+comment on table events is
+  'Layer 1 behavioral spine — LOCKED, append-only. One row per observable act OR '
+  'omission. No trait judgments here (those live in trait_scores). `type` is open '
+  'text: message_sent, message_draft_started, message_draft_discarded, thread_opened, '
+  'thread_dwell, thread_ignored, email_read, email_unopened, doc_approved, doc_returned, '
+  'doc_edited, call_placed, call_accepted, call_declined, call_missed, call_turn, '
+  'brief_opened, brief_never_opened, response_latency, silence, inject_delivered, …';
+comment on column events.derived is 'Always false in Layer 1; derived signals live in trait_scores.';
+
+create index if not exists events_seat_id_idx on events (seat_id);
+create index if not exists events_channel_idx on events (channel);
+-- (session_id, ts) index from 0001 follows the renamed column automatically.
+
+-- -----------------------------------------------------------------------------
+-- §2 Layer 2 — the Trait Registry (VERSION, do not lock).
+-- The dynamics registry is a hypothesis, not a foundation. New dynamics = new
+-- trait_key; a taxonomy revision = new taxonomy_version. Never migrate Layer 1.
+-- -----------------------------------------------------------------------------
+create table trait_registry (
+  trait_key           text not null,
+  taxonomy_version    text not null,
+  definition          text not null,
+  observable_signals  jsonb not null default '[]'::jsonb,
+  scoring_rubric_ref  text,               -- pointer to the versioned rubric (code/doc)
+  status              text not null default 'hypothesis'
+                        check (status in ('hypothesis', 'validated')),
+  created_at          timestamptz not null default now(),
+  primary key (trait_key, taxonomy_version)
+);
+comment on table trait_registry is
+  'Behavioral dynamics registry. v0.1 is a hypothesis seeded from field anecdotes — '
+  'a trait is only a sellable diagnostic once status = validated (inter-rater '
+  'reliability measured, §3). Add forever without touching Layer 1.';
+
+-- Derived posture scores. Stored separately, tagged with taxonomy + scorer version
+-- so a re-score never destroys history. Every score cites its evidence events.
+create table trait_scores (
+  id                 uuid primary key default gen_random_uuid(),
+  participant_id     uuid not null references participants (id) on delete cascade,
+  session_id         uuid not null references sessions (id) on delete cascade,
+  taxonomy_version   text not null,
+  scorer_version     text not null,      -- model/prompt/rubric version that produced this
+  trait_key          text not null,
+  value              text,               -- categorical posture (e.g. 'compete')
+  value_num          numeric,            -- scalar axis position (e.g. -1..1), nullable
+  confidence         numeric not null default 0 check (confidence between 0 and 1),
+  evidence_event_ids uuid[] not null default '{}',  -- auditable citation into Layer 1
+  coder              text not null default 'ai' check (coder in ('ai', 'human', 'consensus')),
+  created_at         timestamptz not null default now(),
+  foreign key (trait_key, taxonomy_version) references trait_registry (trait_key, taxonomy_version)
+);
+create index trait_scores_participant_idx on trait_scores (participant_id, trait_key);
+create index trait_scores_session_idx on trait_scores (session_id);
+create index trait_scores_version_idx on trait_scores (taxonomy_version, scorer_version);
+comment on table trait_scores is
+  'Layer 2 — VERSIONED, re-computable from Layer 1 only. Never locked. A re-score '
+  'writes new rows (new scorer_version); it never mutates or deletes prior scores.';
+
+-- -----------------------------------------------------------------------------
+-- §7 Longitudinal profile — reserve now (empty is fine). One asset, four faces
+-- (Director-AI, behavioral twin, NPC gossip/memory, season) — all reads of this.
+-- -----------------------------------------------------------------------------
+create table behavioral_profile (
+  id                uuid primary key default gen_random_uuid(),
+  participant_id    uuid not null references participants (id) on delete cascade,
+  org_id            uuid references organizations (id) on delete set null,
+  trait_key         text not null,
+  taxonomy_version  text not null,
+  trajectory_json   jsonb not null default '[]'::jsonb,  -- values across sessions over time
+  last_session_id   uuid references sessions (id) on delete set null,
+  updated_at        timestamptz not null default now(),
+  unique (participant_id, trait_key, taxonomy_version)
+);
+comment on table behavioral_profile is
+  'Layer 2/§7 longitudinal profile — reserved. Powers Director-AI / behavioral twin / '
+  'NPC gossip / season, all of which are just reads of the spine.';
+
+-- -----------------------------------------------------------------------------
+-- §8 Consent & retention — you are building persistent profiles of named people.
+-- Consent + de-role are the legitimacy anchor; design them in now.
+-- -----------------------------------------------------------------------------
+create table consents (
+  id                uuid primary key default gen_random_uuid(),
+  participant_id    uuid not null references participants (id) on delete cascade,
+  session_id        uuid references sessions (id) on delete set null,
+  consent_capture   boolean not null default false,   -- consent to capture this session
+  consent_retention boolean not null default false,   -- consent to longitudinal retention
+  retention_scope   text not null default 'session'
+                      check (retention_scope in ('session', 'org_longitudinal', 'none')),
+  policy_version    text,                              -- which consent/retention policy applied
+  granted_at        timestamptz,
+  revoked_at        timestamptz,                       -- deletion/withdrawal boundary
+  created_at        timestamptz not null default now()
+);
+create index consents_participant_idx on consents (participant_id);
+comment on table consents is
+  'Consent & retention scope per participant (§8). The profile is a development tool, '
+  'not surveillance: capture/retention require consent; revoked_at bounds retention.';
+
+-- -----------------------------------------------------------------------------
+-- RLS — all spine tables are server/facilitator-side. Default deny for browser
+-- roles; the service role (server) reads/writes. (Debrief + scoring run server-side.)
+-- -----------------------------------------------------------------------------
+alter table trait_registry     enable row level security;
+alter table trait_scores       enable row level security;
+alter table behavioral_profile enable row level security;
+alter table consents           enable row level security;
+
+-- -----------------------------------------------------------------------------
+-- Seed the v0.1 trait registry (HYPOTHESIS). Rubrics are versioned in code at
+-- lib/scoring/registry.ts. Idempotent.
+-- -----------------------------------------------------------------------------
+insert into trait_registry (trait_key, taxonomy_version, definition, observable_signals, scoring_rubric_ref, status) values
+  ('compete_vs_collaborate', 'v0.1',
+   'Assumes rivalry absent explicit permission to collaborate.',
+   '["messages out-group seat unprompted","proposes joint action","withholds a shareable resource"]'::jsonb,
+   'lib/scoring/registry.ts#compete_vs_collaborate', 'hypothesis'),
+  ('trust_vs_suspect', 'v0.1',
+   'Speed to blame / look for fault under stress.',
+   '["assigns fault before facts","requests verification of others","language of suspicion"]'::jsonb,
+   'lib/scoring/registry.ts#trust_vs_suspect', 'hypothesis'),
+  ('frame_taker_vs_questioner', 'v0.1',
+   'Accepts given assumptions or interrogates them.',
+   '["acts on the brief as stated","questions the premise/deadline","reframes the ask"]'::jsonb,
+   'lib/scoring/registry.ts#frame_taker_vs_questioner', 'hypothesis'),
+  ('hoard_vs_share', 'v0.1',
+   'Under scarcity, hoards or shares material information/resources.',
+   '["surfaces private info to the group","times disclosure late","keeps a back channel"]'::jsonb,
+   'lib/scoring/registry.ts#hoard_vs_share', 'hypothesis'),
+  ('verify_vs_act_on_belief', 'v0.1',
+   'Under ambiguity / authority pressure, verifies or acts on belief.',
+   '["seeks confirmation before committing","acts on an unverified claim","defers to authority instruction"]'::jsonb,
+   'lib/scoring/registry.ts#verify_vs_act_on_belief', 'hypothesis'),
+  ('continuity_vs_drop', 'v0.1',
+   'Preserves or drops handoffs (the Care Cart axis).',
+   '["closes an open loop","leaves a demand unanswered at session end","hands off explicitly"]'::jsonb,
+   'lib/scoring/registry.ts#continuity_vs_drop', 'hypothesis'),
+  ('status_behavior', 'v0.1',
+   'How they treat lower-status / out-group members.',
+   '["responds to lower-status contacts","ignores out-group demands","tone shift by status"]'::jsonb,
+   'lib/scoring/registry.ts#status_behavior', 'hypothesis')
+on conflict (trait_key, taxonomy_version) do nothing;
+
+-- ==== 0006_casting_reservation.sql ====
+
+-- =============================================================================
+-- The Signal — Casting reservation (Vision & Roadmap, Horizon 0: "unified engine
+-- + casting — seat ≠ participant; every seat Human-or-AI").
+--
+-- RESERVE NOW, don't build. The roadmap's discipline: reserve the hooks (profile,
+-- casting, event richness) now so no later horizon needs a migration. Profile and
+-- event richness are already reserved (0005); this reserves CASTING.
+--
+-- Model: a `participants` row is the OCCUPANT of a seat in a session — human OR AI.
+--   * human seat: cast_kind='human', token set (magic link), agent_json = {}
+--   * AI seat:    cast_kind='ai',    token null (no link),   agent_json = {config}
+-- The full casting UX/orchestration is a later build; here we only ensure the schema
+-- can express an AI-cast seat without a migration.
+-- =============================================================================
+
+-- An occupant is a human or an AI agent (extensible later, e.g. 'confederate').
+create type cast_kind as enum ('human', 'ai');
+
+alter table participants
+  add column if not exists cast_kind  cast_kind not null default 'human',
+  -- AI occupant config (persona ref, model, voice_id, autonomy level, …). Empty for humans.
+  add column if not exists agent_json jsonb not null default '{}'::jsonb;
+
+-- AI-cast seats have no magic-link token. Humans still do; token stays unique.
+alter table participants alter column token drop not null;
+
+comment on table participants is
+  'Seat OCCUPANT for one session — human OR AI (seat ≠ participant). cast_kind + '
+  'agent_json reserve the Human-or-AI casting hook (Roadmap Horizon 0); token is the '
+  'human magic-link (null for AI seats). unique(session_id, seat_id) still binds one '
+  'occupant per seat.';
+comment on column participants.cast_kind is 'human = real person via magic link; ai = agent-cast seat.';
+comment on column participants.agent_json is 'AI-cast seat config (persona/model/voice/autonomy). Empty for humans.';
+
+-- ==== 0007_email_decisions.sql ====
+
+-- =============================================================================
+-- The Signal — Phase 4: document decisions on emails.
+--
+-- Emails can carry a document (attachment) the participant Approves / Returns /
+-- Edits. The capture log (events: doc_approved | doc_returned | doc_edited) is the
+-- canonical record; these columns denormalize the terminal decision onto the email
+-- so the UI and debrief can render it without replaying the event log.
+-- =============================================================================
+
+alter table emails
+  add column if not exists decision      text
+    check (decision in ('approved', 'returned')),   -- terminal decision (edit is not terminal)
+  add column if not exists decision_json jsonb not null default '{}'::jsonb,  -- reason, edited body, …
+  add column if not exists decided_at    timestamptz;
+
+comment on column emails.decision is
+  'Terminal document decision (approved|returned). Edits are non-terminal and live in '
+  'decision_json + doc_edited events. The events table is the canonical capture.';
+
+-- ==== 0008_inject_resolution.sql ====
+
+-- =============================================================================
+-- The Signal — Build Addendum A1: communication-map capture (LOCK — non-retrofittable)
+--
+-- A1.2 Per-seat inject resolution state. For every fired inject, record which seat
+-- it reached and whether that seat addressed it. This powers the team debrief's
+-- "critical conversation that never happened" edges and the unaddressed-risk gaps.
+--
+-- (A1.1 directed sender→recipient is already captured: message_sent events carry
+--  seat_id = sender and target = recipient; we additionally enrich the payload with
+--  an explicit `recipients` array in the app for group-addressing forward-compat.
+--  A1.4 "raised-then-overridden" is a DERIVED signal — reserved as a versioned trait
+--  below, computed later, never flagged at capture time.)
+-- =============================================================================
+
+create type inject_resolution_state as enum ('delivered', 'opened', 'addressed', 'ignored');
+
+create table inject_resolution (
+  id           uuid primary key default gen_random_uuid(),
+  session_id   uuid not null references sessions (id) on delete cascade,
+  inject_id    uuid not null references injects (id) on delete cascade,
+  seat_id      uuid not null references seats (id) on delete cascade,
+  contact_key  text,   -- the thread the inject addressed (for reconciliation)
+  state        inject_resolution_state not null default 'delivered',
+  delivered_at timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  unique (session_id, inject_id, seat_id)
+);
+create index inject_resolution_session_idx on inject_resolution (session_id);
+create index inject_resolution_seat_idx on inject_resolution (session_id, seat_id);
+
+comment on table inject_resolution is
+  'Build Addendum A1.2 — per-seat resolution of each fired inject: delivered → '
+  'opened → addressed, or ignored. Set delivered on fire; reconciled to its final '
+  'state at session finalize (from the event log). Cross-seat, session-scoped.';
+
+alter table inject_resolution enable row level security;  -- server/facilitator only
+
+-- --- A1.4: reserve the "raised-then-overridden" DERIVED signal as a versioned trait.
+-- It requires cross-thread analysis (a message raising a concern + the thread's
+-- subsequent dismissal), so it is scored later — its evidence extractor is a stub
+-- for now and it stays status='hypothesis'. Never flagged at capture time.
+insert into trait_registry (trait_key, taxonomy_version, definition, observable_signals, scoring_rubric_ref, status) values
+  ('raised_then_overridden', 'v0.1',
+   'A participant raised a material concern and the group dismissed or talked past it.',
+   '["raises a concern in a thread","thread continues without engaging it","decision proceeds unchanged"]'::jsonb,
+   'lib/scoring/registry.ts#raised_then_overridden', 'hypothesis')
+on conflict (trait_key, taxonomy_version) do nothing;
+
+-- ==== seed.sql ====
+
+-- =============================================================================
 -- The Signal — seed (Champion Iron executive team scenario, v1.0)
 --
 -- GENERATED FILE — do not edit by hand. Edit scripts/seed/build_seed.mjs and run:
