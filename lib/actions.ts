@@ -33,6 +33,26 @@ export async function acceptDisclaimer(params: {
     .update({ present: true, joined_at: new Date().toISOString() })
     .eq('id', params.participantId);
 
+  // §8 consent — accepting the disclaimer is the consent to capture this session.
+  // Retention beyond the session (org_longitudinal) stays opt-in (false here).
+  const { data: existing } = await db
+    .from('consents')
+    .select('id')
+    .eq('participant_id', params.participantId)
+    .limit(1)
+    .maybeSingle();
+  if (!existing) {
+    await db.from('consents').insert({
+      participant_id: params.participantId,
+      session_id: params.sessionId,
+      consent_capture: true,
+      consent_retention: false,
+      retention_scope: 'session',
+      policy_version: 'disclaimer-v1',
+      granted_at: new Date().toISOString(),
+    });
+  }
+
   await db.from('events').insert({
     session_id: params.sessionId,
     participant_id: params.participantId,

@@ -113,7 +113,18 @@ horizon needs a migration.* Reserved in-repo so far:
   dependency for Director-AI / twin / NPC gossip / season.
 - **Casting** — seat ≠ participant, every seat Human-or-AI: `participants.cast_kind` +
   `agent_json`, nullable `token` (`0006`). Reserved, not built.
-- **Consent/retention** — `consents` (`0005`).
+- **Consent/retention** — `consents` (`0005`), now **written** on disclaimer accept
+  (§8): capture consent granted, longitudinal retention opt-in (false by default).
+- **Longitudinal profile** — `behavioral_profile` (`0005`), now **populated** at
+  session finalize: each session's trait scores append to the per-participant
+  trajectory — the read surface Director-AI / twin / gossip / season depend on.
+
+## Deploy
+
+`DEPLOY.md` is the runbook. Summary: apply `supabase/migrations` + `seed.sql` to a
+Supabase project (`supabase db push` + `psql -f seed.sql`), set the env vars from
+`.env.example` in Vercel, deploy. Local full stack: `supabase start && supabase db
+reset` (Docker). CI (`.github/workflows/ci.yml`) runs the build/type-check on push.
 
 ## The seed — "The Signal" (Champion Iron executive team)
 

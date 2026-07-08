@@ -187,6 +187,49 @@ async function scoreAndPersist(db: Db, sessionId: string): Promise<number> {
       await db.from('trait_scores').insert(rows);
       total += rows.length;
     }
+    // §7 — append this session's scores to the longitudinal profile (the read
+    // surface Director-AI / twin / gossip / season depend on).
+    await updateProfile(db, sessionId, pid, scores);
   }
   return total;
+}
+
+// Upsert the participant's behavioral_profile trajectory with this session's scores.
+async function updateProfile(db: Db, sessionId: string, participantId: string, scores: any[]): Promise<void> {
+  if (!scores.length) return;
+  // org for this session (behavioral_profile is org-scoped for cross-scenario reads).
+  const { data: sess } = await db
+    .from('sessions')
+    .select('scenario:scenarios!inner(org_id)')
+    .eq('id', sessionId)
+    .maybeSingle<any>();
+  const orgId: string | null = sess?.scenario?.org_id ?? null;
+  const now = new Date().toISOString();
+
+  const { data: existing } = await db
+    .from('behavioral_profile')
+    .select('id, trait_key, taxonomy_version, trajectory_json')
+    .eq('participant_id', participantId);
+  const byKey = new Map((existing ?? []).map((r: any) => [`${r.trait_key}:${r.taxonomy_version}`, r]));
+
+  for (const s of scores) {
+    const k = `${s.trait_key}:${s.taxonomy_version}`;
+    const point = { session_id: sessionId, value: s.value, value_num: s.value_num, confidence: s.confidence, at: now };
+    const prior = byKey.get(k);
+    const trajectory = Array.isArray(prior?.trajectory_json) ? prior.trajectory_json : [];
+    // Replace this session's point if re-finalized, else append.
+    const next = [...trajectory.filter((t: any) => t.session_id !== sessionId), point];
+    await db.from('behavioral_profile').upsert(
+      {
+        participant_id: participantId,
+        org_id: orgId,
+        trait_key: s.trait_key,
+        taxonomy_version: s.taxonomy_version,
+        trajectory_json: next,
+        last_session_id: sessionId,
+        updated_at: now,
+      },
+      { onConflict: 'participant_id,trait_key,taxonomy_version' },
+    );
+  }
 }
