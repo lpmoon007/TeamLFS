@@ -19,10 +19,24 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 5 | Inject firing (manual, then make.com) | ✅ done — fire-inject engine + endpoint |
 | 6 | Voice (npc-reply + tts; call overlay) | ✅ done — STT → LLM → TTS loop |
 | 7 | Capture-log hardening + minimal debrief view | ✅ done — omission sweep + debrief |
-| 8 | Facilitator dashboard (separate phase) | ⬜ |
+| 8 | Facilitator dashboard + debrief suite | ✅ done — control + team/film/wall |
 
 > **Horizon 0 exit criterion reached:** a real session can run, capture rich raw
 > events across all four channels, and produce a basic debrief. That's the platform.
+
+## Facilitator + debrief suite (Phase 8 + Build Addendum)
+
+- **Control:** `/facilitator` (cookie-gated sign-in → live session list) and
+  `/facilitator/[sessionId]` (seat roster + presence, fire injects with Force, live
+  event feed, **hand-drive an NPC**, End session → debrief snapshot).
+- **Debrief suite** — one dataset (`buildDebrief`), three linked renderers:
+  **team** (`/facilitator/debrief/[sessionId]` — communication map + cards),
+  **game-film** (`…/[seatId]` — footage + LDOL v1 lens + trait scores, with breadcrumb
+  and ‹/› paging), and **One Wall** (`…/wall` — projection with the facilitator reveal
+  of the amber "never happened" edges).
+- **Build Addendum A1 locked** (non-retrofittable): directed message edges +
+  `inject_resolution` (per-seat delivered→addressed→ignored). **A1.4** "raised-then-
+  overridden" reserved as a derived trait. See **`docs/build-addendum.md`**.
 
 ## Behavioral Memory Spine (the core IP)
 

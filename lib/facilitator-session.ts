@@ -29,3 +29,15 @@ export async function setFacilitatorSession(): Promise<void> {
 export async function clearFacilitatorSession(): Promise<void> {
   (await cookies()).delete(COOKIE);
 }
+
+// Allow either the facilitator cookie OR a ?key= that matches the secret (so debrief
+// links are shareable with a coach who isn't signed in).
+export async function facilitatorAllowed(key?: string): Promise<boolean> {
+  if (await isFacilitatorSession()) return true;
+  if (!key) return false;
+  try {
+    return key === facilitatorSecret();
+  } catch {
+    return false;
+  }
+}
