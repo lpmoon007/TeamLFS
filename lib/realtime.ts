@@ -16,7 +16,8 @@ export type RealtimeEvent =
   | { event: 'email'; payload: any }
   | { event: 'call'; payload: any }
   | { event: 'situation'; payload: any }
-  | { event: 'inject'; payload: any };
+  | { event: 'inject'; payload: any }
+  | { event: 'curtain'; payload: any };
 
 /** Subscribe to this seat's directed-event channel. */
 export function useParticipantChannel(opts: {
@@ -46,6 +47,7 @@ export function useParticipantChannel(opts: {
     forward('call');
     forward('situation');
     forward('inject');
+    forward('curtain');
 
     channel.subscribe((status) => {
       setConnected(status === 'SUBSCRIBED');

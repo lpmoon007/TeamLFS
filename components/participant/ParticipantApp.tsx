@@ -91,6 +91,10 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
           // Generic beat — surface to the feed so nothing is silently dropped.
           setFeed((prev) => [{ id: crypto.randomUUID(), text: String(evt.payload?.summary ?? 'Update') }, ...prev]);
           break;
+        case 'curtain':
+          // Session finalized — drop the curtain live.
+          setEnded(true);
+          break;
       }
     },
     [contactByKey],

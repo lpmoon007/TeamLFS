@@ -18,8 +18,11 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 4 | Email + documents (approve/return → events) | ✅ done — read + Approve/Return/Edit |
 | 5 | Inject firing (manual, then make.com) | ✅ done — fire-inject engine + endpoint |
 | 6 | Voice (npc-reply + tts; call overlay) | ✅ done — STT → LLM → TTS loop |
-| 7 | Capture-log hardening + minimal debrief view | ⬜ |
+| 7 | Capture-log hardening + minimal debrief view | ✅ done — omission sweep + debrief |
 | 8 | Facilitator dashboard (separate phase) | ⬜ |
+
+> **Horizon 0 exit criterion reached:** a real session can run, capture rich raw
+> events across all four channels, and produce a basic debrief. That's the platform.
 
 ## Behavioral Memory Spine (the core IP)
 
@@ -65,6 +68,25 @@ curl -X POST -H "Authorization: Bearer $FACILITATOR_SECRET" -H 'Content-Type: ap
 ```
 
 The full facilitator dashboard (a UI over this endpoint) is Phase 8.
+
+## Finalize + debrief (Phase 7)
+
+**Capture-log hardening** — `finalizeSession` (`POST /api/facilitator/finalize-session`,
+bearer) ends a session and materializes the high-signal **omissions** the log can only
+know once the clock stops: `brief_never_opened`, `email_unopened`, `thread_ignored`
+(marked `derived=true`). It then persists a trait-score snapshot (`lib/scoring`) and
+broadcasts a `curtain` event to live participants. The `events` log stays append-only
+(finalize only inserts).
+
+**The debrief** — the first *read* of the spine:
+- **View:** `/facilitator/debrief/<sessionId>?key=<FACILITATOR_SECRET>` — the first-move
+  diagnostic ("who did each person contact first, and when"), per-participant timelines
+  (acts + omissions), response latencies, and the v0.1 **hypothesis** trait scores
+  (value + confidence + evidence count, clearly marked not-yet-validated).
+- **JSON:** `GET /api/facilitator/debrief?sessionId=` (bearer) for exports/make.com.
+
+Everything in the debrief is a read of Layer 1 — no new capture. The scoring pipeline
+was runtime-verified (evidence-cited scores, confidence shrinkage, hypothesis gate).
 
 ## Roadmap & reserved hooks
 
