@@ -142,8 +142,15 @@ the unified model: the CEO **hot seat** + 5 advisors as **AI-castable seats**
 every week's timed beats (situation/feed/surprise/pulse/wire) → `injects`
 (week/day/tag in `trigger_json`), and the **full content + logic functions** (as
 source) in a `documents:solo_content` blob the runtime loads. Reference prototype code
-is vendored under `prototype/solo/`. The **solo runtime** (real-time clock, pull-to-ask,
-AI referee, debrief) is Phases 2–5 — not built yet.
+is vendored under `prototype/solo/`.
+
+**Phase 2 (solo read path) done.** `/solo/[sessionId]?t=<token>` renders a Backlash
+week from the DB — driver HUD, the situation, the advisors' opening positions, the
+trickled feed, and the cast rail — with realtime subscribed (`lib/solo-data.ts` +
+`components/solo/SoloApp.tsx`). The seed includes a **demo solo session** cast 1
+human CEO + 5 AI advisors (`cast_kind`). Disposition is a run dial (`sessions.run_config`,
+`0010`), not a seat attribute. The **solo runtime** (real-time clock + live trickle,
+pull-to-ask, AI referee ruling free-text, game-film debrief) is Phases 3–5 — not built yet.
 
 ## Deploy
 

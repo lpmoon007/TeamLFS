@@ -77,6 +77,7 @@ out.push(`-- ===================================================================
 -- Requires migrations 0001-0009. Additive; safe to re-run (idempotent delete first).
 -- =============================================================================
 begin;
+delete from sessions      where scenario_id = ${q(SCEN_ID)};  -- cascades participants/threads/events
 delete from injects       where scenario_id = ${q(SCEN_ID)};
 delete from holds         where scenario_id = ${q(SCEN_ID)};
 delete from documents     where scenario_id = ${q(SCEN_ID)};
@@ -180,6 +181,22 @@ for (const i of injectRows) {
   out.push(
     `insert into injects (id, scenario_id, seat_id, kind, payload_json, order_idx, trigger_json) values (` +
       `${q(i.id)}, ${q(SCEN_ID)}, ${q(seatId('ceo'))}, ${q(i.kind)}, ${j({ body: i.body, from: i.trigger.from })}, ${i.order_idx}, ${j(i.trigger)});`,
+  );
+}
+
+// ---- demo solo session (Phase 2 read-path): CEO cast human, advisors cast AI ----
+const SESSION_ID = uuid(`session:solo:${slug}:demo`);
+out.push(`\n-- demo solo session (CEO human + advisors AI)`);
+out.push(`insert into sessions (id, scenario_id, status, started_at, run_config) values (${q(SESSION_ID)}, ${q(SCEN_ID)}, 'live', now(), ${j({ disposition: 'request' })});`);
+out.push(
+  `insert into participants (id, session_id, seat_id, token, name, cast_kind) values (` +
+    `${q(uuid(`participant:solo:${slug}:ceo`))}, ${q(SESSION_ID)}, ${q(seatId('ceo'))}, ${q(`demo-${slug}-ceo-REPLACE`)}, 'CEO (demo)', 'human');`,
+);
+for (const t of C.TEAM) {
+  const persona = `You are ${t.name}, ${t.role} — an advisor to the CEO. Priority: ${t.priority}. Voice: ${t.voice}.`;
+  out.push(
+    `insert into participants (id, session_id, seat_id, cast_kind, agent_json) values (` +
+      `${q(uuid(`participant:solo:${slug}:${t.id}`))}, ${q(SESSION_ID)}, ${q(seatId(t.id))}, 'ai', ${j({ persona, voice: t.voice, model: 'default' })});`,
   );
 }
 
