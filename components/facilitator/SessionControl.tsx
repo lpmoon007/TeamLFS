@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  castSeat,
   fireInjectFac,
   finalizeFac,
   recentEvents,
@@ -101,9 +102,13 @@ export function SessionControl({
               <div className="fac-seat" key={r.participantId}>
                 <span className={`dot${r.present ? ' online' : ''}`} />
                 <div className="fac-seat-main">
-                  <div className="fac-seat-name">{r.name}</div>
+                  <div className="fac-seat-name">
+                    {r.name}
+                    {r.castKind === 'ai' ? <span className="cast-badge ai">AI</span> : null}
+                  </div>
                   <div className="db-role">{r.role}</div>
                 </div>
+                <CastToggle sessionId={session.id} seat={r} />
                 <HandDrive sessionId={session.id} seat={r} disabled={status !== 'live'} />
               </div>
             ))}
@@ -160,6 +165,24 @@ export function SessionControl({
         </section>
       </div>
     </div>
+  );
+}
+
+function CastToggle({ sessionId, seat }: { sessionId: string; seat: RosterRow }) {
+  const [kind, setKind] = useState<'human' | 'ai'>(seat.castKind);
+  const [busy, setBusy] = useState(false);
+  const flip = async () => {
+    const next = kind === 'ai' ? 'human' : 'ai';
+    if (next === 'ai' && !confirm(`Cast ${seat.name} as AI? Their magic-link is removed and the seat is driven by the engine.`)) return;
+    setBusy(true);
+    const res = await castSeat({ sessionId, seatKey: seat.seatKey, kind: next });
+    setBusy(false);
+    if (res.ok && res.castKind) setKind(res.castKind);
+  };
+  return (
+    <button className="btn ghost" disabled={busy} onClick={flip} title="Cast this seat human or AI">
+      {busy ? '…' : kind === 'ai' ? 'Make human' : 'Cast AI'}
+    </button>
   );
 }
 

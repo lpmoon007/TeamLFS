@@ -1,8 +1,8 @@
 'use server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { broadcast } from '@/lib/realtime-server';
-import { seatChannel } from '@/lib/channels';
 import { authParticipant } from '@/lib/participant-auth';
+import { postSeatMessage } from '@/lib/message-core';
+import { driveSeatReply } from '@/lib/agent-seat';
 import type { EventChannel } from '@/lib/scoring/types';
 
 /**
@@ -72,14 +72,13 @@ export interface SendMessageResult {
 }
 
 /**
- * Phase 3 — send a message (participant → teammate or NPC contact).
- *  - Writes to the sender's own thread (sender='me').
- *  - If the recipient is a teammate (a participant on another seat), MIRRORS the
- *    message into their thread (sender=<sender seat key>) and broadcasts it to their
- *    seat channel for live delivery. NPC auto-replies come later (Phase 5/6).
- *  - Appends `message_sent` to the capture log (Layer 1) with the scoring-relevant
- *    context (target kind/section, out_group, length) so the scorer has evidence.
- * The DB is the source of truth; the broadcast is a delivery optimization.
+ * Phase 3 — send a message (participant → teammate or NPC contact). Auth binds the
+ * token to this participant/session, then the shared `postSeatMessage` core does the
+ * delivery (own thread + teammate mirror + broadcast + `message_sent` capture).
+ *
+ * Phase 6 — "one engine": if the recipient is a teammate seat CAST AS AI, that seat
+ * autonomously replies through the same core (`driveSeatReply`), best-effort so a model
+ * hiccup never breaks the human's send. An AI occupant is a first-class participant.
  */
 export async function sendMessage(params: {
   sessionId: string;
@@ -106,102 +105,34 @@ export async function sendMessage(params: {
 
   const { data: mySeat } = await db.from('seats').select('id, key').eq('id', me.seat_id).single<any>();
 
-  // Is the recipient a teammate (a participant on a seat with this key)?
-  const { data: recipSeat } = await db
-    .from('seats')
-    .select('id, key')
-    .eq('scenario_id', scenarioId)
-    .eq('key', params.contactKey)
-    .maybeSingle<any>();
-  let teammateSeat: { id: string; key: string } | null = null;
-  if (recipSeat) {
-    const { data: rp } = await db
-      .from('participants')
-      .select('id')
-      .eq('session_id', params.sessionId)
-      .eq('seat_id', recipSeat.id)
-      .maybeSingle();
-    if (rp) teammateSeat = recipSeat;
-  }
-
-  // Section (for scoring) when the recipient is an NPC contact.
-  let section: string | null = teammateSeat ? 'TEAM' : null;
-  if (!teammateSeat) {
-    const { data: contact } = await db
-      .from('contacts')
-      .select('section')
-      .eq('scenario_id', scenarioId)
-      .eq('key', params.contactKey)
-      .limit(1)
-      .maybeSingle<any>();
-    section = contact?.section ?? null;
-  }
-
-  // Sender's own thread + message.
-  const { data: myThread } = await db
-    .from('threads')
-    .upsert(
-      { session_id: params.sessionId, seat_id: me.seat_id, contact_key: params.contactKey, is_group: false },
-      { onConflict: 'session_id,seat_id,contact_key' },
-    )
-    .select('id')
-    .single<any>();
-
-  const { data: myMsg } = await db
-    .from('messages')
-    .insert({ thread_id: myThread.id, sender: 'me', body })
-    .select('id, sent_at')
-    .single<any>();
-
-  // Mirror into the teammate's thread + live-deliver.
-  if (teammateSeat) {
-    const { data: theirThread } = await db
-      .from('threads')
-      .upsert(
-        { session_id: params.sessionId, seat_id: teammateSeat.id, contact_key: mySeat.key, is_group: false },
-        { onConflict: 'session_id,seat_id,contact_key' },
-      )
-      .select('id')
-      .single<any>();
-
-    const { data: mirrored } = await db
-      .from('messages')
-      .insert({ thread_id: theirThread.id, sender: mySeat.key, body })
-      .select('id, sent_at')
-      .single<any>();
-
-    await broadcast(seatChannel(params.sessionId, teammateSeat.key), 'message', {
-      id: mirrored?.id,
-      thread_id: theirThread.id,
-      contact_key: mySeat.key,
-      sender: mySeat.key,
-      body,
-      sent_at: mirrored?.sent_at,
-    });
-  }
-
-  // Capture log (Layer 1) — pair with scoring-relevant context.
-  await db.from('events').insert({
-    session_id: params.sessionId,
-    participant_id: params.participantId,
-    seat_id: me.seat_id,
-    type: 'message_sent',
-    channel: 'message' as EventChannel,
-    target: params.contactKey,
-    payload_json: {
-      body,
-      length: body.length,
-      target_kind: teammateSeat ? 'teammate' : 'npc',
-      target_section: section,
-      out_group: section === 'EXTERNAL',
-      // A1.1 — directed edge: explicit recipient(s) so the comms map is truthful.
-      // (Group addressing will add addressed[] here when group threads land.)
-      recipients: [params.contactKey],
-      addressed: [],
-    },
+  const post = await postSeatMessage(db, {
+    sessionId: params.sessionId,
+    scenarioId,
+    senderParticipantId: params.participantId,
+    senderSeat: { id: mySeat.id, key: mySeat.key },
+    contactKey: params.contactKey,
+    body,
   });
+  if (!post.ok) return { ok: false };
 
-  return { ok: true, message: { id: myMsg.id, thread_id: myThread.id, sent_at: myMsg.sent_at } };
+  // one engine: an AI-cast teammate answers on its own, through the same rails.
+  if (post.aiRecipient) {
+    try {
+      const { data: scn } = await db.from('scenarios').select('title').eq('id', scenarioId).maybeSingle<any>();
+      await driveSeatReply(db, {
+        sessionId: params.sessionId,
+        scenarioId,
+        companyName: scn?.title,
+        ai: post.aiRecipient,
+        toSeat: { id: mySeat.id, key: mySeat.key },
+        incomingBody: body,
+      });
+    } catch {
+      /* best-effort — the human's message already landed */
+    }
+  }
+
+  return { ok: post.ok, message: post.message };
 }
 
 /** Phase 4 — mark an email read: stamp status/read_at and log `email_read` (Layer 1). */

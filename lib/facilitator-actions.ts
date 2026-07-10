@@ -74,6 +74,7 @@ export interface RosterRow {
   name: string;
   role: string | null;
   present: boolean;
+  castKind: 'human' | 'ai';
   callableContacts: { key: string; full: string }[];
 }
 
@@ -91,7 +92,7 @@ export async function loadControl(sessionId: string): Promise<{
 
   const { data: parts } = await db
     .from('participants')
-    .select('id, present, seat:seats!inner(id, key, name, role)')
+    .select('id, present, cast_kind, seat:seats!inner(id, key, name, role)')
     .eq('session_id', sessionId);
 
   const { data: contacts } = await db
@@ -106,6 +107,7 @@ export async function loadControl(sessionId: string): Promise<{
     name: p.seat?.name ?? p.seat?.key,
     role: p.seat?.role ?? null,
     present: p.present,
+    castKind: (p.cast_kind ?? 'human') as 'human' | 'ai',
     callableContacts: (contacts ?? [])
       .filter((c: any) => c.seat_id === p.seat?.id || c.seat_id === null)
       .map((c: any) => ({ key: c.key, full: c.full })),
@@ -267,6 +269,67 @@ export async function sendAsNpc(params: {
   });
 
   return { ok: true };
+}
+
+/**
+ * Phase 6 — cast a seat's occupant human ↔ AI (Roadmap Horizon 0: every seat
+ * Human-or-AI). Casting to AI writes `agent_json` (persona/priority/model) so the
+ * AI-seat driver can play it, and nulls the magic-link token. The recast itself is
+ * logged as a system event so the run's casting history is auditable.
+ */
+export async function castSeat(params: {
+  sessionId: string;
+  seatKey: string;
+  kind: 'human' | 'ai';
+  persona?: string;
+  priority?: string;
+}): Promise<{ ok: boolean; castKind?: 'human' | 'ai' }> {
+  const db = await guard();
+  const { data: session } = await db.from('sessions').select('scenario_id').eq('id', params.sessionId).maybeSingle<any>();
+  if (!session) return { ok: false };
+
+  const { data: seat } = await db
+    .from('seats')
+    .select('id, name, role')
+    .eq('scenario_id', session.scenario_id)
+    .eq('key', params.seatKey)
+    .maybeSingle<any>();
+  if (!seat) return { ok: false };
+
+  const { data: participant } = await db
+    .from('participants')
+    .select('id')
+    .eq('session_id', params.sessionId)
+    .eq('seat_id', seat.id)
+    .maybeSingle<{ id: string }>();
+  if (!participant) return { ok: false };
+
+  if (params.kind === 'ai') {
+    const agent_json = {
+      name: seat.name ?? params.seatKey,
+      role: seat.role ?? null,
+      // A concrete persona is best supplied at cast time; absent one we ground the
+      // agent in its own seat identity so it still plays in character.
+      persona: (params.persona ?? '').trim() || `You are the ${seat.role ?? seat.name ?? params.seatKey} on this leadership team. Speak from that seat's expertise and stakes.`,
+      priority: (params.priority ?? '').trim() || null,
+      autonomy: 'reactive', // replies when addressed; proactive acting is a later dial
+    };
+    await db.from('participants').update({ cast_kind: 'ai', agent_json, token: null }).eq('id', participant.id);
+  } else {
+    await db.from('participants').update({ cast_kind: 'human', agent_json: {} }).eq('id', participant.id);
+  }
+
+  await db.from('events').insert({
+    session_id: params.sessionId,
+    participant_id: participant.id,
+    seat_id: seat.id,
+    type: 'seat_recast',
+    channel: 'system',
+    target: params.seatKey,
+    payload_json: { cast_kind: params.kind },
+  });
+
+  return { ok: true, castKind: params.kind };
 }
 
 function previewOf(payload: any): string | null {

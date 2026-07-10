@@ -242,6 +242,8 @@ button { font-family: inherit; cursor: pointer; }
 .fac-seat { display: flex; align-items: flex-start; gap: 10px; padding: 8px; border-radius: var(--radius-sm); background: var(--bg-elev-2); }
 .fac-seat-main { flex: 1; min-width: 0; }
 .fac-seat-name { font-weight: 600; font-size: 13px; }
+.cast-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 1px 5px; margin-left: 7px; vertical-align: middle; }
+.cast-badge.ai { color: var(--accent); border: 1px solid var(--accent-dim); background: rgba(74,168,255,0.08); }
 .fac-drive { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 8px; }
 .fac-drive select, .fac-drive textarea { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); padding: 7px 9px; font-size: 12px; font-family: inherit; }
 .fac-drive textarea { min-height: 56px; resize: vertical; }
