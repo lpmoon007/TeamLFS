@@ -95,26 +95,50 @@ const DISPOSITION_READ: Record<string, string> = {
     'You walked in with a guarded team — the kind you get after trust has been spent. They held the truth until pressed, and hedged even then. In the full program, this is not a setting; it is a consequence of how you’ve led before.',
 };
 
+/** Is this session a solo run? (server-only; no facilitator guard so it composes with
+ *  the debrief page's own ?key= gate). */
+export async function isSoloSession(sessionId: string): Promise<boolean> {
+  const db = createAdminClient();
+  const { data: session } = await db.from('sessions').select('scenario_id').eq('id', sessionId).maybeSingle<any>();
+  if (!session) return false;
+  const { data: meta } = await db.from('scenario_meta').select('mode_default').eq('scenario_id', session.scenario_id).maybeSingle<any>();
+  return meta?.mode_default === 'solo';
+}
+
+/** Participant-facing: token-gated to the CEO's own run. */
 export async function buildSoloDebrief(sessionId: string, token: string | undefined): Promise<SoloDebriefResult> {
   const db = createAdminClient();
-
-  const { data: session } = await db
-    .from('sessions')
-    .select('id, scenario_id, run_config')
-    .eq('id', sessionId)
-    .maybeSingle<any>();
+  const { data: session } = await db.from('sessions').select('id, scenario_id, run_config').eq('id', sessionId).maybeSingle<any>();
   if (!session) return { ok: false, reason: 'not_found' };
   if (!token) return { ok: false, reason: 'invalid_token' };
 
   // token-gated (any status — the debrief is read after the run, not only while live)
-  const { data: participant } = await db
-    .from('participants')
-    .select('id')
-    .eq('session_id', sessionId)
-    .eq('token', token)
-    .maybeSingle<any>();
+  const { data: participant } = await db.from('participants').select('id').eq('session_id', sessionId).eq('token', token).maybeSingle<any>();
   if (!participant) return { ok: false, reason: 'invalid_token' };
-  const participantId = participant.id;
+  return buildSoloDebriefCore(db, session, participant.id);
+}
+
+/** Facilitator-facing (Phase 8): resolves the human CEO seat, no token needed. The
+ *  caller must gate on the facilitator cookie. */
+export async function buildSoloDebriefForFacilitator(sessionId: string): Promise<SoloDebriefResult> {
+  const db = createAdminClient();
+  const { data: session } = await db.from('sessions').select('id, scenario_id, run_config').eq('id', sessionId).maybeSingle<any>();
+  if (!session) return { ok: false, reason: 'not_found' };
+
+  // the CEO hot seat is the human occupant (advisors are AI-cast). Fall back to any
+  // participant that actually ruled decisions.
+  const { data: human } = await db.from('participants').select('id').eq('session_id', sessionId).eq('cast_kind', 'human').maybeSingle<any>();
+  const participantId = human?.id ?? (await db.from('participants').select('id').eq('session_id', sessionId).limit(1).maybeSingle<any>()).data?.id;
+  if (!participantId) return { ok: false, reason: 'no_run' };
+  return buildSoloDebriefCore(db, session, participantId);
+}
+
+async function buildSoloDebriefCore(
+  db: ReturnType<typeof createAdminClient>,
+  session: any,
+  participantId: string,
+): Promise<SoloDebriefResult> {
+  const sessionId: string = session.id;
 
   const [{ data: scenario }, { data: contentDoc }, { data: rulings }, { data: driverRows }, { data: events }] =
     await Promise.all([

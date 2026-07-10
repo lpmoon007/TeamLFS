@@ -39,6 +39,7 @@ export default async function FacilitatorHome() {
                   <tr key={s.id}>
                     <td>
                       <strong>{s.scenario}</strong>
+                      <span className={`cast-badge ${s.mode === 'solo' ? 'ai' : 'human'}`}>{s.mode}</span>
                       <div className="db-role">{s.id.slice(0, 8)}…</div>
                     </td>
                     <td>

@@ -34,6 +34,7 @@ export interface SessionSummary {
   id: string;
   status: string;
   scenario: string;
+  mode: 'solo' | 'team';
   started_at: string | null;
   ended_at: string | null;
   participants: number;
@@ -44,7 +45,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
   const db = await guard();
   const { data: sessions } = await db
     .from('sessions')
-    .select('id, status, started_at, ended_at, scenario:scenarios!inner(title)')
+    .select('id, status, scenario_id, started_at, ended_at, scenario:scenarios!inner(title)')
     .order('created_at', { ascending: false });
   const ids = (sessions ?? []).map((s: any) => s.id);
   const counts = new Map<string, { total: number; present: number }>();
@@ -57,15 +58,136 @@ export async function listSessions(): Promise<SessionSummary[]> {
       counts.set((p as any).session_id, c);
     }
   }
+  // mode per scenario (solo runs get the solo console + solo debrief)
+  const scnIds = [...new Set((sessions ?? []).map((s: any) => s.scenario_id))];
+  const modeByScenario = new Map<string, 'solo' | 'team'>();
+  if (scnIds.length) {
+    const { data: metas } = await db.from('scenario_meta').select('scenario_id, mode_default').in('scenario_id', scnIds);
+    for (const m of metas ?? []) modeByScenario.set((m as any).scenario_id, (m as any).mode_default);
+  }
   return (sessions ?? []).map((s: any) => ({
     id: s.id,
     status: s.status,
     scenario: s.scenario?.title ?? '—',
+    mode: modeByScenario.get(s.scenario_id) ?? 'team',
     started_at: s.started_at,
     ended_at: s.ended_at,
     participants: counts.get(s.id)?.total ?? 0,
     present: counts.get(s.id)?.present ?? 0,
   }));
+}
+
+// =============================================================================
+// Phase 8 — solo-run console. A solo session's control surface differs from a
+// team's: there are no NPC contacts to hand-drive, no per-seat injects to fire
+// manually — the run is one human CEO + AI advisor seats against the real-time
+// weeks. What the facilitator controls is the run-level DISPOSITION dial (A3.2)
+// and casting the advisor seats; what they watch is the per-week ruling trail,
+// the driver world-model, and the live event log.
+// =============================================================================
+
+export interface SoloAdvisor {
+  seatKey: string;
+  name: string;
+  role: string | null;
+  castKind: 'human' | 'ai';
+}
+export interface SoloRulingRow {
+  weekIdx: number | null;
+  decision: string | null;
+  dims: Record<string, number>;
+  branch: string | null;
+  buzzer: boolean;
+}
+export interface SoloControlData {
+  session: { id: string; status: string; scenario: string; scenarioId: string } | null;
+  disposition: string;
+  dispositions: { key: string; label: string; tag: string | null }[];
+  weekCount: number | null;
+  ceo: { seatKey: string; name: string; present: boolean; token: string | null } | null;
+  advisors: SoloAdvisor[];
+  drivers: { key: string; label: string; value: number }[];
+  rulings: SoloRulingRow[];
+}
+
+/** Solo or team? (drives which console + debrief the facilitator sees.) */
+export async function sessionMode(sessionId: string): Promise<'solo' | 'team' | null> {
+  const db = await guard();
+  const { data: session } = await db.from('sessions').select('scenario_id').eq('id', sessionId).maybeSingle<any>();
+  if (!session) return null;
+  const { data: meta } = await db.from('scenario_meta').select('mode_default').eq('scenario_id', session.scenario_id).maybeSingle<any>();
+  return (meta?.mode_default ?? 'team') as 'solo' | 'team';
+}
+
+export async function loadSoloControl(sessionId: string): Promise<SoloControlData> {
+  const db = await guard();
+  const empty: SoloControlData = { session: null, disposition: 'request', dispositions: [], weekCount: null, ceo: null, advisors: [], drivers: [], rulings: [] };
+
+  const { data: session } = await db
+    .from('sessions')
+    .select('id, status, scenario_id, run_config, scenario:scenarios!inner(title)')
+    .eq('id', sessionId)
+    .maybeSingle<any>();
+  if (!session) return empty;
+
+  const [{ data: meta }, { data: contentDoc }, { data: parts }, { data: rulings }, { data: driverRows }] = await Promise.all([
+    db.from('scenario_meta').select('mode_default, driver_keys, week_count').eq('scenario_id', session.scenario_id).maybeSingle<any>(),
+    db.from('documents').select('body_json').eq('scenario_id', session.scenario_id).eq('key', 'solo_content').maybeSingle<any>(),
+    db.from('participants').select('id, present, cast_kind, token, seat:seats!inner(key, name, role)').eq('session_id', sessionId),
+    db.from('rulings').select('week_idx, decision_text, dimension_scores, branch_key, buzzer').eq('session_id', sessionId).order('week_idx', { ascending: true }),
+    db.from('run_drivers').select('week_idx, driver_key, value').eq('session_id', sessionId).order('week_idx', { ascending: false }),
+  ]);
+
+  const content = contentDoc?.body_json ?? {};
+  const DRIVERS = content.DRIVERS ?? {};
+
+  // CEO hot seat = the human occupant; the rest are advisor seats.
+  const rows = (parts ?? []) as any[];
+  const ceoRow = rows.find((p) => p.cast_kind === 'human') ?? rows.find((p) => p.seat?.key === 'ceo');
+  const advisors: SoloAdvisor[] = rows
+    .filter((p) => p !== ceoRow)
+    .map((p) => ({ seatKey: p.seat?.key, name: p.seat?.name ?? p.seat?.key, role: p.seat?.role ?? null, castKind: (p.cast_kind ?? 'ai') as 'human' | 'ai' }));
+
+  // current driver values: latest week's value per key (rows ordered week desc)
+  const latest: Record<string, number> = {};
+  for (const r of (driverRows ?? []) as any[]) if (latest[r.driver_key] === undefined && r.value !== null) latest[r.driver_key] = Number(r.value);
+  const drivers = Object.keys(DRIVERS).map((k) => ({ key: k, label: DRIVERS[k].label ?? k, value: latest[k] ?? DRIVERS[k].val ?? 0 }));
+
+  const dispositions = Object.entries(content.DISPOSITIONS ?? {}).map(([key, d]: [string, any]) => ({ key, label: d.label ?? key, tag: d.tag ?? null }));
+
+  return {
+    session: { id: session.id, status: session.status, scenario: session.scenario?.title ?? '—', scenarioId: session.scenario_id },
+    disposition: session.run_config?.disposition ?? 'request',
+    dispositions,
+    weekCount: meta?.week_count ?? null,
+    ceo: ceoRow ? { seatKey: ceoRow.seat?.key, name: ceoRow.seat?.name ?? ceoRow.seat?.key, present: !!ceoRow.present, token: ceoRow.token ?? null } : null,
+    advisors,
+    drivers,
+    rulings: ((rulings ?? []) as any[]).map((r) => ({
+      weekIdx: r.week_idx,
+      decision: r.decision_text ?? null,
+      dims: r.dimension_scores ?? {},
+      branch: r.branch_key ?? null,
+      buzzer: !!r.buzzer,
+    })),
+  };
+}
+
+/** Set the run-level disposition dial (A3.2) on a solo session. */
+export async function setSoloDisposition(sessionId: string, disposition: string): Promise<{ ok: boolean; disposition?: string }> {
+  const db = await guard();
+  const { data: session } = await db.from('sessions').select('run_config').eq('id', sessionId).maybeSingle<any>();
+  if (!session) return { ok: false };
+  const run_config = { ...(session.run_config ?? {}), disposition };
+  await db.from('sessions').update({ run_config }).eq('id', sessionId);
+  await db.from('events').insert({
+    session_id: sessionId,
+    type: 'disposition_set',
+    channel: 'system',
+    target: null,
+    payload_json: { disposition },
+  });
+  return { ok: true, disposition };
 }
 
 export interface RosterRow {
