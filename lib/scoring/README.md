@@ -56,3 +56,26 @@ import { aiScoreSession, toTraitScoreRows } from '@/lib/scoring';
 const scores = await aiScoreSession(events, { participantId, sessionId });
 await db.from('trait_scores').insert(toTraitScoreRows(scores)); // server-side
 ```
+
+## Re-score harness (`lib/rescore.ts`)
+
+Proves the spine's core promise — *every past session is re-interpretable from
+Layer 1 with zero re-run* — and produces the AI-vs-heuristic comparison the
+reliability measurement needs. Re-reads a session's LOCKED event log, runs both
+coders, and reports per-trait pole agreement + mean |Δ value_num|. The compare is
+generic (coder A vs coder B), so the same harness diffs AI vs a **human** coder
+later — the human's scores are just another `TraitScore[]` set.
+
+```bash
+# dry-run report (no writes): where do the AI coder and the heuristic agree?
+curl -s -X POST "$BASE/api/facilitator/rescore" \
+  -H "Authorization: Bearer $FACILITATOR_SECRET" \
+  -H 'Content-Type: application/json' \
+  -d '{"sessionId":"<uuid>"}' | jq '.agreement'
+
+# persist the fresh AI snapshot (versioned — never clobbers; a re-score = new rows)
+#   ...-d '{"sessionId":"<uuid>","persist":true}'
+```
+
+`aiVerdicts: 0` in the report means the AI coder didn't run (no `ANTHROPIC_API_KEY`)
+and every trait fell back to the heuristic — the diff is then trivially self-agreeing.
