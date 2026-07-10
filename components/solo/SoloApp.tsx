@@ -1,23 +1,25 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useParticipantChannel } from '@/lib/realtime';
 import { logEvent } from '@/lib/actions';
+import { soloAsk, soloDecide } from '@/lib/solo-actions';
+import type { Ruling } from '@/lib/solo-referee';
 import { initials as ini, colorFrom } from '@/lib/ui';
 import type { SoloBundle } from '@/lib/solo-data';
 
-// Phase 3 — the real-time clock + feed trickle + buzzer + "need more time".
-// Faithful to crisis-engine.js: a 200ms tick maps real seconds → in-fiction days;
-// feed/surprises/pulse release as their day arrives (guarded disposition delays feed
-// by a day); at totalDays·dayMs the buzzer forces the call; reprieve buys days at a
-// driver cost. No AI yet — writing the call + referee ruling is Phase 4.
+// Phase 3 clock + Phase 4 heart: pull-to-ask (advisor replies + held-info reveal) and
+// the free-text decision ruled by the AI referee. No week-advance flow beyond a link
+// yet; the game-film debrief is Phase 5.
 type Released = { key: string; releaseDay: number; from: string | null; text: string; kind: 'feed' | 'surprise' | 'pulse'; title?: string | null; day?: number | null };
+interface Ask { id: string; advisorKey: string; question: string; reply: string; hold: { surfaced: boolean; hedged: boolean; text: string } | null }
 
 export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const { config, week } = bundle;
+  const auth = { sessionId: bundle.sessionId, participantId: bundle.participantId, token: bundle.token };
   const weekSeconds = week.seconds || config.weekSeconds;
   const dayMs = (weekSeconds * 1000) / config.days;
-
-  const { connected } = useParticipantChannel({ sessionId: bundle.sessionId, seatKey: bundle.seatKey, enabled: true });
+  useParticipantChannel({ sessionId: bundle.sessionId, seatKey: bundle.seatKey, enabled: true });
 
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
@@ -25,6 +27,13 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const [extraDays, setExtraDays] = useState(0);
   const [reprieves, setReprieves] = useState(0);
   const [drivers, setDrivers] = useState<Record<string, number>>(() => Object.fromEntries(bundle.drivers.map((d) => [d.key, d.val])));
+  const [asks, setAsks] = useState<Ask[]>([]);
+  const [asking, setAsking] = useState<string | null>(null);
+  const [askText, setAskText] = useState('');
+  const [askBusy, setAskBusy] = useState(false);
+  const [decisionText, setDecisionText] = useState('');
+  const [deciding, setDeciding] = useState(false);
+  const [ruling, setRuling] = useState<Ruling | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
 
   const totalDays = config.days + extraDays;
@@ -34,30 +43,25 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const secLeft = Math.max(0, Math.ceil((weekDurationMs - elapsed) / 1000));
   const low = daysLeft <= config.lowTimeDays;
   const canReprieve = reprieves < 2;
+  const decided = ruling !== null;
 
-  // clock tick
   useEffect(() => {
     if (!running) return;
     const t = setInterval(() => setElapsed((e) => e + 200), 200);
     return () => clearInterval(t);
   }, [running]);
-
-  // buzzer at week end
   useEffect(() => {
-    if (!buzzer && running && elapsed >= weekDurationMs) {
+    if (!buzzer && running && !decided && elapsed >= weekDurationMs) {
       setBuzzer(true);
       setRunning(false);
-      void logEvent({ sessionId: bundle.sessionId, participantId: bundle.participantId, type: 'week_timeout', channel: 'system', target: `week-${week.n}` });
+      void logEvent({ ...auth, type: 'week_timeout', channel: 'system', target: `week-${week.n}` });
     }
-  }, [elapsed, weekDurationMs, buzzer, running]);
-
-  // week_started once
+  }, [elapsed, weekDurationMs, buzzer, running, decided]);
   useEffect(() => {
-    void logEvent({ sessionId: bundle.sessionId, participantId: bundle.participantId, type: 'week_started', channel: 'system', target: `week-${week.n}` });
+    void logEvent({ ...auth, type: 'week_started', channel: 'system', target: `week-${week.n}` });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // released timeline (derived from curDay) — feed (guarded delay), surprises, pulse
   const timeline = useMemo<Released[]>(() => {
     const items: Released[] = [];
     week.feed.forEach((f, i) => {
@@ -71,7 +75,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
 
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' });
-  }, [timeline.length]);
+  }, [timeline.length, asks.length]);
 
   const castByKey = useMemo(() => new Map(bundle.cast.map((c) => [c.seatKey, c])), [bundle.cast]);
 
@@ -84,15 +88,40 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
       for (const [k, delta] of Object.entries(bundle.reprieveCost)) next[k] = (next[k] ?? 0) + delta;
       return next;
     });
-    if (buzzer) {
-      setBuzzer(false);
-      setRunning(true);
+    if (buzzer) { setBuzzer(false); setRunning(true); }
+    void logEvent({ ...auth, type: 'reprieve_taken', channel: 'system', target: `week-${week.n}`, payload: { reprieves: reprieves + 1 } });
+  };
+
+  const sendAsk = async (advisorKey: string) => {
+    const q = askText.trim();
+    if (!q || askBusy) return;
+    setAskBusy(true);
+    const res = await soloAsk({ ...auth, advisorKey, weekIdx: bundle.weekIdx, question: q });
+    setAskBusy(false);
+    if (res.ok) {
+      setAsks((a) => [...a, { id: crypto.randomUUID(), advisorKey, question: q, reply: res.reply ?? '', hold: res.hold ?? null }]);
+      setAskText('');
+      setAsking(null);
     }
-    void logEvent({ sessionId: bundle.sessionId, participantId: bundle.participantId, type: 'reprieve_taken', channel: 'system', target: `week-${week.n}`, payload: { reprieves: reprieves + 1 } });
+  };
+
+  const submitDecision = async () => {
+    const text = decisionText.trim();
+    if (text.length < 8 || deciding) return;
+    setDeciding(true);
+    setRunning(false);
+    const res = await soloDecide({ ...auth, weekIdx: bundle.weekIdx, decisionText: text, drivers, reprieves, underBuzzer: buzzer, decidedDay: curDay });
+    setDeciding(false);
+    if (res.ok && res.ruling) {
+      setRuling(res.ruling);
+      if (res.drivers) setDrivers(res.drivers);
+      setBuzzer(false);
+    }
   };
 
   const mm = Math.floor(secLeft / 60);
   const ss = String(secLeft % 60).padStart(2, '0');
+  const lastWeek = week.n >= bundle.weekCount;
 
   return (
     <div className="solo">
@@ -107,28 +136,26 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
           <div className="solo-week-of">Week {week.n} of {bundle.weekCount}</div>
         </div>
         <div className="spacer" />
-        {/* countdown clock */}
-        <div className={`solo-clock${buzzer ? ' buzzer' : low ? ' low' : ''}`}>
-          <div className="sc-row">
-            <span className="sc-day">Day {curDay}<small>/{totalDays}</small></span>
-            <span className="sc-time">{buzzer ? "⏰ time's up" : `${mm}:${ss} left`}</span>
+        {!decided ? (
+          <div className={`solo-clock${buzzer ? ' buzzer' : low ? ' low' : ''}`}>
+            <div className="sc-row">
+              <span className="sc-day">Day {curDay}<small>/{totalDays}</small></span>
+              <span className="sc-time">{buzzer ? "⏰ time's up" : `${mm}:${ss} left`}</span>
+            </div>
+            <div className="sc-bar"><span style={{ width: `${buzzer ? 0 : Math.max(0, (daysLeft / totalDays) * 100)}%` }} /></div>
           </div>
-          <div className="sc-bar"><span style={{ width: `${buzzer ? 0 : Math.max(0, (daysLeft / totalDays) * 100)}%` }} /></div>
-        </div>
-        <div className="statusline" title={connected ? 'Live' : 'Reconnecting…'}>
-          <span className={connected ? 'live' : 'off'} />
-        </div>
+        ) : null}
       </header>
 
-      {/* day dots */}
-      <div className="solo-days">
-        {Array.from({ length: totalDays }, (_, i) => {
-          const day = i + 1;
-          return <span key={i} className={`day-dot ${day < curDay ? 'past' : day === curDay ? 'now' : ''}`} />;
-        })}
-      </div>
+      {!decided ? (
+        <div className="solo-days">
+          {Array.from({ length: totalDays }, (_, i) => {
+            const day = i + 1;
+            return <span key={i} className={`day-dot ${day < curDay ? 'past' : day === curDay ? 'now' : ''}`} />;
+          })}
+        </div>
+      ) : null}
 
-      {/* Driver HUD */}
       <div className="solo-hud">
         {bundle.drivers.map((d) => {
           const val = drivers[d.key] ?? d.val;
@@ -173,59 +200,132 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
           <section className="solo-panel">
             <h2>Inbox — the week is running</h2>
             <div className="solo-feed" ref={feedRef}>
-              {timeline.length === 0 ? (
-                <div className="db-dim">Your team will bring you things as the days pass…</div>
-              ) : (
-                timeline.map((it) => {
-                  const c = it.from ? castByKey.get(it.from) : null;
-                  return (
-                    <div className={`feed-item2 ${it.kind}`} key={it.key}>
-                      <span className="c-av" style={{ background: c?.color ?? colorFrom(it.from ?? 'x') }}>{c?.initials ?? ini(c?.name ?? it.from ?? '•')}</span>
+              {timeline.map((it) => {
+                const c = it.from ? castByKey.get(it.from) : null;
+                return (
+                  <div className={`feed-item2 ${it.kind}`} key={it.key}>
+                    <span className="c-av" style={{ background: c?.color ?? colorFrom(it.from ?? 'x') }}>{c?.initials ?? ini(c?.name ?? it.from ?? '•')}</span>
+                    <div className="fi-main">
+                      <div className="fi-top">
+                        <span className="fi-who">{it.title ? it.title : c?.name ?? it.from}</span>
+                        {it.day ? <span className="fi-day">Day {it.day}</span> : null}
+                        {it.kind !== 'feed' ? <span className={`fi-tag ${it.kind}`}>{it.kind}</span> : null}
+                      </div>
+                      <div className="fi-text">{it.text}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {/* pull-to-ask exchanges */}
+              {asks.map((a) => {
+                const c = castByKey.get(a.advisorKey);
+                return (
+                  <div key={a.id} className="ask-exchange">
+                    <div className="ask-you">You → {c?.name ?? a.advisorKey}: “{a.question}”</div>
+                    <div className="feed-item2">
+                      <span className="c-av" style={{ background: c?.color ?? colorFrom(a.advisorKey) }}>{c?.initials ?? ini(c?.name ?? a.advisorKey)}</span>
                       <div className="fi-main">
-                        <div className="fi-top">
-                          <span className="fi-who">{it.title ? it.title : c?.name ?? it.from}</span>
-                          {it.day ? <span className="fi-day">Day {it.day}</span> : null}
-                          {it.kind !== 'feed' ? <span className={`fi-tag ${it.kind}`}>{it.kind}</span> : null}
-                        </div>
-                        <div className="fi-text">{it.text}</div>
+                        <div className="fi-top"><span className="fi-who">{c?.name ?? a.advisorKey}</span></div>
+                        <div className="fi-text">{a.reply}</div>
                       </div>
                     </div>
-                  );
-                })
-              )}
+                    {a.hold ? (
+                      <div className={`feed-item2 ${a.hold.surfaced ? 'reveal' : 'pulse'}`}>
+                        <span className="c-av" style={{ background: c?.color ?? colorFrom(a.advisorKey) }}>{c?.initials ?? ini(c?.name ?? a.advisorKey)}</span>
+                        <div className="fi-main">
+                          <div className="fi-top"><span className="fi-who">{a.hold.surfaced ? 'Now it comes out' : 'They hold something back'}</span></div>
+                          <div className="fi-text">{a.hold.text}</div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </section>
 
-          {/* decision zone — buzzer + reprieve. Writing the call + AI ruling is Phase 4. */}
-          <section className={`solo-decision${buzzer ? ' buzzed' : low ? ' low' : ''}`}>
-            {buzzer ? (
-              <div className="dec-banner">⏰ The week ran out — the board wants your call now. (Writing the decision + the AI referee ruling arrives in the next phase.)</div>
-            ) : low ? (
-              <div className="dec-banner">Time is short — decide, or buy more time.</div>
-            ) : (
-              <div className="dec-banner muted">Decide early and time jumps ahead; let it run out and the crowd fills the silence. (Decision compose: next phase.)</div>
-            )}
-            <div className="dec-actions">
-              <button className="btn" disabled title="Writing your call lands in Phase 4">Write your call…</button>
-              <button className="btn ghost" onClick={takeReprieve} disabled={!canReprieve}>
-                {canReprieve ? `Need more time (+${config.extraDaysPerReprieve}d, costs you)` : 'No more time to buy'}
-              </button>
-            </div>
-          </section>
+          {/* decision / ruling */}
+          {decided && ruling ? (
+            <section className="solo-panel ruling">
+              <h2>The week resolves</h2>
+              <p className="solo-situation">{ruling.narrative}</p>
+              <div className="ruling-deltas">
+                {bundle.drivers.map((d) => {
+                  const dl = ruling.deltas[d.key] ?? 0;
+                  return (
+                    <span key={d.key} className={`delta ${dl > 0 ? 'up' : dl < 0 ? 'down' : ''}`}>
+                      {d.label} {dl > 0 ? '+' : ''}{dl}
+                    </span>
+                  );
+                })}
+              </div>
+              <div className="ruling-reacts">
+                {ruling.teamReactions.map((r, i) => {
+                  const c = castByKey.get(r.who);
+                  return (
+                    <div className="adv" key={i}>
+                      <span className="c-av" style={{ background: c?.color ?? colorFrom(r.who) }}>{c?.initials ?? ini(c?.name ?? r.who)}</span>
+                      <div className="adv-main"><div className="adv-who">{c?.name ?? r.who}</div><div className="adv-text">{r.text}</div></div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="dec-actions">
+                {lastWeek ? (
+                  <span className="db-dim">Final week decided. The game-film debrief is the next phase.</span>
+                ) : (
+                  <Link className="btn primary" href={`/solo/${bundle.sessionId}?t=${encodeURIComponent(bundle.token)}&week=${week.n + 1}`}>
+                    Continue to Week {week.n + 1} →
+                  </Link>
+                )}
+              </div>
+            </section>
+          ) : (
+            <section className={`solo-decision${buzzer ? ' buzzed' : low ? ' low' : ''}`}>
+              <div className="dec-banner">
+                {buzzer ? '⏰ The week ran out — make your call now, even briefly.' : low ? 'Time is short — decide, or buy more time.' : 'Write your call in your own words. Decide early and time jumps ahead; let it run out and the crowd fills the silence.'}
+              </div>
+              <textarea
+                className="dec-input"
+                value={decisionText}
+                onChange={(e) => setDecisionText(e.target.value)}
+                placeholder="This week I'm deciding to…"
+                disabled={deciding}
+              />
+              <div className="dec-actions">
+                <button className="btn primary" disabled={deciding || decisionText.trim().length < 8} onClick={submitDecision}>
+                  {deciding ? 'The referee is ruling…' : 'Send your decision'}
+                </button>
+                <button className="btn ghost" onClick={takeReprieve} disabled={!canReprieve}>
+                  {canReprieve ? `Need more time (+${config.extraDaysPerReprieve}d, costs you)` : 'No more time to buy'}
+                </button>
+              </div>
+            </section>
+          )}
         </main>
 
         <aside className="solo-rail">
-          <h3>Your team</h3>
+          <h3>Your team — reach out</h3>
           {bundle.cast.map((c) => (
             <div className="rail-member" key={c.seatKey}>
               <span className="c-av" style={{ background: c.color ?? colorFrom(c.seatKey) }}>{c.initials ?? ini(c.name)}</span>
               <div className="rail-main">
                 <div className="rail-name">{c.name}</div>
                 <div className="rail-role">{c.short ?? c.role}</div>
+                {asking === c.seatKey ? (
+                  <div className="ask-box">
+                    <textarea value={askText} onChange={(e) => setAskText(e.target.value)} placeholder={`Ask ${c.name.split(' ')[0]}…`} autoFocus />
+                    <div className="ask-actions">
+                      <button className="btn primary" disabled={askBusy || !askText.trim()} onClick={() => sendAsk(c.seatKey)}>{askBusy ? '…' : 'Ask'}</button>
+                      <button className="btn ghost" onClick={() => { setAsking(null); setAskText(''); }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="rail-ask" disabled={decided} onClick={() => { setAsking(c.seatKey); setAskText(''); }}>Reach out ↗</button>
+                )}
               </div>
             </div>
           ))}
-          <div className="rail-note">Reaching out to ask — and holding info until you do — is Phase 4.</div>
         </aside>
       </div>
     </div>

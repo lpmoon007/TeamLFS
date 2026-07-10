@@ -387,4 +387,23 @@ button { font-family: inherit; cursor: pointer; }
 .solo-decision.buzzed { border-color: var(--danger); }
 .dec-banner { font-size: 13px; color: var(--text); margin-bottom: 12px; }
 .dec-banner.muted { color: var(--text-dim); }
-.dec-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.dec-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.dec-input { width: 100%; min-height: 90px; resize: vertical; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); padding: 10px 12px; font-family: inherit; font-size: 14px; line-height: 1.6; margin-bottom: 12px; }
+.dec-input:focus { border-color: var(--accent-dim); outline: none; }
+/* pull-to-ask in the rail */
+.rail-ask { margin-top: 6px; background: transparent; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--accent); font-size: 11px; padding: 4px 8px; }
+.rail-ask:hover:not(:disabled) { border-color: var(--accent-dim); }
+.rail-ask:disabled { opacity: 0.4; }
+.ask-box { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ask-box textarea { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); padding: 7px 9px; font-size: 12px; font-family: inherit; min-height: 52px; resize: vertical; }
+.ask-actions { display: flex; gap: 6px; }
+.ask-exchange { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-left: 2px solid var(--accent-dim); }
+.ask-you { font-size: 12px; color: var(--text-dim); font-style: italic; }
+.feed-item2.reveal { border: 1px solid rgba(52,211,153,0.4); background: rgba(52,211,153,0.06); }
+/* ruling transition */
+.solo-panel.ruling { border-color: var(--accent-dim); }
+.ruling-deltas { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.delta { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.delta.up { color: var(--online); border-color: rgba(52,211,153,0.4); }
+.delta.down { color: var(--danger); border-color: rgba(248,113,113,0.4); }
+.ruling-reacts { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-soft); }

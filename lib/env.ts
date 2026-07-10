@@ -32,6 +32,9 @@ export function elevenLabsKey(): string {
 }
 /** NPC reply model — defaults to Claude Opus 4.8; override for latency/cost. */
 export const VOICE_MODEL = process.env.VOICE_MODEL ?? 'claude-opus-4-8';
+/** Solo referee/advisor model. The prototype uses Haiku 4.5 — many low-latency calls
+ *  per run (§8.5 cost decision). Override with SOLO_MODEL. */
+export const SOLO_MODEL = process.env.SOLO_MODEL ?? 'claude-haiku-4-5';
 /** ElevenLabs TTS model — turbo for low latency by default. */
 export const TTS_MODEL = process.env.ELEVENLABS_MODEL ?? 'eleven_turbo_v2_5';
 

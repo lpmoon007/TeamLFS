@@ -149,7 +149,7 @@ week from the DB — driver HUD, the situation, the advisors' opening positions,
 trickled feed, and the cast rail — with realtime subscribed (`lib/solo-data.ts` +
 `components/solo/SoloApp.tsx`). The seed includes a **demo solo session** cast 1
 human CEO + 5 AI advisors (`cast_kind`). Disposition is a run dial (`sessions.run_config`,
-`0010`), not a seat attribute. Phase 3 adds the real-time clock: 200ms tick maps seconds to in-fiction days, the feed/surprises/pulse trickle in as their day arrives (guarded disposition delays a day), the buzzer forces the call at week's end, and "need more time" buys days at a driver cost. The **AI referee** (write your call → ruling) is Phase 4.
+`0010`), not a seat attribute. Phase 3 adds the real-time clock: 200ms tick maps seconds to in-fiction days, the feed/surprises/pulse trickle in as their day arrives (guarded disposition delays a day), the buzzer forces the call at week's end, and "need more time" buys days at a driver cost. Phase 4 adds the heart: pull-to-ask (reach out to an advisor → in-character reply via Claude, held-info landmines surface on a targeted ask matching trigger_hints, hedging under the 'guarded' disposition) and the AI referee (write your free-text call → ruling against the world model: driver deltas + narrative + private dimension/conduct scores, persisted to rulings/run_drivers/events). Deterministic fallback (crisis-engine.js) runs without a key; SOLO_MODEL defaults to claude-haiku-4-5. Game-film debrief is Phase 5.
 
 ## Deploy
 
