@@ -1,7 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getRubrics } from '@/lib/scoring';
-import type { TraitScore } from '@/lib/scoring/types';
+import { aiScoreSession, toTraitScoreRows } from '@/lib/scoring';
+import type { SpineEvent, TraitScore } from '@/lib/scoring/types';
 
 // Phase 9 — the cross-session Behavioral Memory Spine: identity, accumulation, and the
 // first read that feeds back into the engine (disposition from history). Everything
@@ -177,57 +177,22 @@ export async function resolveDispositionFromHistory(db: Db, subjectId: string | 
 
 /** Score a solo run's CEO from the raw log and append to the cross-session profile.
  *  Called at the final decision (soloDecide) so a solo playthrough builds the spine
- *  exactly as a team session does at finalize. */
+ *  exactly as a team session does at finalize. Uses the AI coder (deterministic
+ *  fallback baked in). */
 export async function scoreSoloRun(db: Db, sessionId: string, participantId: string): Promise<number> {
   const { data: rawEvents } = await db
     .from('events')
     .select('id, session_id, participant_id, seat_id, ts, scenario_ms, type, channel, target, payload_json, derived')
     .eq('session_id', sessionId)
     .eq('participant_id', participantId);
-  const events = (rawEvents ?? []) as any[];
+  const events = (rawEvents ?? []) as SpineEvent[];
   if (!events.length) return 0;
 
-  // deterministic v0.1 scorer (same seam as the team path)
-  const rubrics = getRubrics();
-  const scores: TraitScore[] = rubrics.map((r) => {
-    const { signalEventIds, counterEventIds } = r.evidence(events);
-    const s = signalEventIds.length;
-    const c = counterEventIds.length;
-    const total = s + c;
-    const value_num = total === 0 ? null : (s - c) / total;
-    const confidence = total === 0 ? 0 : Math.min(1, total / (total + 3));
-    const value =
-      value_num === null ? null : value_num > 0.2 ? r.poles.positive : value_num < -0.2 ? r.poles.negative : r.poles.neutral;
-    return {
-      participant_id: participantId,
-      session_id: sessionId,
-      taxonomy_version: r.taxonomy_version,
-      scorer_version: 'v0.1.0-heuristic',
-      trait_key: r.trait_key,
-      value,
-      value_num,
-      confidence,
-      evidence_event_ids: [...signalEventIds, ...counterEventIds],
-      coder: 'ai',
-    };
-  });
+  const scores: TraitScore[] = await aiScoreSession(events, { participantId, sessionId });
 
   // versioned: replace this run's snapshot, then re-persist
   await db.from('trait_scores').delete().eq('session_id', sessionId).eq('participant_id', participantId);
-  await db.from('trait_scores').insert(
-    scores.map((s) => ({
-      participant_id: s.participant_id,
-      session_id: s.session_id,
-      taxonomy_version: s.taxonomy_version,
-      scorer_version: s.scorer_version,
-      trait_key: s.trait_key,
-      value: s.value,
-      value_num: s.value_num,
-      confidence: s.confidence,
-      evidence_event_ids: s.evidence_event_ids,
-      coder: s.coder,
-    })),
-  );
+  if (scores.length) await db.from('trait_scores').insert(toTraitScoreRows(scores));
 
   const { data: sess } = await db.from('sessions').select('scenario:scenarios!inner(org_id)').eq('id', sessionId).maybeSingle<any>();
   const orgId: string | null = sess?.scenario?.org_id ?? null;

@@ -5,7 +5,10 @@
 
 export * from './types';
 export { REGISTRY, TAXONOMY_VERSION, getRubrics, getRubric } from './registry';
-export { SCORER_VERSION, scoreSession, aiScoreSession, toTraitScoreRows } from './score';
+export { SCORER_VERSION, scoreSession, toTraitScoreRows } from './score';
+// The AI coder is the production scorer; it delegates to the deterministic base in
+// score.ts and overlays the model's judgment, falling back to it on any failure.
+export { aiScoreSession, AI_SCORER_VERSION } from './ai';
 
 import { getRubric } from './registry';
 import type { TraitStatus } from './types';
