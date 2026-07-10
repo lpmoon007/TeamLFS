@@ -119,6 +119,21 @@ horizon needs a migration.* Reserved in-repo so far:
   session finalize: each session's trait scores append to the per-participant
   trajectory — the read surface Director-AI / twin / gossip / season depend on.
 
+## Solo engine (Master Handoff §5) — schema reserved
+
+TLFS is **one engine cast two ways** (solo = 1 human + N AI seats; team = N humans).
+The team front-end (InCommand / The Signal) is built; the **solo real-time engine**
+(weeks clock, pull-to-ask, AI referee ruling free-text → driver deltas, held-info
+landmines, villain/hero endings) is the next front-end. Its schema (`0009`) is in
+place — additive, unused by the app yet:
+`scenario_meta`, `holds`, `run_drivers`, `rulings`, `run_outcome`, plus
+`injects.trigger_json` (A3.1 Director-eligible triggers). Per Addendum **A3**, the
+solo innovations need **no new raw capture** — the `events` log + A1 already cover
+them; `0009` is authored content + versioned Layer-2 reads only.
+
+> `0009` is not needed on a live project until the solo runtime is built — apply it
+> then. Fresh installs get it via `deploy/bootstrap.sql`.
+
 ## Deploy
 
 `DEPLOY.md` is the runbook. Summary: apply `supabase/migrations` + `seed.sql` to a
