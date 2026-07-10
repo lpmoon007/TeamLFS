@@ -1,6 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveWeek } from '@/lib/solo-week';
+import { resolveDispositionFromHistory, subjectForParticipant } from '@/lib/spine';
 
 // Solo read path (Master Handoff §7.2). Renders a scenario week from the DB: the
 // situation, the trickled feed, the cast rail, the driver HUD — all read from the
@@ -171,7 +172,22 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
         lowTimeDays: cfg.lowTimeDays ?? 1.6,
       },
       reprieveCost: content.REPRIEVE_COST ?? {},
-      disposition: session.run_config?.disposition ?? 'request',
+      disposition: await effectiveDisposition(db, sessionId, participant.id, session.run_config?.disposition),
     },
   };
+}
+
+// A concrete dial is used as-is; 'surprise'/'auto' (or unset) is resolved from the
+// CEO's cross-session history (Phase 9, A3.2) — never surfaced to the player as such,
+// but it drives the guarded-feed delay and the held-info hedge.
+async function effectiveDisposition(
+  db: ReturnType<typeof createAdminClient>,
+  sessionId: string,
+  participantId: string,
+  dial: string | undefined,
+): Promise<string> {
+  const d = dial ?? 'request';
+  if (d !== 'surprise' && d !== 'auto') return d;
+  const subjectId = await subjectForParticipant(db, sessionId, participantId);
+  return (await resolveDispositionFromHistory(db, subjectId)).disposition;
 }

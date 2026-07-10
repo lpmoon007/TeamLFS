@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { authParticipant } from '@/lib/participant-auth';
 import { anthropicApiKey, SOLO_MODEL } from '@/lib/env';
 import { resolveWeek } from '@/lib/solo-week';
+import { scoreSoloRun, resolveDispositionFromHistory, subjectForParticipant } from '@/lib/spine';
 import {
   applyDeltas,
   buildRefereeSystem,
@@ -88,7 +89,7 @@ export async function soloAsk(params: {
   // held-info reveal: does the ask hit a hold this advisor holds this week?
   let hold: AskResult['hold'] = null;
   const holds = (w.holds ?? []).filter((h: any) => h.from === params.advisorKey);
-  const disposition = await sessionDisposition(db, params.sessionId);
+  const disposition = await sessionDisposition(db, params.sessionId, params.participantId);
   for (const h of holds) {
     if (!matchHold(params.question, h)) continue;
     // guarded → hedge the first matching ask, reveal on a subsequent one
@@ -112,9 +113,20 @@ export async function soloAsk(params: {
   return { ok: true, reply, hold };
 }
 
-async function sessionDisposition(db: ReturnType<typeof createAdminClient>, sessionId: string): Promise<string> {
+// The run's effective disposition. A concrete dial ('served'|'request'|'guarded') is
+// used as-is; 'surprise'/'auto' (or unset) is RESOLVED from the CEO's cross-session
+// history (Phase 9, A3.2) — the team you get is a consequence of how you've led before.
+async function sessionDisposition(
+  db: ReturnType<typeof createAdminClient>,
+  sessionId: string,
+  participantId?: string,
+): Promise<string> {
   const { data } = await db.from('sessions').select('run_config').eq('id', sessionId).maybeSingle<any>();
-  return data?.run_config?.disposition ?? 'request';
+  const dial = data?.run_config?.disposition ?? 'request';
+  if (dial !== 'surprise' && dial !== 'auto') return dial;
+  if (!participantId) return 'request';
+  const subjectId = await subjectForParticipant(db, sessionId, participantId);
+  return (await resolveDispositionFromHistory(db, subjectId)).disposition;
 }
 
 // The run's decided branch (from the prior week's referee ruling) — resolves a branched
@@ -273,6 +285,17 @@ export async function soloDecide(params: {
     target: `week-${w.n}`,
     payload_json: { dims: ruling.dims, deltas: ruling.deltas, branch: branchKey },
   });
+
+  // Phase 9 — at the final decision, score the run off the raw log and append it to
+  // the CEO's cross-session profile, so a solo playthrough builds the spine (and the
+  // next run's disposition) exactly as a team session does at finalize. Best-effort.
+  if (w.final) {
+    try {
+      await scoreSoloRun(db, params.sessionId, params.participantId);
+    } catch {
+      /* scoring is derived Layer-2 — never block the ruling on it */
+    }
+  }
 
   return { ok: true, ruling, drivers, branchKey };
 }

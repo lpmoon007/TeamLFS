@@ -251,6 +251,13 @@ button { font-family: inherit; cursor: pointer; }
 .sfr-disp { margin-top: 6px; }
 .sfr-disp-opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .sfr-disp-opts .btn { font-size: 11px; padding: 4px 9px; }
+.sfr-history { margin-top: 8px; font-size: 12px; color: var(--text-dim); line-height: 1.6; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-elev-2); border: 1px solid var(--line-soft); }
+.sfr-history .db-role { display: inline; }
+.disp-served { color: var(--online); }
+.disp-request { color: var(--accent); }
+.disp-guarded { color: var(--danger); }
+.sfr-history-traits { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.sfr-trait { font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .sfr-drivers { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 .sfr-driver-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; }
 .sfr-val { font-weight: 700; font-variant-numeric: tabular-nums; }

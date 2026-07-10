@@ -4,6 +4,7 @@ import { facilitatorSecret } from '@/lib/env';
 import { isFacilitatorSession, setFacilitatorSession, clearFacilitatorSession } from '@/lib/facilitator-session';
 import { fireInject } from '@/lib/inject';
 import { finalizeSession } from '@/lib/finalize';
+import { subjectForParticipant, subjectPosture, resolveDispositionFromHistory } from '@/lib/spine';
 import { broadcast } from '@/lib/realtime-server';
 import { seatChannel } from '@/lib/channels';
 
@@ -99,6 +100,13 @@ export interface SoloRulingRow {
   branch: string | null;
   buzzer: boolean;
 }
+export interface SoloHistory {
+  sessions: number; // prior sessions in this person's spine
+  resolvedDisposition: 'served' | 'request' | 'guarded';
+  resolvedFromHistory: boolean;
+  score: number | null;
+  traits: { trait_key: string; mean: number }[];
+}
 export interface SoloControlData {
   session: { id: string; status: string; scenario: string; scenarioId: string } | null;
   disposition: string;
@@ -108,6 +116,7 @@ export interface SoloControlData {
   advisors: SoloAdvisor[];
   drivers: { key: string; label: string; value: number }[];
   rulings: SoloRulingRow[];
+  history: SoloHistory | null;
 }
 
 /** Solo or team? (drives which console + debrief the facilitator sees.) */
@@ -121,7 +130,7 @@ export async function sessionMode(sessionId: string): Promise<'solo' | 'team' | 
 
 export async function loadSoloControl(sessionId: string): Promise<SoloControlData> {
   const db = await guard();
-  const empty: SoloControlData = { session: null, disposition: 'request', dispositions: [], weekCount: null, ceo: null, advisors: [], drivers: [], rulings: [] };
+  const empty: SoloControlData = { session: null, disposition: 'request', dispositions: [], weekCount: null, ceo: null, advisors: [], drivers: [], rulings: [], history: null };
 
   const { data: session } = await db
     .from('sessions')
@@ -155,6 +164,25 @@ export async function loadSoloControl(sessionId: string): Promise<SoloControlDat
 
   const dispositions = Object.entries(content.DISPOSITIONS ?? {}).map(([key, d]: [string, any]) => ({ key, label: d.label ?? key, tag: d.tag ?? null }));
 
+  // Phase 9 — the cross-session read: what disposition this CEO has EARNED from prior
+  // runs, and the postures behind it. Excludes the current session's own scores unless
+  // it's already been scored (final decision made).
+  let history: SoloHistory | null = null;
+  if (ceoRow) {
+    const subjectId = await subjectForParticipant(db, sessionId, ceoRow.id);
+    if (subjectId) {
+      const posture = await subjectPosture(db, subjectId);
+      const resolved = await resolveDispositionFromHistory(db, subjectId);
+      history = {
+        sessions: posture.sessions,
+        resolvedDisposition: resolved.disposition,
+        resolvedFromHistory: resolved.resolvedFromHistory,
+        score: resolved.score,
+        traits: posture.traits.filter((t) => Math.abs(t.mean) > 0.05).map((t) => ({ trait_key: t.trait_key, mean: t.mean })),
+      };
+    }
+  }
+
   return {
     session: { id: session.id, status: session.status, scenario: session.scenario?.title ?? '—', scenarioId: session.scenario_id },
     disposition: session.run_config?.disposition ?? 'request',
@@ -170,6 +198,7 @@ export async function loadSoloControl(sessionId: string): Promise<SoloControlDat
       branch: r.branch_key ?? null,
       buzzer: !!r.buzzer,
     })),
+    history,
   };
 }
 

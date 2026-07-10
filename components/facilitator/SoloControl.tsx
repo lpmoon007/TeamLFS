@@ -89,6 +89,33 @@ export function SoloControl({ data }: { data: SoloControlData }) {
                   </button>
                 ))}
               </div>
+              {data.history ? (
+                <div className="sfr-history">
+                  {data.history.resolvedFromHistory ? (
+                    <>
+                      <span className="db-role">Earned from history</span> across{' '}
+                      <b>{data.history.sessions}</b> prior session{data.history.sessions === 1 ? '' : 's'}, this leader walks
+                      into a <b className={`disp-${data.history.resolvedDisposition}`}>{data.history.resolvedDisposition}</b>{' '}
+                      team{disposition === 'surprise' || disposition === 'auto' ? ' (active — dial is on Surprise)' : ' (set the dial to Surprise to use it)'}.
+                      {data.history.traits.length ? (
+                        <div className="sfr-history-traits">
+                          {data.history.traits.map((t) => (
+                            <span key={t.trait_key} className="sfr-trait" title={`mean ${t.mean.toFixed(2)}`}>
+                              {t.trait_key.replace(/_/g, ' ')} {t.mean > 0 ? '+' : ''}
+                              {t.mean.toFixed(2)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <span className="db-role">No spine history yet</span> — the disposition dial is manual until this
+                      leader has a prior run to learn from.
+                    </>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <div className="db-role" style={{ marginTop: 14 }}>
