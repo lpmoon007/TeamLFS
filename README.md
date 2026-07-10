@@ -134,6 +134,17 @@ them; `0009` is authored content + versioned Layer-2 reads only.
 > `0009` is not needed on a live project until the solo runtime is built — apply it
 > then. Fresh installs get it via `deploy/bootstrap.sql`.
 
+**Phase 1 (solo) done — Backlash seeded.** `scripts/seed/build_solo_seed.mjs` loads a
+real-time content file (`prototype/solo/*-realtime-content.js`) and emits the seed
+faithfully-by-construction. `supabase/solo_seed_backlash.sql` ports **Backlash** into
+the unified model: the CEO **hot seat** + 5 advisors as **AI-castable seats**
+(persona/voice/disposition in `seats.meta`), all held-info **landmines** → `holds`,
+every week's timed beats (situation/feed/surprise/pulse/wire) → `injects`
+(week/day/tag in `trigger_json`), and the **full content + logic functions** (as
+source) in a `documents:solo_content` blob the runtime loads. Reference prototype code
+is vendored under `prototype/solo/`. The **solo runtime** (real-time clock, pull-to-ask,
+AI referee, debrief) is Phases 2–5 — not built yet.
+
 ## Deploy
 
 `DEPLOY.md` is the runbook. Summary: apply `supabase/migrations` + `seed.sql` to a
