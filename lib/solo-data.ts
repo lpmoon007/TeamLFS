@@ -28,18 +28,35 @@ export interface SoloCastMember {
   color: string | null;
   priority: string | null;
 }
+export interface SoloSurprise {
+  day: number;
+  from: string;
+  kind: string | null;
+  title: string | null;
+  text: string;
+}
 export interface SoloWeek {
   n: number;
   title: string;
+  seconds: number | null; // this week's real-time length (overrides config.weekSeconds)
   situation: string;
   advocacy: Record<string, string>;
   feed: SoloFeedItem[];
+  surprises: SoloSurprise[];
+  pulse: { from: string; text: string } | null;
   wire: string[];
+}
+export interface SoloConfig {
+  days: number;
+  weekSeconds: number;
+  extraDaysPerReprieve: number;
+  lowTimeDays: number;
 }
 export interface SoloBundle {
   sessionId: string;
   seatKey: string;
   token: string;
+  participantId: string;
   scenarioTitle: string;
   company: { name: string; sub?: string; logo?: string };
   intro: Record<string, unknown>;
@@ -49,6 +66,9 @@ export interface SoloBundle {
   dimensions: Record<string, string>;
   cast: SoloCastMember[];
   week: SoloWeek;
+  config: SoloConfig;
+  reprieveCost: Record<string, number>;
+  disposition: string;
 }
 
 export type SoloResult =
@@ -60,7 +80,7 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
 
   const { data: session } = await db
     .from('sessions')
-    .select('id, scenario_id, status')
+    .select('id, scenario_id, status, run_config')
     .eq('id', sessionId)
     .maybeSingle<any>();
   if (!session) return { ok: false, reason: 'not_found' };
@@ -113,12 +133,14 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
       priority: s.meta?.priority ?? null,
     }));
 
+  const cfg = content.CONFIG ?? {};
   return {
     ok: true,
     bundle: {
       sessionId,
       seatKey: participant.seat?.key,
       token,
+      participantId: participant.id,
       scenarioTitle: scenario?.title ?? 'Scenario',
       company: content.COMPANY ?? { name: scenario?.title ?? '' },
       intro: content.INTRO ?? {},
@@ -130,11 +152,22 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
       week: {
         n: w.n ?? idx + 1,
         title: w.title ?? '',
+        seconds: w.seconds ?? null,
         situation: w.situation ?? '',
         advocacy: w.advocacy ?? {},
         feed: (w.feed ?? []).map((f: any) => ({ from: f.from, day: f.day ?? null, kind: f.kind ?? null, text: f.text })),
+        surprises: (w.surprises ?? []).map((s: any) => ({ day: s.day, from: s.from, kind: s.kind ?? null, title: s.title ?? null, text: s.text })),
+        pulse: w.pulse ? { from: w.pulse.from, text: w.pulse.text } : null,
         wire: w.wire ?? [],
       },
+      config: {
+        days: cfg.days ?? 7,
+        weekSeconds: cfg.weekSeconds ?? meta.week_seconds ?? 300,
+        extraDaysPerReprieve: cfg.extraDaysPerReprieve ?? 2,
+        lowTimeDays: cfg.lowTimeDays ?? 1.6,
+      },
+      reprieveCost: content.REPRIEVE_COST ?? {},
+      disposition: session.run_config?.disposition ?? 'request',
     },
   };
 }

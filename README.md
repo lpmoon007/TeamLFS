@@ -149,8 +149,7 @@ week from the DB — driver HUD, the situation, the advisors' opening positions,
 trickled feed, and the cast rail — with realtime subscribed (`lib/solo-data.ts` +
 `components/solo/SoloApp.tsx`). The seed includes a **demo solo session** cast 1
 human CEO + 5 AI advisors (`cast_kind`). Disposition is a run dial (`sessions.run_config`,
-`0010`), not a seat attribute. The **solo runtime** (real-time clock + live trickle,
-pull-to-ask, AI referee ruling free-text, game-film debrief) is Phases 3–5 — not built yet.
+`0010`), not a seat attribute. Phase 3 adds the real-time clock: 200ms tick maps seconds to in-fiction days, the feed/surprises/pulse trickle in as their day arrives (guarded disposition delays a day), the buzzer forces the call at week's end, and "need more time" buys days at a driver cost. The **AI referee** (write your call → ruling) is Phase 4.
 
 ## Deploy
 
