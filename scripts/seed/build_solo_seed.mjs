@@ -55,36 +55,18 @@ const ORG_ID = uuid('org:tlfs-library');
 const SCEN_ID = uuid(`scenario:solo:${slug}`);
 const seatId = (k) => uuid(`seat:${slug}:${k}`);
 
-// driver defs minus fmt() functions
+// driver defs (minus fmt) for scenario_meta.driver_keys — the blob keeps full fmt.
 const drivers = Object.fromEntries(
   Object.entries(C.DRIVERS).map(([k, d]) => [k, { label: d.label, val: d.val, min: d.min, max: d.max, deltaRange: d.deltaRange }]),
 );
 
-// the authoritative content blob (data + logic-as-source)
-const soloContent = {
-  intro: C.INTRO,
-  company: C.COMPANY,
-  config: C.CONFIG,
-  dispositions: C.DISPOSITIONS,
-  dimensions: C.DIMENSIONS,
-  dims: { timing: C.TIMING_DIM, inquiry: C.INQUIRY_DIM, conduct: C.CONDUCT_DIM },
-  drivers,
-  reprieve_cost: C.REPRIEVE_COST,
-  referee_context: C.REFEREE_CONTEXT,
-  referee_scoring: C.REFEREE_SCORING,
-  verdict: C.VERDICT,
-  fallback_rules: C.FALLBACK_RULES,
-  dimnote: C.DIMNOTE,
-  coach: C.COACH,
-  weeks: C.WEEKS, // full weekly content incl. branched week (runtime reads this)
-  logic: {
-    branchKey: fnSrc(C.branchKey),
-    survived: fnSrc(C.survived),
-    fallbackNarrative: fnSrc(C.fallbackNarrative),
-    villainHero: fnSrc(C.villainHero),
-    ending: fnSrc(C.ending),
-  },
-};
+// The authoritative content blob = the ENTIRE SCENARIO object, with EVERY function
+// (at any depth) preserved as source — nothing is silently dropped. This captures
+// DRIVERS.*.fmt, COACH.* (per-dimension coaching), branchKey/ending/survived/
+// villainHero/fallbackNarrative, etc. `{ __fn: "<source>" }` marks a reconstituted fn.
+const fnReplacer = (_k, v) => (typeof v === 'function' ? { __fn: v.toString() } : v);
+const soloContentJson = JSON.stringify(C, fnReplacer);
+const capturedFns = (soloContentJson.match(/"__fn"/g) || []).length;
 
 // ---- emit ----
 const out = [];
@@ -112,13 +94,17 @@ out.push(
     `${q(SCEN_ID)}, 'solo', ${j(drivers)}, ${C.WEEKS.length}, ${C.CONFIG?.weekSeconds ?? 'null'});`,
 );
 
-out.push(`\n-- full authored content (data + logic sources) the runtime loads`);
-out.push(`insert into documents (id, scenario_id, key, title, meta, body_json) values (${q(uuid(`doc:solo:${slug}`))}, ${q(SCEN_ID)}, 'solo_content', ${q(`${C.INTRO?.title ?? slug} — engine content`)}, ${j({ type: 'solo_content', slug })}, ${j(soloContent)});`);
+out.push(`\n-- full authored content (whole SCENARIO object; all ${capturedFns} functions preserved as source) the runtime loads`);
+out.push(`insert into documents (id, scenario_id, key, title, meta, body_json) values (${q(uuid(`doc:solo:${slug}`))}, ${q(SCEN_ID)}, 'solo_content', ${q(`${C.INTRO?.title ?? slug} — engine content`)}, ${j({ type: 'solo_content', slug, captured_fns: capturedFns })}, '${soloContentJson.replace(/'/g, "''")}'::jsonb);`);
 
 out.push(`\n-- seats: human hot seat + advisor seats (AI-castable)`);
 out.push(`insert into seats (id, scenario_id, key, name, role, meta) values (${q(seatId('ceo'))}, ${q(SCEN_ID)}, 'ceo', 'CEO', ${q(C.INTRO?.role ?? 'Chief Executive Officer')}, ${j({ hot_seat: true, cast_default: 'human' })});`);
 for (const t of C.TEAM) {
   const persona = `You are ${t.name}, ${t.role} — an advisor to the CEO. Priority: ${t.priority}. Voice: ${t.voice}. Stay fully in character; answer straight.`;
+  // NOTE: disposition is NOT a seat attribute. It's a run-level dial (scenario
+  // config in solo_content.DISPOSITIONS; the run picks one) and, per Addendum A3.2,
+  // resolves per (npc_seat × participant) from behavioral_profile at runtime. It
+  // lives on sessions.run_config (migration 0010), never on the seat row.
   const meta = {
     cast_default: 'ai',
     role: t.role,
@@ -128,7 +114,6 @@ for (const t of C.TEAM) {
     priority: t.priority,
     voice: t.voice,
     persona,
-    disposition_default: 'request',
     fallbackReply: t.fallbackReply,
     fallbackReact: t.fallbackReact,
   };

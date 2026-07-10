@@ -37,7 +37,8 @@ HDR
            supabase/migrations/0006_casting_reservation.sql \
            supabase/migrations/0007_email_decisions.sql \
            supabase/migrations/0008_inject_resolution.sql \
-           supabase/migrations/0009_solo_engine.sql; do
+           supabase/migrations/0009_solo_engine.sql \
+           supabase/migrations/0010_run_config.sql; do
     printf '\n-- ==== %s ====\n\n' "$(basename "$f")"
     cat "$f"
   done
