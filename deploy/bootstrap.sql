@@ -2,7 +2,7 @@
 -- The Signal — one-shot bootstrap for a Supabase project.
 -- Paste into the Supabase SQL Editor and Run. It:
 --   1) RESETS the public schema (drops any prior build), then
---   2) applies migrations 0001-0011, then
+--   2) applies migrations 0001-0012, then
 --   3) seeds the "The Signal" scenario (+ a demo session for testing).
 -- Generated — do not hand-edit; regenerate with scripts/build-bootstrap.sh.
 -- =============================================================================
@@ -988,6 +988,22 @@ alter table subjects enable row level security;
 comment on column behavioral_profile.subject_id is
   'Phase 9 — cross-session accumulation key. Trajectory spans all of a subject''s '
   'sessions; participant_id/last_session_id record the most recent writer.';
+
+-- ==== 0012_trait_score_note.sql ====
+
+-- =============================================================================
+-- The Signal / TLFS — human-coder rationale on trait scores.
+--
+-- The human coding surface (Behavioral Memory Spine §3.3) lets a trained coder score
+-- a participant's traits from the same cited evidence the AI read. A free-text note
+-- captures WHY — the rationale that makes AI-vs-human disagreements adjudicable, not
+-- just countable. Nullable + additive; the AI/heuristic coders leave it null.
+-- =============================================================================
+
+alter table trait_scores add column if not exists note text;
+
+comment on column trait_scores.note is
+  'Optional coder rationale (human coding surface). Null for AI/heuristic rows.';
 
 -- ==== seed.sql ====
 

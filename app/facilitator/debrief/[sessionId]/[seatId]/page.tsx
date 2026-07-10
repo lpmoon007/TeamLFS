@@ -77,7 +77,12 @@ export default async function GameFilmPage({
             </div>
           </div>
 
-          <h2 style={{ marginTop: 22 }}>Trait scores (v0.1 — hypothesis)</h2>
+          <div className="db-traits-head">
+            <h2 style={{ marginTop: 22 }}>Trait scores (v0.1 — hypothesis)</h2>
+            <Link className="btn ghost" href={`/facilitator/code/${sessionId}/${p.participantId}${kp}`}>
+              Code these traits →
+            </Link>
+          </div>
           <div className="db-traits">
             {p.traits.map((t) => (
               <div className="db-trait" key={t.trait_key} title={t.definition ?? ''}>

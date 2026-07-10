@@ -7,6 +7,12 @@ import { finalizeSession } from '@/lib/finalize';
 import { subjectForParticipant, subjectPosture, resolveDispositionFromHistory } from '@/lib/spine';
 import { broadcast } from '@/lib/realtime-server';
 import { seatChannel } from '@/lib/channels';
+import { getRubrics, TAXONOMY_VERSION, AI_SCORER_VERSION } from '@/lib/scoring';
+import type { TraitScore } from '@/lib/scoring/types';
+import { compareScoreSets, aggregateAgreement, type AgreementSummary } from '@/lib/rescore';
+
+/** scorer_version stamped on human-coded rows (distinct from the AI/heuristic coders). */
+const HUMAN_SCORER_VERSION = 'human-v1';
 
 // Facilitator dashboard actions (Phase 8). All guarded by the facilitator cookie.
 
@@ -481,6 +487,226 @@ export async function castSeat(params: {
   });
 
   return { ok: true, castKind: params.kind };
+}
+
+// =============================================================================
+// Human coding surface (Behavioral Memory Spine §3.3). A trained human coder scores
+// a participant's traits from the SAME cited Layer-1 evidence the AI coder read, as
+// coder='human' rows. Then the re-score harness's generic compare gives real AI-vs-
+// human inter-rater reliability — the number that lets a trait's status flip from
+// 'hypothesis' to 'validated'. The coder works BLIND (the AI's answer is hidden until
+// they've submitted) so agreement isn't inflated by anchoring.
+// =============================================================================
+
+export interface CodingEvidence {
+  id: string;
+  type: string;
+  channel: string | null;
+  target: string | null;
+  body: string | null;
+  derived: boolean;
+}
+export interface CodingTrait {
+  trait_key: string;
+  definition: string;
+  observable_signals: string[];
+  status: string;
+  poles: { positive: string; negative: string; neutral: string };
+  evidence: CodingEvidence[];
+  ai: { value: string | null; value_num: number | null; confidence: number; scorer_version: string } | null;
+  human: { value: string | null; value_num: number | null; confidence: number; note: string | null } | null;
+}
+export interface CodingTask {
+  session: { id: string; scenario: string } | null;
+  participant: { id: string; seatKey: string; name: string; role: string | null } | null;
+  roster: { participantId: string; seatKey: string; name: string }[];
+  traits: CodingTrait[];
+  reliability: ReliabilityReport | null; // session-wide AI-vs-human agreement so far
+}
+
+export async function loadCodingTask(sessionId: string, participantId: string): Promise<CodingTask> {
+  const db = await guard();
+  const empty: CodingTask = { session: null, participant: null, roster: [], traits: [], reliability: null };
+
+  const { data: session } = await db
+    .from('sessions')
+    .select('id, scenario:scenarios!inner(title)')
+    .eq('id', sessionId)
+    .maybeSingle<any>();
+  if (!session) return empty;
+
+  const { data: parts } = await db
+    .from('participants')
+    .select('id, seat:seats!inner(key, name, role)')
+    .eq('session_id', sessionId);
+  const roster = (parts ?? []).map((p: any) => ({ participantId: p.id, seatKey: p.seat?.key, name: p.seat?.name ?? p.seat?.key }));
+  const me = (parts ?? []).find((p: any) => p.id === participantId) as any;
+  if (!me) return { ...empty, session: { id: session.id, scenario: session.scenario?.title ?? '—' }, roster };
+
+  const { data: scores } = await db
+    .from('trait_scores')
+    .select('trait_key, value, value_num, confidence, scorer_version, coder, evidence_event_ids, note, created_at')
+    .eq('session_id', sessionId)
+    .eq('participant_id', participantId)
+    .order('created_at', { ascending: false });
+  const rows = (scores ?? []) as any[];
+  // latest AI/heuristic (coder='ai') and latest human row per trait
+  const aiByTrait = new Map<string, any>();
+  const humanByTrait = new Map<string, any>();
+  for (const r of rows) {
+    const m = r.coder === 'human' ? humanByTrait : aiByTrait;
+    if (!m.has(r.trait_key)) m.set(r.trait_key, r);
+  }
+
+  // resolve cited evidence for the trait (what the coder judges) — from the AI row.
+  const allEvidenceIds = [...new Set(rows.flatMap((r) => (r.coder !== 'human' ? r.evidence_event_ids ?? [] : [])))] as string[];
+  const evById = new Map<string, CodingEvidence>();
+  if (allEvidenceIds.length) {
+    const { data: evs } = await db
+      .from('events')
+      .select('id, type, channel, target, payload_json, derived')
+      .in('id', allEvidenceIds);
+    for (const e of (evs ?? []) as any[]) {
+      evById.set(e.id, { id: e.id, type: e.type, channel: e.channel, target: e.target, body: previewOf(e.payload_json), derived: e.derived });
+    }
+  }
+
+  const traits: CodingTrait[] = getRubrics().map((r) => {
+    const ai = aiByTrait.get(r.trait_key);
+    const human = humanByTrait.get(r.trait_key);
+    const evidenceIds = (ai?.evidence_event_ids ?? []) as string[];
+    return {
+      trait_key: r.trait_key,
+      definition: r.definition,
+      observable_signals: r.observable_signals,
+      status: r.status,
+      poles: r.poles,
+      evidence: evidenceIds.map((id) => evById.get(id)).filter((e): e is CodingEvidence => !!e),
+      ai: ai ? { value: ai.value, value_num: ai.value_num, confidence: ai.confidence, scorer_version: ai.scorer_version } : null,
+      human: human ? { value: human.value, value_num: human.value_num, confidence: human.confidence, note: (human as any).note ?? null } : null,
+    };
+  });
+
+  return {
+    session: { id: session.id, scenario: session.scenario?.title ?? '—' },
+    participant: { id: me.id, seatKey: me.seat?.key, name: me.seat?.name ?? me.seat?.key, role: me.seat?.role ?? null },
+    roster,
+    traits,
+    reliability: await coderReliability(sessionId),
+  };
+}
+
+/** Save a human coder's judgment for one trait (replaces any prior human row for it).
+ *  The pole (value) is derived from value_num exactly as the scorers do, so AI-vs-human
+ *  agreement is apples-to-apples. The human cites the same evidence the AI did. */
+export async function submitHumanScore(params: {
+  sessionId: string;
+  participantId: string;
+  traitKey: string;
+  valueNum: number;
+  confidence: number;
+  note?: string;
+}): Promise<{ ok: boolean }> {
+  const db = await guard();
+  const rubric = getRubrics().find((r) => r.trait_key === params.traitKey);
+  if (!rubric) return { ok: false };
+
+  const valueNum = Math.max(-1, Math.min(1, Number(params.valueNum)));
+  const confidence = Math.max(0, Math.min(1, Number(params.confidence)));
+  const value = confidence === 0 ? null : valueNum > 0.2 ? rubric.poles.positive : valueNum < -0.2 ? rubric.poles.negative : rubric.poles.neutral;
+
+  // the evidence the human judged = what the AI cited for this trait
+  const { data: aiRow } = await db
+    .from('trait_scores')
+    .select('evidence_event_ids')
+    .eq('session_id', params.sessionId)
+    .eq('participant_id', params.participantId)
+    .eq('trait_key', params.traitKey)
+    .neq('coder', 'human')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle<any>();
+
+  // replace any prior human row for this trait (current judgment, not history)
+  await db
+    .from('trait_scores')
+    .delete()
+    .eq('session_id', params.sessionId)
+    .eq('participant_id', params.participantId)
+    .eq('trait_key', params.traitKey)
+    .eq('coder', 'human');
+
+  await db.from('trait_scores').insert({
+    participant_id: params.participantId,
+    session_id: params.sessionId,
+    taxonomy_version: TAXONOMY_VERSION,
+    scorer_version: HUMAN_SCORER_VERSION,
+    trait_key: params.traitKey,
+    value,
+    value_num: confidence === 0 ? null : valueNum,
+    confidence,
+    evidence_event_ids: aiRow?.evidence_event_ids ?? [],
+    coder: 'human',
+    note: (params.note ?? '').trim() || null,
+  } as any);
+
+  return { ok: true };
+}
+
+export interface ReliabilityReport {
+  ok: boolean;
+  aRows: number;
+  bRows: number;
+  agreement: AgreementSummary | null;
+}
+
+/** AI-vs-human inter-rater reliability for a session, from the stored trait_scores.
+ *  Coder A = the AI/heuristic snapshot (prefer AI rows), Coder B = human rows. */
+export async function coderReliability(sessionId: string): Promise<ReliabilityReport> {
+  const db = await guard();
+  const { data: scores } = await db
+    .from('trait_scores')
+    .select('participant_id, trait_key, value, value_num, confidence, scorer_version, coder, evidence_event_ids, created_at')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false });
+  const rows = (scores ?? []) as any[];
+
+  const asTS = (r: any): TraitScore => ({
+    participant_id: r.participant_id,
+    session_id: sessionId,
+    taxonomy_version: TAXONOMY_VERSION,
+    scorer_version: r.scorer_version,
+    trait_key: r.trait_key,
+    value: r.value,
+    value_num: r.value_num,
+    confidence: r.confidence,
+    evidence_event_ids: r.evidence_event_ids ?? [],
+    coder: r.coder,
+  });
+
+  // per participant: coder A (prefer AI over heuristic), coder B (human)
+  const pids = [...new Set(rows.map((r) => r.participant_id))];
+  const comparisons = [];
+  let aRows = 0;
+  let bRows = 0;
+  for (const pid of pids) {
+    const mine = rows.filter((r) => r.participant_id === pid);
+    const aByTrait = new Map<string, any>();
+    for (const r of mine.filter((r) => r.coder !== 'human')) {
+      const cur = aByTrait.get(r.trait_key);
+      // prefer the AI-versioned row over the heuristic one
+      if (!cur || (r.scorer_version === AI_SCORER_VERSION && cur.scorer_version !== AI_SCORER_VERSION)) aByTrait.set(r.trait_key, r);
+    }
+    const bByTrait = new Map<string, any>();
+    for (const r of mine.filter((r) => r.coder === 'human')) if (!bByTrait.has(r.trait_key)) bByTrait.set(r.trait_key, r);
+    const a = [...aByTrait.values()].map(asTS);
+    const b = [...bByTrait.values()].map(asTS);
+    aRows += a.length;
+    bRows += b.length;
+    if (a.length && b.length) comparisons.push(...compareScoreSets(a, b));
+  }
+
+  return { ok: true, aRows, bRows, agreement: comparisons.length ? aggregateAgreement(comparisons) : null };
 }
 
 function previewOf(payload: any): string | null {
