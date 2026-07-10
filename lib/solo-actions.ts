@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { authParticipant } from '@/lib/participant-auth';
 import { anthropicApiKey, SOLO_MODEL } from '@/lib/env';
+import { resolveWeek } from '@/lib/solo-week';
 import {
   applyDeltas,
   buildRefereeSystem,
@@ -68,7 +69,7 @@ export async function soloAsk(params: {
 
   const advisor = (content.TEAM ?? []).find((t: any) => t.id === params.advisorKey);
   if (!advisor) return { ok: false };
-  const w = (content.WEEKS ?? [])[params.weekIdx] ?? {};
+  const w = resolveWeek(content, params.weekIdx, await runBranch(db, params.sessionId, params.participantId)) ?? {};
 
   // log the ask (message_sent — the directed act; not-asking is the omission)
   await db.from('events').insert({
@@ -114,6 +115,20 @@ export async function soloAsk(params: {
 async function sessionDisposition(db: ReturnType<typeof createAdminClient>, sessionId: string): Promise<string> {
   const { data } = await db.from('sessions').select('run_config').eq('id', sessionId).maybeSingle<any>();
   return data?.run_config?.disposition ?? 'request';
+}
+
+// The run's decided branch (from the prior week's referee ruling) — resolves a branched
+// week (e.g. Week-4 held/caved) to the version this playthrough earned.
+async function runBranch(db: ReturnType<typeof createAdminClient>, sessionId: string, participantId: string): Promise<string | null> {
+  const { data } = await db
+    .from('rulings')
+    .select('branch_key')
+    .eq('session_id', sessionId)
+    .eq('participant_id', participantId)
+    .not('branch_key', 'is', null)
+    .order('week_idx', { ascending: false })
+    .limit(1);
+  return (data ?? [])[0]?.branch_key ?? null;
 }
 
 // Conduct = who the CEO asked / ignored, and which holds surfaced vs stayed hidden,
@@ -186,7 +201,7 @@ export async function soloDecide(params: {
   if (text.length < 8) return { ok: false };
   const content = await loadContent(db, auth.scenarioId);
   if (!content) return { ok: false };
-  const w = (content.WEEKS ?? [])[params.weekIdx] ?? {};
+  const w = resolveWeek(content, params.weekIdx, await runBranch(db, params.sessionId, params.participantId)) ?? {};
 
   // log the decision act
   await db.from('events').insert({

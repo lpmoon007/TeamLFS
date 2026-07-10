@@ -272,7 +272,9 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
               </div>
               <div className="dec-actions">
                 {lastWeek ? (
-                  <span className="db-dim">Final week decided. The game-film debrief is the next phase.</span>
+                  <Link className="btn primary" href={`/solo/${bundle.sessionId}/debrief?t=${encodeURIComponent(bundle.token)}`}>
+                    See your game-film debrief →
+                  </Link>
                 ) : (
                   <Link className="btn primary" href={`/solo/${bundle.sessionId}?t=${encodeURIComponent(bundle.token)}&week=${week.n + 1}`}>
                     Continue to Week {week.n + 1} →

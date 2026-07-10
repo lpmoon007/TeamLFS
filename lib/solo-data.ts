@@ -1,5 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveWeek } from '@/lib/solo-week';
 
 // Solo read path (Master Handoff §7.2). Renders a scenario week from the DB: the
 // situation, the trickled feed, the cast rail, the driver HUD — all read from the
@@ -101,17 +102,20 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
     .maybeSingle<any>();
   if (!meta || meta.mode_default !== 'solo') return { ok: false, reason: 'not_solo' };
 
-  const [{ data: scenario }, { data: contentDoc }, { data: seats }] = await Promise.all([
+  const [{ data: scenario }, { data: contentDoc }, { data: seats }, { data: branchRulings }] = await Promise.all([
     db.from('scenarios').select('title').eq('id', session.scenario_id).maybeSingle<any>(),
     db.from('documents').select('body_json').eq('scenario_id', session.scenario_id).eq('key', 'solo_content').maybeSingle<any>(),
     db.from('seats').select('key, name, role, meta').eq('scenario_id', session.scenario_id),
+    db.from('rulings').select('branch_key').eq('session_id', sessionId).eq('participant_id', participant.id).not('branch_key', 'is', null).order('week_idx', { ascending: false }),
   ]);
   const content = contentDoc?.body_json;
   if (!content) return { ok: false, reason: 'no_content' };
 
   const weeks: any[] = content.WEEKS ?? [];
   const idx = Math.max(0, Math.min(weeks.length - 1, weekIdx));
-  const w = weeks[idx] ?? {};
+  // resolve a branched week (e.g. Week-4 held/caved) against this run's decided branch
+  const branchKey: string | null = (branchRulings ?? [])[0]?.branch_key ?? null;
+  const w = resolveWeek(content, idx, branchKey) ?? {};
 
   const drivers: SoloDriver[] = Object.entries(meta.driver_keys ?? {}).map(([key, d]: [string, any]) => ({
     key,
