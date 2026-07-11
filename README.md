@@ -1,9 +1,9 @@
 # The Signal — Production Build
 
 Re-housing the working prototype (a crisis-simulation training experience) into a
-real client/server stack: **Vercel (UI) · Supabase (data/realtime/auth/edge) ·
-Edge Functions (AI/voice) · make.com (glue)**. See the production handoff doc for
-the full spec — the prototype is the spec, this is the re-housing.
+real client/server stack: **Vercel (UI + Cron) · Supabase (data/realtime/auth) ·
+server routes (AI/voice) · Vercel Cron (scheduling)**. See the production handoff doc
+for the full spec — the prototype is the spec, this is the re-housing.
 
 > Build order is **phased** (handoff §10). We do one phase, verify it, then move on.
 
@@ -16,7 +16,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 2 | Participant read path (render a seat from DB, Realtime subscribe) | ✅ done — Next.js app |
 | 3 | Messaging + presence live | ✅ done — send + mirror + presence |
 | 4 | Email + documents (approve/return → events) | ✅ done — read + Approve/Return/Edit |
-| 5 | Inject firing (manual, then make.com) | ✅ done — fire-inject engine + endpoint |
+| 5 | Inject firing (manual + Director/Vercel Cron) | ✅ done — fire-inject engine + Director |
 | 6 | Voice (npc-reply + tts; call overlay) | ✅ done — STT → LLM → TTS loop |
 | 7 | Capture-log hardening + minimal debrief view | ✅ done — omission sweep + debrief |
 | 8 | Facilitator dashboard + debrief suite | ✅ done — control + team/film/wall |
@@ -67,8 +67,8 @@ behavior is tied to its stimulus (spine §4). A best-effort `cancelIf` skips a
 no-response nag if the recipient already replied on that thread ("reply defuses the
 nag").
 
-Triggered manually now via a bearer-guarded endpoint (make.com schedules the *same*
-endpoint later). Set `FACILITATOR_SECRET`, then:
+Triggered manually via a bearer-guarded endpoint, or automatically by the Director
+(Vercel Cron → `/api/cron/director`). Set `FACILITATOR_SECRET`, then:
 
 ```bash
 # list fireable beats for a session
@@ -97,7 +97,7 @@ broadcasts a `curtain` event to live participants. The `events` log stays append
   diagnostic ("who did each person contact first, and when"), per-participant timelines
   (acts + omissions), response latencies, and the v0.1 **hypothesis** trait scores
   (value + confidence + evidence count, clearly marked not-yet-validated).
-- **JSON:** `GET /api/facilitator/debrief?sessionId=` (bearer) for exports/make.com.
+- **JSON:** `GET /api/facilitator/debrief?sessionId=` (bearer) for programmatic exports.
 
 Everything in the debrief is a read of Layer 1 — no new capture. The scoring pipeline
 was runtime-verified (evidence-cited scores, confidence shrinkage, hypothesis gate).
@@ -118,6 +118,68 @@ horizon needs a migration.* Reserved in-repo so far:
 - **Longitudinal profile** — `behavioral_profile` (`0005`), now **populated** at
   session finalize: each session's trait scores append to the per-participant
   trajectory — the read surface Director-AI / twin / gossip / season depend on.
+
+## Solo engine (Master Handoff §5) — schema reserved
+
+TLFS is **one engine cast two ways** (solo = 1 human + N AI seats; team = N humans).
+The team front-end (InCommand / The Signal) is built; the **solo real-time engine**
+(weeks clock, pull-to-ask, AI referee ruling free-text → driver deltas, held-info
+landmines, villain/hero endings) is the next front-end. Its schema (`0009`) is in
+place — additive, unused by the app yet:
+`scenario_meta`, `holds`, `run_drivers`, `rulings`, `run_outcome`, plus
+`injects.trigger_json` (A3.1 Director-eligible triggers). Per Addendum **A3**, the
+solo innovations need **no new raw capture** — the `events` log + A1 already cover
+them; `0009` is authored content + versioned Layer-2 reads only.
+
+> `0009` is not needed on a live project until the solo runtime is built — apply it
+> then. Fresh installs get it via `deploy/bootstrap.sql`.
+
+**Solo scenario library — 6 built out.** `scripts/seed/build_solo_seed.mjs <content-file>`
+loads a real-time content file (`prototype/solo/*-realtime-content.js`) and emits the
+seed faithfully-by-construction. Ported into the unified model:
+**Backlash · Exodus · Handover · Overdrive · Squeeze · Shockwave** —
+`supabase/solo_seed_<name>.sql` each. Shockwave predated the shared crisis-engine.js, so
+its scenario logic was **extracted from `shockwave-v3-engine.js` onto the content object**
+(`prototype/solo/shockwave-realtime-content.js`) verbatim — including its cash-**burn**
+mechanic, which the engine now honors via a content-driven `BURN_DRIVER` (a no-op for
+scenarios without one). Every one is the CEO **hot seat** + 5–6 advisors as **AI-castable seats**
+(persona/voice in `seats.meta`), all held-info **landmines** → `holds`, every week's
+timed beats (situation/feed/surprise/pulse/wire) → `injects` (week/day/tag in
+`trigger_json`), and the **full content + 15 logic functions** (as source) in a
+`documents:solo_content` blob the runtime loads. All 5 validated on PG16: each applies
+clean, all 15 functions reconstitute + execute (branch/ending/villain-hero/COACH/
+fallback), and each ships a demo session (1 human CEO + AI advisors, token
+`demo-<name>-ceo-REPLACE`). The engine is scenario-agnostic — new scenarios are data.
+Reference prototype code is vendored under `prototype/solo/`.
+
+**Phase 2 (solo read path) done.** `/solo/[sessionId]?t=<token>` renders a Backlash
+week from the DB — driver HUD, the situation, the advisors' opening positions, the
+trickled feed, and the cast rail — with realtime subscribed (`lib/solo-data.ts` +
+`components/solo/SoloApp.tsx`). The seed includes a **demo solo session** cast 1
+human CEO + 5 AI advisors (`cast_kind`). Disposition is a run dial (`sessions.run_config`,
+`0010`), not a seat attribute. Phase 3 adds the real-time clock: 200ms tick maps seconds to in-fiction days, the feed/surprises/pulse trickle in as their day arrives (guarded disposition delays a day), the buzzer forces the call at week's end, and "need more time" buys days at a driver cost. Phase 4 adds the heart: pull-to-ask (reach out to an advisor → in-character reply via Claude, held-info landmines surface on a targeted ask matching trigger_hints, hedging under the 'guarded' disposition) and the AI referee (write your free-text call → ruling against the world model: driver deltas + narrative + private dimension/conduct scores, persisted to rulings/run_drivers/events). Deterministic fallback (crisis-engine.js) runs without a key; SOLO_MODEL defaults to claude-haiku-4-5.
+
+**Phase 5 (solo game-film debrief) done.** `/solo/[sessionId]/debrief?t=<token>` reads a finished run off the append-only truth (`events` + `rulings` + `run_drivers`) against `documents:solo_content`: dimension scores aggregated/normalized across weekly rulings, counterfactuals for the holds never surfaced, coaching grouped by the two weakest dimensions, and the villain/hero **ending** resolved by the scenario's own authored functions (`survived`/`villainHero`/`ending`/`COACH`, reconstituted from `{__fn}` markers). `lib/solo-week.ts` resolves branched weeks (Backlash Week-4 held/caved) against the run's decided branch (`rulings.branch_key`) — wired into `loadSolo`, `soloAsk`/`soloDecide`, and the debrief so the Week-3 payoff renders and its holds enter the accounting.
+
+**Phase 6 (casting — the "one engine" test) done.** Seat ≠ participant; every seat is Human-or-AI (`cast_kind`/`agent_json`, `0006`). The team engine now has a single message-delivery core (`lib/message-core.ts` `postSeatMessage`) that both a human's `sendMessage` and an **AI-cast seat's autonomous reply** (`lib/agent-seat.ts` `driveSeatReply`) post through — so an AI occupant's `message_sent` is structurally indistinguishable in the capture log from a human's. When a human messages a teammate seat cast as AI, that seat answers in character (persona from `agent_json`, `SOLO_MODEL`; deterministic fallback without a key) via the same threads/mirror/broadcast/event. The facilitator can cast any seat human↔AI (`castSeat`, logged as `seat_recast`) from the roster (`Cast AI` toggle + `AI` badge). This is "TLFS is one engine cast two ways" made real: the same engine runs a team of humans, a team with AI-filled seats, or (the limit) one human plus AI seats.
+
+**Phase 9 (the cross-session Behavioral Memory Spine — the moat) done.** The spine's point is *how a person behaves under load across engagements*, but `participants` are per-session, so the missing backbone was a stable person identity. `0011` adds `subjects` (a person, get-or-create by org+email/name handle) and links `participants.subject_id` + `behavioral_profile.subject_id`, so trait trajectories now accumulate **per person across sessions**, not just within one. `lib/spine.ts` is the read/write surface: `subjectForParticipant` (identity), `appendProfile` (cross-session accumulation), `subjectPosture` (confidence-weighted mean per trait), and — the first read that feeds the engine — `resolveDispositionFromHistory`: the disposition a leader has *earned*. Sign-aligning the trust-relevant traits (`trust_vs_suspect`, `hoard_vs_share`, `status_behavior`, `continuity_vs_drop`) into one "forthcoming" score maps a punished-the-messenger history → `guarded`, a trust-earned history → `served`, no/neutral history → `request` (a v0.1 hypothesis mapping, versioned with the taxonomy). A solo run now scores itself at the final decision (`scoreSoloRun`) and appends to the CEO's profile exactly as a team session does at finalize; when the run's disposition dial is `Surprise`/`auto`, `loadSolo`/`soloAsk` resolve the real disposition from that history — *"this is not a setting; it is a consequence of how you've led before."* The solo facilitator console surfaces the earned read (sessions, resolved disposition, the postures behind it). This is the platform's compounding asset: every session makes the next one read the person more truly.
+
+**Director-AI (Horizon 1) done.** The layer that decides *when / whether / to whom* the
+authored beats fire in a live run — instead of a facilitator hand-firing each on a fixed
+clock (the `injects.trigger_json` hook reserved in `0009`). `lib/director.ts`
+`runDirector()` runs on a **tick**: it time-gates the not-yet-fired beats (`delay_min`
+elapsed since `started_at`), then releases them — the deterministic layer that alone
+replaces clock-watching, with `fireInject`'s own cancelIf still defusing no-response
+nags. With a key + AI enabled, the beats carrying a free-text `cond` ("David hasn't
+responded", "no escalation by T+20") are judged by Claude against a per-seat engagement
+digest — fire now or hold — and **paced** so one seat isn't buried in a single tick;
+any failure falls back to firing. Scheduling is native: **Vercel Cron** (`vercel.json`)
+hits `/api/cron/director` every 2 minutes, which ticks every live Director-enabled
+session — no external scheduler. `/api/facilitator/director` serves manual/preview ticks
+from the console (on/off + AI toggle, Preview and Run-tick, with the fire/hold decisions
+and reasons). A session's Director is off by default (`run_config.director`), so
+scripted/manual firing stays the fallback.
 
 ## Deploy
 

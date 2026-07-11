@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { facilitatorAllowed } from '@/lib/facilitator-session';
-import { buildDebrief, type DebriefEvent, type DebriefParticipant } from '@/lib/debrief';
+import { buildDebrief, type DebriefEvent } from '@/lib/debrief';
+import { applyLens } from '@/lib/lens/ldol';
+import { lensHistoryForParticipant } from '@/lib/spine';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { Notice } from '@/components/Notice';
 
 // Game-film — the "coaching" altitude (Build Addendum A2). One participant's reel:
@@ -28,14 +31,18 @@ export default async function GameFilmPage({
   const kp = key ? `?key=${encodeURIComponent(key)}` : '';
   const prev = d.participants[(idx - 1 + d.participants.length) % d.participants.length]!;
   const next = d.participants[(idx + 1) % d.participants.length]!;
-  const ldol = ldolRead(p);
+
+  // Layer-3 LDOL lens — a versioned read OVER the trait layer (not raw counts). The
+  // Learning discipline reads this person's cross-session posture (Phase 9).
+  const history = await lensHistoryForParticipant(createAdminClient(), sessionId, p.participantId);
+  const ldol = applyLens({ traits: p.traits, omissions: { count: p.counts.omissions }, history });
 
   return (
     <div className="debrief film">
       <header className="db-head">
         <div className="db-crumb">
           <Link href={`/facilitator/debrief/${sessionId}${kp}`}>Team</Link> ▸ <strong>{p.name}</strong>
-          <span className="db-lens"> · Lens: {d.lens}</span>
+          <span className="db-lens"> · Lens: {ldol.version}</span>
         </div>
         <div className="film-id">
           <span className={`flag ${p.flag}`} />
@@ -56,28 +63,54 @@ export default async function GameFilmPage({
 
       <div className="film-grid">
         <section className="db-panel">
-          <h2>LDOL read (v1)</h2>
-          <p className="db-sub">A versioned lens over the trait layer — not a verdict. The 2Q reads the omission log.</p>
+          <h2>LDOL read · {ldol.version}</h2>
+          <p className="db-sub">A versioned lens over the trait layer — a reading, not a verdict. Swap the lens without touching the engine or the log.</p>
           <div className="ldol">
             {ldol.disciplines.map((disc) => (
-              <div className="ldol-row" key={disc.name}>
-                <span className="ldol-name">{disc.name}</span>
-                <span className="ldol-read">{disc.read}</span>
+              <div className={`ldol-row sig-${disc.signal}`} key={disc.name}>
+                <div className="ldol-top">
+                  <span className="ldol-name">{disc.name}</span>
+                  <span className="ldol-frame">{disc.frame}</span>
+                  <span className={`ldol-sig ${disc.signal}`}>{disc.signal}</span>
+                </div>
+                <div className="ldol-read">{disc.read}</div>
+                {disc.traits.length ? (
+                  <div className="ldol-traits">
+                    {disc.traits.map((t) => (
+                      <span key={t.trait_key} className="ldol-trait" title={`${Math.round(t.confidence * 100)}% · ${t.evidence} ev`}>
+                        {t.label}: {t.pole ?? '—'}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
           <div className="twoq">
             <div>
               <span className="twoq-q">What are you building?</span>
-              <span className="twoq-a">{ldol.building}</span>
+              {ldol.building.length ? (
+                <ul className="twoq-list">{ldol.building.map((b, i) => <li key={i}>{b}</li>)}</ul>
+              ) : (
+                <span className="twoq-a db-dim">Not enough confident evidence this session.</span>
+              )}
             </div>
             <div>
               <span className="twoq-q">What are you allowing?</span>
-              <span className="twoq-a">{ldol.allowing}</span>
+              {ldol.allowing.length ? (
+                <ul className="twoq-list">{ldol.allowing.map((a, i) => <li key={i}>{a}</li>)}</ul>
+              ) : (
+                <span className="twoq-a db-dim">Nothing flagged this session.</span>
+              )}
             </div>
           </div>
 
-          <h2 style={{ marginTop: 22 }}>Trait scores (v0.1 — hypothesis)</h2>
+          <div className="db-traits-head">
+            <h2 style={{ marginTop: 22 }}>Trait scores (v0.1 — hypothesis)</h2>
+            <Link className="btn ghost" href={`/facilitator/code/${sessionId}/${p.participantId}${kp}`}>
+              Code these traits →
+            </Link>
+          </div>
           <div className="db-traits">
             {p.traits.map((t) => (
               <div className="db-trait" key={t.trait_key} title={t.definition ?? ''}>
@@ -123,29 +156,6 @@ function FilmRow({ e }: { e: DebriefEvent }) {
       {e.preview ? <span className="db-preview">“{e.preview}”</span> : null}
     </li>
   );
-}
-
-// v1 heuristic LDOL read — clearly a lens, computed from counts. Not validated.
-function ldolRead(p: DebriefParticipant) {
-  const decision = p.firstMessageTo
-    ? `Committed at ${fmtRel(p.firstMessageTo.rel_ms)} → ${p.firstMessageTo.target}`
-    : 'Never opened a decision — no message sent';
-  const rhythm =
-    p.counts.sent + p.counts.opened >= 6 ? 'Steady engagement across threads' : 'Sparse engagement';
-  const standard = p.counts.omissions > 0 ? `${p.counts.omissions} things left unaddressed` : 'Closed the loops it opened';
-  return {
-    disciplines: [
-      { name: 'Decision', read: decision },
-      { name: 'Rhythm', read: rhythm },
-      { name: 'Standard', read: standard },
-      { name: 'Learning', read: 'Requires cross-session history (Horizon 2)' },
-    ],
-    building: p.counts.sent > 0 ? `Contact with ${p.counts.sent} message(s) sent` : 'Little visible initiative',
-    allowing:
-      p.counts.omissions > 0
-        ? `${p.counts.omissions} unaddressed item(s) — see amber footage`
-        : 'No obvious omissions this session',
-  };
 }
 
 function fmtRel(ms: number): string {

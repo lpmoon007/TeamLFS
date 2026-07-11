@@ -32,6 +32,13 @@ export function elevenLabsKey(): string {
 }
 /** NPC reply model — defaults to Claude Opus 4.8; override for latency/cost. */
 export const VOICE_MODEL = process.env.VOICE_MODEL ?? 'claude-opus-4-8';
+/** Solo referee/advisor model. The prototype uses Haiku 4.5 — many low-latency calls
+ *  per run (§8.5 cost decision). Override with SOLO_MODEL. */
+export const SOLO_MODEL = process.env.SOLO_MODEL ?? 'claude-haiku-4-5';
+/** Behavioral scorer (the AI coder). Runs once per session at finalize — not latency-
+ *  bound — so it can afford a stronger model than the runtime loops. Override with
+ *  SCORER_MODEL; falls back to the deterministic heuristic when no key is set. */
+export const SCORER_MODEL = process.env.SCORER_MODEL ?? 'claude-sonnet-5';
 /** ElevenLabs TTS model — turbo for low latency by default. */
 export const TTS_MODEL = process.env.ELEVENLABS_MODEL ?? 'eleven_turbo_v2_5';
 
@@ -40,10 +47,16 @@ export function facilitatorSecret(): string {
   const s = process.env.FACILITATOR_SECRET ?? '';
   if (!s) {
     throw new Error(
-      'FACILITATOR_SECRET is not set. The facilitator/make.com inject endpoints require it.',
+      'FACILITATOR_SECRET is not set. The facilitator inject/Director endpoints require it.',
     );
   }
   return s;
+}
+
+/** Secret Vercel Cron sends as `Authorization: Bearer <CRON_SECRET>` on scheduled
+ *  invocations. Empty when unset (the cron route then falls back to FACILITATOR_SECRET). */
+export function cronSecret(): string {
+  return process.env.CRON_SECRET ?? '';
 }
 
 export function assertPublicEnv(): void {

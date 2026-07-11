@@ -2,7 +2,7 @@
 -- The Signal — one-shot bootstrap for a Supabase project.
 -- Paste into the Supabase SQL Editor and Run. It:
 --   1) RESETS the public schema (drops any prior build), then
---   2) applies migrations 0001-0008, then
+--   2) applies migrations 0001-0012, then
 --   3) seeds the "The Signal" scenario (+ a demo session for testing).
 -- Generated — do not hand-edit; regenerate with scripts/build-bootstrap.sh.
 -- =============================================================================
@@ -801,6 +801,209 @@ insert into trait_registry (trait_key, taxonomy_version, definition, observable_
    '["raises a concern in a thread","thread continues without engaging it","decision proceeds unchanged"]'::jsonb,
    'lib/scoring/registry.ts#raised_then_overridden', 'hypothesis')
 on conflict (trait_key, taxonomy_version) do nothing;
+
+-- ==== 0009_solo_engine.sql ====
+
+-- =============================================================================
+-- The Signal / TLFS — Master Build Handoff §5: solo-engine schema.
+--
+-- Solo and team are ONE engine cast differently (Build Update §1-2, Addendum A3).
+-- The team capture model (events + A1 inject_resolution + directed edges) already
+-- covers everything the solo engine needs to CAPTURE — A3 is explicit: "no new raw
+-- capture beyond A1." What the solo real-time engine adds is *authored content* and
+-- *structured Layer-2 reads* of a run, layered on the append-only `events` log:
+--
+--   scenario_meta  — real-time structure (weeks/pacing) + driver keys (authored)
+--   holds          — authored held-information "landmines" (authored)
+--   run_drivers    — per-run world-model driver values the referee moves (derived)
+--   rulings        — AI referee rulings on free-text decisions (derived)
+--   run_outcome    — branch + ending resolved per run (derived)
+--
+-- `events` remains the source of truth; these are versioned interpretations/authored
+-- content, never raw capture — same Layer-1/2/3 separation as the spine.
+-- Additive migration: nothing here is referenced by the current app yet.
+-- =============================================================================
+
+create type session_mode as enum ('solo', 'team');
+create type ending_tone  as enum ('hero', 'villain', 'mixed');
+
+-- Real-time structure + drivers for a scenario (authored). One row per scenario.
+create table scenario_meta (
+  scenario_id  uuid primary key references scenarios (id) on delete cascade,
+  mode_default session_mode not null default 'team',
+  driver_keys  jsonb not null default '[]'::jsonb,   -- e.g. ["trust","people","business","continuity"]
+  week_count   integer,                              -- real-time acts/weeks
+  week_seconds integer,                              -- real-time pacing (seconds per week)
+  created_at   timestamptz not null default now()
+);
+
+-- Authored held information: the landmine a seat holds until asked (authored content).
+create table holds (
+  id                  uuid primary key default gen_random_uuid(),
+  scenario_id         uuid not null references scenarios (id) on delete cascade,
+  week_idx            integer,
+  holder_seat_id      uuid references seats (id) on delete cascade,
+  topic               text,
+  trigger_hints       jsonb not null default '[]'::jsonb,  -- phrases a real ask must hit to surface it
+  hedge_text          text,                                -- guarded/partial reveal under low trust
+  reveal_text         text,                                -- full reveal on a targeted ask
+  critical            boolean not null default false,
+  counterfactual_text text,                                -- shown in debrief if never surfaced
+  created_at          timestamptz not null default now()
+);
+create index holds_scenario_idx on holds (scenario_id);
+
+-- Per-run world state: the drivers the referee moves each week (derived Layer-2).
+create table run_drivers (
+  id             uuid primary key default gen_random_uuid(),
+  session_id     uuid not null references sessions (id) on delete cascade,
+  participant_id uuid references participants (id) on delete cascade,
+  week_idx       integer not null,
+  driver_key     text not null,
+  value          numeric,
+  delta          numeric,
+  at             timestamptz not null default now(),
+  unique (session_id, participant_id, week_idx, driver_key)
+);
+create index run_drivers_session_idx on run_drivers (session_id);
+
+-- AI referee rulings on free-text decisions — the core solo signal (derived Layer-2).
+create table rulings (
+  id               uuid primary key default gen_random_uuid(),
+  session_id       uuid not null references sessions (id) on delete cascade,
+  participant_id   uuid references participants (id) on delete cascade,
+  week_idx         integer,
+  decision_text    text,
+  narrative        text,
+  dimension_scores jsonb not null default '{}'::jsonb,  -- discern/courage/people/truth/…
+  conduct          jsonb not null default '{}'::jsonb,  -- who asked, who ignored, holds surfaced
+  branch_key       text,
+  buzzer           boolean not null default false,
+  at               timestamptz not null default now()
+);
+create index rulings_session_idx on rulings (session_id);
+create index rulings_participant_idx on rulings (participant_id);
+
+-- Branch + ending resolved per run (derived Layer-2).
+create table run_outcome (
+  session_id     uuid not null references sessions (id) on delete cascade,
+  participant_id uuid not null references participants (id) on delete cascade,
+  branch_key     text,
+  ending_key     text,
+  ending_tone    ending_tone,
+  verdict        text,
+  survived       boolean,
+  at             timestamptz not null default now(),
+  primary key (session_id, participant_id)
+);
+
+-- A3.1 — Director-eligible inject trigger conditions (time / event-pattern /
+-- resolution-state). Reserved: the Director-AI evaluates these to re-time/target/
+-- conditionally release injects; scripted timing (payload_json.delay_min/cond) stays
+-- the deterministic fallback when the Director is off/unavailable.
+alter table injects add column if not exists trigger_json jsonb not null default '{}'::jsonb;
+
+-- RLS — all solo-engine tables are server/facilitator side. Default deny for browser.
+alter table scenario_meta enable row level security;
+alter table holds         enable row level security;
+alter table run_drivers   enable row level security;
+alter table rulings       enable row level security;
+alter table run_outcome   enable row level security;
+
+comment on table rulings is
+  'Master Handoff §5 — AI-referee rulings on free-text decisions. Derived Layer-2 '
+  '(versioned interpretation), read from the raw events log; never raw capture.';
+comment on table holds is
+  'Master Handoff §5 — authored held-information landmines. Surface on a targeted ask '
+  '(reveal_text), hedge under low trust (hedge_text), or return as counterfactual.';
+
+-- ==== 0010_run_config.sql ====
+
+-- =============================================================================
+-- Run-level config (Addendum A3.2) — disposition is a RUN dial, not a seat attribute.
+--
+-- The scenario declares the available NPC dispositions (served | on-request |
+-- guarded | surprise) in its content; a *run* picks one that governs the NPCs, and
+-- per A3.2 the *effective* disposition resolves per (npc_seat × participant) from the
+-- behavioral_profile at runtime (trust carried in). None of that belongs on a seat
+-- row — it lives on the session.
+--
+--   sessions.run_config holds the run default (+ facilitator overrides), e.g.
+--   { "disposition": "guarded" }. The Director/referee reads it, then lets the
+--   per-(npc × participant) profile read override it once profiles have history.
+-- =============================================================================
+
+alter table sessions add column if not exists run_config jsonb not null default '{}'::jsonb;
+
+comment on column sessions.run_config is
+  'Run-level dials (A3.2): chosen NPC disposition (served|request|guarded|surprise) '
+  'and other per-run settings. Effective disposition is resolved per (npc_seat × '
+  'participant) from behavioral_profile at runtime; this is the run default/override.';
+
+-- ==== 0011_cross_session_spine.sql ====
+
+-- =============================================================================
+-- The Signal / TLFS — Phase 9: the cross-session Behavioral Memory Spine.
+--
+-- The spine's whole point is "how a PERSON behaves under load" — across
+-- engagements, not just within one session. But `participants` are per-session
+-- (one row per seat per session), and `behavioral_profile` keyed on participant_id
+-- can therefore only ever hold a single session's trajectory. The missing backbone
+-- is a stable PERSON identity that links a person's participant rows across
+-- sessions. This migration adds it (`subjects`) and the FK hooks so trajectories
+-- accumulate per person — the substrate Director-AI / twin / gossip / season read.
+--
+-- Additive + nullable: nothing here is required by an existing row. Identity is
+-- resolved server-side (lib/spine.ts) from the participant's email/name handle.
+-- =============================================================================
+
+-- A person the spine remembers, scoped to an org (the same human across sessions).
+-- `handle` is the stable identity key within an org — email when we have it, else a
+-- name slug. Resolution is get-or-create by (org_id, handle).
+create table subjects (
+  id           uuid primary key default gen_random_uuid(),
+  org_id       uuid references organizations (id) on delete cascade,
+  handle       text not null,               -- email (preferred) or name slug — stable per person
+  display_name text,
+  created_at   timestamptz not null default now(),
+  unique (org_id, handle)
+);
+comment on table subjects is
+  'Phase 9 — the cross-session person identity behind per-session participants. '
+  'Get-or-create by (org_id, handle); handle is email when known. behavioral_profile '
+  'accumulates per subject, so the spine is longitudinal across engagements.';
+
+-- Link each session occupant to the person behind it (resolved at finalize).
+alter table participants add column if not exists subject_id uuid references subjects (id) on delete set null;
+create index if not exists participants_subject_idx on participants (subject_id);
+
+-- The longitudinal profile now keys on the PERSON. participant_id stays (which run
+-- last wrote it) but subject_id is the cross-session accumulation key.
+alter table behavioral_profile add column if not exists subject_id uuid references subjects (id) on delete cascade;
+create index if not exists behavioral_profile_subject_idx on behavioral_profile (subject_id, trait_key);
+
+-- RLS — server/facilitator side only, same as the rest of the spine.
+alter table subjects enable row level security;
+
+comment on column behavioral_profile.subject_id is
+  'Phase 9 — cross-session accumulation key. Trajectory spans all of a subject''s '
+  'sessions; participant_id/last_session_id record the most recent writer.';
+
+-- ==== 0012_trait_score_note.sql ====
+
+-- =============================================================================
+-- The Signal / TLFS — human-coder rationale on trait scores.
+--
+-- The human coding surface (Behavioral Memory Spine §3.3) lets a trained coder score
+-- a participant's traits from the same cited evidence the AI read. A free-text note
+-- captures WHY — the rationale that makes AI-vs-human disagreements adjudicable, not
+-- just countable. Nullable + additive; the AI/heuristic coders leave it null.
+-- =============================================================================
+
+alter table trait_scores add column if not exists note text;
+
+comment on column trait_scores.note is
+  'Optional coder rationale (human coding surface). Null for AI/heuristic rows.';
 
 -- ==== seed.sql ====
 

@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { facilitatorAllowed } from '@/lib/facilitator-session';
 import { buildDebrief } from '@/lib/debrief';
+import { isSoloSession, buildSoloDebriefForFacilitator } from '@/lib/solo-debrief';
 import { Notice } from '@/components/Notice';
 import { CommsMap } from '@/components/facilitator/CommsMap';
+import { SoloDebriefView } from '@/components/solo/SoloDebrief';
 
 // Team debrief — the "discussion" altitude (Build Addendum A2). The communication
 // map + per-person cards, all a read of the one session dataset. Drill into a person
@@ -19,6 +21,20 @@ export default async function TeamDebriefPage({
   if (!(await facilitatorAllowed(key))) {
     return <Notice title="Not found" message="This debrief link is invalid." />;
   }
+
+  // Solo runs get the individual game-film debrief (Phase 5), facilitator-gated.
+  if (await isSoloSession(sessionId)) {
+    const res = await buildSoloDebriefForFacilitator(sessionId);
+    if (!res.ok) {
+      return <Notice title="No debrief yet" message="This solo run has no decisions to debrief." />;
+    }
+    return (
+      <div className="solo">
+        <SoloDebriefView d={res.debrief} />
+      </div>
+    );
+  }
+
   const d = await buildDebrief(sessionId);
   if (!d) return <Notice title="Session not found" message="No session with that id." />;
 

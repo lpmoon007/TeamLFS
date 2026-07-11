@@ -30,7 +30,7 @@ scoring function + longitudinal profile), not in LDOL. Consequences we build to:
 |---|---|---|
 | **1. Event log** — what actually happened (incl. omissions, un-sent, latency, silence) | `events` table (`0005`) | **LOCKED, append-only** |
 | **2. Trait layer** — derived postures computed from Layer 1 | `trait_registry` + `trait_scores` (`0005`); `lib/scoring` | **Versioned, not locked** |
-| **3. LDOL lens** — client-facing interpretation (Flag, 4 disciplines, 2Q) | later phase (versioned view) | **Versioned, never in capture** |
+| **3. LDOL lens** — client-facing interpretation (4 disciplines, 2Q) | `lib/lens/ldol.ts` (`LENS_VERSION`, versioned view) | **Versioned, never in capture** |
 
 Everything in Layers 2–3 is **re-computable from Layer 1**. That is the moat: traits
 and LDOL *will* evolve, and every past session can be re-interpreted with zero re-run.
@@ -82,7 +82,12 @@ consent + de-role are the legitimacy anchor. All spine tables are RLS default-de
 ## Still to do (post-core, §9)
 
 - Validate scoring (inter-rater reliability) before any trait becomes a client claim;
-  flip `trait_registry.status` to `validated` per trait only then.
-- Build the LDOL lens (Layer 3) as a versioned view; the 2Q as omission query → norm →
-  classification (version the norm).
-- Light up Director-AI / twin / gossip / season as reads of `behavioral_profile`.
+  flip `trait_registry.status` to `validated` per trait only then. **Harness + human
+  coding surface built** (`lib/rescore.ts`, `/facilitator/code/…`) — the measurement is
+  the remaining science.
+- ~~Build the LDOL lens (Layer 3) as a versioned view.~~ **Done** (`lib/lens/ldol.ts`):
+  `LENS_VERSION`, a data-driven discipline/2Q mapping OVER the trait scores (not raw
+  counts), wired into the team game-film + solo debrief. Swap the definition to re-frame
+  every past session — the engine/log never change.
+- Light up Director-AI (**done**) / twin / gossip / season as reads of
+  `behavioral_profile`.

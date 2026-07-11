@@ -71,20 +71,6 @@ function scoreOne(
   };
 }
 
-/**
- * AI-first async entry point (seam for the production coder). Today it delegates to
- * the deterministic scorer; the real implementation will prompt Claude with the
- * cited evidence + versioned rubric and return the same TraitScore shape. Kept async
- * so callers are already written for the eventual model call.
- */
-export async function aiScoreSession(
-  events: SpineEvent[],
-  ctx: { participantId: string; sessionId: string },
-  opts: ScoreOptions = {},
-): Promise<TraitScore[]> {
-  return scoreSession(events, ctx, opts);
-}
-
 /** DB insert rows for `trait_scores` (server persists; scorer stays pure). */
 export function toTraitScoreRows(scores: TraitScore[]) {
   return scores.map((s) => ({

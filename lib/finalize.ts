@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { broadcast } from '@/lib/realtime-server';
 import { seatChannel } from '@/lib/channels';
 import { aiScoreSession, toTraitScoreRows, type SpineEvent } from '@/lib/scoring';
+import { subjectForParticipant, appendProfile } from '@/lib/spine';
 
 // Phase 7 — capture-log hardening at session end.
 //
@@ -194,42 +195,19 @@ async function scoreAndPersist(db: Db, sessionId: string): Promise<number> {
   return total;
 }
 
-// Upsert the participant's behavioral_profile trajectory with this session's scores.
+// Append this session's scores to the CROSS-SESSION profile (Phase 9). Resolves the
+// person (subject) behind the participant so trajectories accumulate across sessions,
+// not just within one — the longitudinal read Director-AI / disposition depend on.
 async function updateProfile(db: Db, sessionId: string, participantId: string, scores: any[]): Promise<void> {
   if (!scores.length) return;
-  // org for this session (behavioral_profile is org-scoped for cross-scenario reads).
   const { data: sess } = await db
     .from('sessions')
     .select('scenario:scenarios!inner(org_id)')
     .eq('id', sessionId)
     .maybeSingle<any>();
   const orgId: string | null = sess?.scenario?.org_id ?? null;
-  const now = new Date().toISOString();
 
-  const { data: existing } = await db
-    .from('behavioral_profile')
-    .select('id, trait_key, taxonomy_version, trajectory_json')
-    .eq('participant_id', participantId);
-  const byKey = new Map((existing ?? []).map((r: any) => [`${r.trait_key}:${r.taxonomy_version}`, r]));
-
-  for (const s of scores) {
-    const k = `${s.trait_key}:${s.taxonomy_version}`;
-    const point = { session_id: sessionId, value: s.value, value_num: s.value_num, confidence: s.confidence, at: now };
-    const prior = byKey.get(k);
-    const trajectory = Array.isArray(prior?.trajectory_json) ? prior.trajectory_json : [];
-    // Replace this session's point if re-finalized, else append.
-    const next = [...trajectory.filter((t: any) => t.session_id !== sessionId), point];
-    await db.from('behavioral_profile').upsert(
-      {
-        participant_id: participantId,
-        org_id: orgId,
-        trait_key: s.trait_key,
-        taxonomy_version: s.taxonomy_version,
-        trajectory_json: next,
-        last_session_id: sessionId,
-        updated_at: now,
-      },
-      { onConflict: 'participant_id,trait_key,taxonomy_version' },
-    );
-  }
+  const subjectId = await subjectForParticipant(db, sessionId, participantId);
+  if (!subjectId) return; // anonymous run — no stable identity to accumulate against
+  await appendProfile(db, { subjectId, participantId, orgId, sessionId, scores });
 }

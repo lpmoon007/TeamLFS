@@ -1,14 +1,15 @@
 import Link from 'next/link';
 import { isFacilitatorSession } from '@/lib/facilitator-session';
-import { listSessions } from '@/lib/facilitator-actions';
+import { listSessions, listScenarios } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
+import { NewSession } from '@/components/facilitator/NewSession';
 
 // Facilitator home: sign-in gate → live session list.
 export default async function FacilitatorHome() {
   if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
 
-  const sessions = await listSessions();
+  const [sessions, scenarios] = await Promise.all([listSessions(), listScenarios()]);
   return (
     <div className="fac">
       <header className="fac-head">
@@ -19,7 +20,10 @@ export default async function FacilitatorHome() {
         <LogoutButton />
       </header>
       <div className="fac-body">
-        <h1>Sessions</h1>
+        <div className="fac-body-top">
+          <h1>Sessions</h1>
+          <NewSession scenarios={scenarios} />
+        </div>
         {sessions.length === 0 ? (
           <p className="db-sub">No sessions yet.</p>
         ) : (
@@ -39,6 +43,7 @@ export default async function FacilitatorHome() {
                   <tr key={s.id}>
                     <td>
                       <strong>{s.scenario}</strong>
+                      <span className={`cast-badge ${s.mode === 'solo' ? 'ai' : 'human'}`}>{s.mode}</span>
                       <div className="db-role">{s.id.slice(0, 8)}…</div>
                     </td>
                     <td>
