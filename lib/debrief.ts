@@ -1,6 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { aiScoreSession, getRubric, type SpineEvent, type TraitScore } from '@/lib/scoring';
+import { LENS_VERSION } from '@/lib/lens/ldol';
 
 // Phase 7 — the debrief read. The capture log (events) IS the product's value; the
 // debrief is its first read: a per-participant timeline, the single most diagnostic
@@ -183,7 +184,7 @@ export async function buildDebrief(sessionId: string): Promise<Debrief | null> {
     startMs,
     participants,
     team,
-    lens: 'LDOL v1',
+    lens: LENS_VERSION,
     scorerNote:
       'Trait scores are v0.1 HYPOTHESIS heuristics, not validated diagnostics. They ' +
       'are shown to exercise the scoring pipeline (versioned, evidence-cited), and must ' +

@@ -1,6 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { aiScoreSession, toTraitScoreRows } from '@/lib/scoring';
+import { aiScoreSession, toTraitScoreRows, getRubric } from '@/lib/scoring';
 import type { SpineEvent, TraitScore } from '@/lib/scoring/types';
 
 // Phase 9 — the cross-session Behavioral Memory Spine: identity, accumulation, and the
@@ -126,6 +126,26 @@ export async function subjectPosture(db: Db, subjectId: string): Promise<Subject
     traits.push({ trait_key: r.trait_key, mean: den ? num / den : 0, confidence: den, points: pts.length });
   }
   return { sessions: sessionIds.size, traits };
+}
+
+export interface LensHistory {
+  sessions: number;
+  trend: { trait_key: string; pole: string } | null;
+}
+
+/** Cross-session read for the LDOL Learning discipline: how many prior sessions this
+ *  person has, and the strongest directional trait as a pole label. */
+export async function lensHistoryForParticipant(db: Db, sessionId: string, participantId: string): Promise<LensHistory> {
+  const subjectId = await subjectForParticipant(db, sessionId, participantId);
+  if (!subjectId) return { sessions: 0, trend: null };
+  const posture = await subjectPosture(db, subjectId);
+  if (posture.sessions <= 1) return { sessions: posture.sessions, trend: null };
+  // strongest directional trait → its dominant pole (registry poles map mean → pole)
+  const strongest = posture.traits.filter((t) => Math.abs(t.mean) > 0.2).sort((a, b) => Math.abs(b.mean) - Math.abs(a.mean))[0];
+  if (!strongest) return { sessions: posture.sessions, trend: null };
+  const rubric = getRubric(strongest.trait_key);
+  const pole = !rubric ? null : strongest.mean > 0.2 ? rubric.poles.positive : strongest.mean < -0.2 ? rubric.poles.negative : rubric.poles.neutral;
+  return { sessions: posture.sessions, trend: pole ? { trait_key: strongest.trait_key, pole } : null };
 }
 
 // A3.2 — the disposition a leader EARNS. "This is not a setting; it is a consequence

@@ -129,6 +129,43 @@ export function SoloDebriefView({ d }: { d: SoloDebrief }) {
           </div>
         ))}
 
+        {d.lens ? (
+          <>
+            <div className="sd-h">The read behind the read — LDOL · {d.lens.version}</div>
+            <p className="db-sub">A versioned lens over your behavioral trait scores (Layer 2) — a reading, not a verdict.</p>
+            <div className="ldol">
+              {d.lens.disciplines.map((disc) => (
+                <div className={`ldol-row sig-${disc.signal}`} key={disc.name}>
+                  <div className="ldol-top">
+                    <span className="ldol-name">{disc.name}</span>
+                    <span className="ldol-frame">{disc.frame}</span>
+                    <span className={`ldol-sig ${disc.signal}`}>{disc.signal}</span>
+                  </div>
+                  <div className="ldol-read">{disc.read}</div>
+                </div>
+              ))}
+            </div>
+            <div className="twoq">
+              <div>
+                <span className="twoq-q">What are you building?</span>
+                {d.lens.building.length ? (
+                  <ul className="twoq-list">{d.lens.building.map((b, i) => <li key={i}>{b}</li>)}</ul>
+                ) : (
+                  <span className="twoq-a db-dim">Not enough confident evidence this run.</span>
+                )}
+              </div>
+              <div>
+                <span className="twoq-q">What are you allowing?</span>
+                {d.lens.allowing.length ? (
+                  <ul className="twoq-list">{d.lens.allowing.map((a, i) => <li key={i}>{a}</li>)}</ul>
+                ) : (
+                  <span className="twoq-a db-dim">Nothing flagged this run.</span>
+                )}
+              </div>
+            </div>
+          </>
+        ) : null}
+
         <div className="sd-h">Villain or hero?</div>
         <div className="sd-vh">
           <div className="sd-vh-head">

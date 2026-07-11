@@ -381,13 +381,25 @@ button { font-family: inherit; cursor: pointer; }
 .film-id h1 { margin: 0; font-size: 20px; }
 .film-id .spacer { flex: 1; }
 .film-tl { max-height: none; }
-.ldol { display: flex; flex-direction: column; gap: 8px; }
-.ldol-row { display: grid; grid-template-columns: 90px 1fr; gap: 10px; align-items: baseline; font-size: 13px; }
+.ldol { display: flex; flex-direction: column; gap: 12px; }
+.ldol-row { border-left: 2px solid var(--line); padding-left: 12px; font-size: 13px; }
+.ldol-row.sig-strong { border-left-color: var(--accent); }
+.ldol-row.sig-weak { border-left-color: var(--accent-dim); }
+.ldol-row.sig-thin { border-left-color: var(--line); }
+.ldol-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .ldol-name { font-weight: 700; color: var(--accent); }
-.ldol-read { color: var(--text-dim); }
-.twoq { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
-.twoq-q { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); }
+.ldol-frame { font-size: 11px; color: var(--text-faint); }
+.ldol-sig { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 5px; border-radius: 4px; margin-left: auto; border: 1px solid var(--line); color: var(--text-faint); }
+.ldol-sig.strong { color: var(--online); border-color: rgba(52,211,153,0.4); }
+.ldol-sig.weak { color: var(--warn); border-color: rgba(245,158,11,0.35); }
+.ldol-read { color: var(--text-dim); margin-top: 3px; line-height: 1.55; }
+.ldol-traits { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.ldol-trait { font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line-soft); color: var(--text-faint); }
+.twoq { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) { .twoq { grid-template-columns: 1fr; } }
+.twoq-q { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 4px; }
 .twoq-a { display: block; font-size: 13px; margin-top: 2px; }
+.twoq-list { margin: 0; padding-left: 16px; font-size: 13px; color: var(--text-dim); display: flex; flex-direction: column; gap: 3px; }
 
 .wall { min-height: 100vh; display: flex; flex-direction: column; background: radial-gradient(60% 60% at 50% 40%, #0e141b 0%, #05080b 100%); }
 .wall-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; }

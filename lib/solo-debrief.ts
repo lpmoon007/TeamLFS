@@ -2,6 +2,8 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { reconstitute } from '@/lib/solo-referee';
 import { resolveAllWeeks } from '@/lib/solo-week';
+import { applyLens, type LensRead } from '@/lib/lens/ldol';
+import { lensHistoryForParticipant } from '@/lib/spine';
 
 // Solo Phase 5 — the game-film debrief (Master Handoff §7.5). The payoff read of a
 // finished solo run, assembled from the append-only truth (events + rulings +
@@ -76,6 +78,7 @@ export interface SoloDebrief {
   missedCount: number;
   gameFilm: SoloFilmMoment[];
   coaching: SoloCoachBlock[];
+  lens: LensRead | null; // Layer-3 LDOL read over the spine trait scores (if scored)
 }
 
 export type SoloDebriefResult =
@@ -338,6 +341,23 @@ async function buildSoloDebriefCore(
   const disposition = session.run_config?.disposition ?? 'request';
   const dispLabel = content.DISPOSITIONS?.[disposition]?.label ?? disposition;
 
+  // Layer-3 LDOL lens over the spine trait scores this run produced (scoreSoloRun at
+  // the final decision). Absent until the run is scored → lens stays null.
+  let lens: LensRead | null = null;
+  const { data: traitRows } = await db
+    .from('trait_scores')
+    .select('trait_key, value, value_num, confidence, evidence_event_ids, scorer_version, coder, created_at')
+    .eq('session_id', sessionId)
+    .eq('participant_id', participantId)
+    .neq('coder', 'human')
+    .order('created_at', { ascending: false });
+  const seen = new Set<string>();
+  const traits = ((traitRows ?? []) as any[]).filter((r) => (seen.has(r.trait_key) ? false : (seen.add(r.trait_key), true)));
+  if (traits.length) {
+    const history = await lensHistoryForParticipant(db, sessionId, participantId);
+    lens = applyLens({ traits, omissions: { count: missedHolds.length, names: [...new Set(missedHolds.map((h: any) => firstName(h.from)))] }, history });
+  }
+
   return {
     ok: true,
     debrief: {
@@ -360,6 +380,7 @@ async function buildSoloDebriefCore(
       missedCount: missedHolds.length,
       gameFilm,
       coaching,
+      lens,
     },
   };
 }
