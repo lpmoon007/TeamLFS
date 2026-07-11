@@ -6,21 +6,27 @@ import {
   fireInjectFac,
   finalizeFac,
   recentEvents,
+  runDirectorFac,
   sendAsNpc,
+  setDirectorConfig,
+  type DirectorConfig,
   type FeedEvent,
   type InjectRow,
   type RosterRow,
 } from '@/lib/facilitator-actions';
+import type { DirectorReport } from '@/lib/director';
 import { formatTime } from '@/lib/ui';
 
 export function SessionControl({
   session,
   roster,
   injects,
+  director,
 }: {
   session: { id: string; status: string; scenario: string };
   roster: RosterRow[];
   injects: InjectRow[];
+  director: DirectorConfig;
 }) {
   const [status, setStatus] = useState(session.status);
   const [firing, setFiring] = useState<string | null>(null);
@@ -117,6 +123,7 @@ export function SessionControl({
 
         {/* Injects */}
         <section className="fac-col">
+          <DirectorPanel sessionId={session.id} initial={director} live={status === 'live'} onTick={poll} />
           <h2>Injects ({injects.length})</h2>
           <div className="fac-injects">
             {injects.map((i) => (
@@ -183,6 +190,90 @@ function CastToggle({ sessionId, seat }: { sessionId: string; seat: RosterRow })
     <button className="btn ghost" disabled={busy} onClick={flip} title="Cast this seat human or AI">
       {busy ? '…' : kind === 'ai' ? 'Make human' : 'Cast AI'}
     </button>
+  );
+}
+
+function DirectorPanel({
+  sessionId,
+  initial,
+  live,
+  onTick,
+}: {
+  sessionId: string;
+  initial: DirectorConfig;
+  live: boolean;
+  onTick: () => void;
+}) {
+  const [enabled, setEnabled] = useState(initial.enabled);
+  const [ai, setAi] = useState(initial.ai);
+  const [report, setReport] = useState<DirectorReport | null>(null);
+  const [busy, setBusy] = useState<'' | 'save' | 'preview' | 'run'>('');
+
+  const save = async (next: DirectorConfig) => {
+    setEnabled(next.enabled);
+    setAi(next.ai);
+    setBusy('save');
+    await setDirectorConfig(sessionId, next);
+    setBusy('');
+  };
+  const tick = async (dryRun: boolean) => {
+    setBusy(dryRun ? 'preview' : 'run');
+    const res = await runDirectorFac(sessionId, { dryRun, ai });
+    setBusy('');
+    setReport(res);
+    if (!dryRun) onTick();
+  };
+
+  return (
+    <div className="director">
+      <div className="director-top">
+        <h2 style={{ margin: 0 }}>Director-AI</h2>
+        <label className="director-toggle">
+          <input type="checkbox" checked={enabled} disabled={busy === 'save'} onChange={(e) => save({ enabled: e.target.checked, ai })} />
+          <span>{enabled ? 'On' : 'Off'}</span>
+        </label>
+      </div>
+      <p className="db-sub">
+        {enabled
+          ? 'Scheduled ticks release the beats whose moment has come. When off, fire beats manually below.'
+          : 'Off — beats fire only when you fire them manually. Turn on to let the sim pace itself.'}
+      </p>
+      <div className="director-opts">
+        <label className="director-toggle">
+          <input type="checkbox" checked={ai} disabled={busy === 'save'} onChange={(e) => save({ enabled, ai: e.target.checked })} />
+          <span>AI condition/pacing {ai ? '(on)' : '(off — time-only)'}</span>
+        </label>
+        <div className="director-actions">
+          <button className="btn ghost" disabled={!live || busy !== ''} onClick={() => tick(true)}>
+            {busy === 'preview' ? '…' : 'Preview'}
+          </button>
+          <button className="btn primary" disabled={!live || busy !== ''} onClick={() => tick(false)}>
+            {busy === 'run' ? '…' : 'Run tick'}
+          </button>
+        </div>
+      </div>
+      {report ? (
+        report.ok ? (
+          <div className="director-report">
+            <div className="director-summary">
+              T+{report.elapsedMin}m · {report.dryRun ? 'preview: would fire' : 'fired'} <b>{report.fired}</b> · held{' '}
+              <b>{report.held}</b> of {report.evaluated}
+              {report.aiUsed ? ' · AI' : ''}
+            </div>
+            {(report.decisions ?? []).filter((d) => d.action !== 'hold' || d.by === 'ai').slice(0, 12).map((d) => (
+              <div key={d.injectId} className={`director-dec ${d.action}`}>
+                <span className={`tag act-${d.action}`}>{d.action}</span>
+                <span className="director-dec-seat">{d.seat ?? 'all'}</span>
+                <span className="db-role">T+{d.delayMin}</span>
+                <span className="director-dec-reason">{d.reason}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="fac-flash">Director: {report.reason}</div>
+        )
+      ) : null}
+    </div>
   );
 }
 

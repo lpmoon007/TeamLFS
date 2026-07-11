@@ -7,6 +7,7 @@ import { finalizeSession } from '@/lib/finalize';
 import { subjectForParticipant, subjectPosture, resolveDispositionFromHistory } from '@/lib/spine';
 import { broadcast } from '@/lib/realtime-server';
 import { seatChannel } from '@/lib/channels';
+import { runDirector, type DirectorReport } from '@/lib/director';
 import { getRubrics, TAXONOMY_VERSION, AI_SCORER_VERSION } from '@/lib/scoring';
 import type { TraitScore } from '@/lib/scoring/types';
 import { compareScoreSets, aggregateAgreement, type AgreementSummary } from '@/lib/rescore';
@@ -313,6 +314,37 @@ export async function listInjects(sessionId: string): Promise<InjectRow[]> {
 export async function fireInjectFac(sessionId: string, injectId: string, force: boolean): Promise<any> {
   await guard();
   return fireInject(sessionId, injectId, { force });
+}
+
+// ---- Director-AI controls (Horizon 1) --------------------------------------
+
+export interface DirectorConfig {
+  enabled: boolean;
+  ai: boolean;
+}
+
+/** Read the session's Director config (off by default — manual firing stands). */
+export async function loadDirectorConfig(sessionId: string): Promise<DirectorConfig> {
+  const db = await guard();
+  const { data } = await db.from('sessions').select('run_config').eq('id', sessionId).maybeSingle<any>();
+  const d = data?.run_config?.director ?? {};
+  return { enabled: !!d.enabled, ai: !!d.ai };
+}
+
+/** Enable/disable the Director and its AI layer for a session (run_config.director). */
+export async function setDirectorConfig(sessionId: string, cfg: DirectorConfig): Promise<{ ok: boolean }> {
+  const db = await guard();
+  const { data: session } = await db.from('sessions').select('run_config').eq('id', sessionId).maybeSingle<any>();
+  if (!session) return { ok: false };
+  const run_config = { ...(session.run_config ?? {}), director: { enabled: !!cfg.enabled, ai: !!cfg.ai } };
+  await db.from('sessions').update({ run_config }).eq('id', sessionId);
+  return { ok: true };
+}
+
+/** Run one Director tick from the console (dryRun previews; live fires). */
+export async function runDirectorFac(sessionId: string, opts: { dryRun?: boolean; ai?: boolean }): Promise<DirectorReport> {
+  await guard();
+  return runDirector(sessionId, { dryRun: opts.dryRun, useAI: opts.ai });
 }
 
 export async function finalizeFac(sessionId: string): Promise<any> {

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { isFacilitatorSession } from '@/lib/facilitator-session';
-import { loadControl, listInjects, loadSoloControl, sessionMode } from '@/lib/facilitator-actions';
+import { loadControl, listInjects, loadSoloControl, sessionMode, loadDirectorConfig } from '@/lib/facilitator-actions';
 import { Notice } from '@/components/Notice';
 import { SessionControl } from '@/components/facilitator/SessionControl';
 import { SoloControl } from '@/components/facilitator/SoloControl';
@@ -20,7 +20,11 @@ export default async function SessionControlPage({ params }: { params: Promise<{
     return <SoloControl data={data} />;
   }
 
-  const [{ session, roster }, injects] = await Promise.all([loadControl(sessionId), listInjects(sessionId)]);
+  const [{ session, roster }, injects, director] = await Promise.all([
+    loadControl(sessionId),
+    listInjects(sessionId),
+    loadDirectorConfig(sessionId),
+  ]);
   if (!session) return <Notice title="Session not found" message="No session with that id." />;
-  return <SessionControl session={session} roster={roster} injects={injects} />;
+  return <SessionControl session={session} roster={roster} injects={injects} director={director} />;
 }

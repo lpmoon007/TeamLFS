@@ -157,6 +157,21 @@ human CEO + 5 AI advisors (`cast_kind`). Disposition is a run dial (`sessions.ru
 
 **Phase 9 (the cross-session Behavioral Memory Spine — the moat) done.** The spine's point is *how a person behaves under load across engagements*, but `participants` are per-session, so the missing backbone was a stable person identity. `0011` adds `subjects` (a person, get-or-create by org+email/name handle) and links `participants.subject_id` + `behavioral_profile.subject_id`, so trait trajectories now accumulate **per person across sessions**, not just within one. `lib/spine.ts` is the read/write surface: `subjectForParticipant` (identity), `appendProfile` (cross-session accumulation), `subjectPosture` (confidence-weighted mean per trait), and — the first read that feeds the engine — `resolveDispositionFromHistory`: the disposition a leader has *earned*. Sign-aligning the trust-relevant traits (`trust_vs_suspect`, `hoard_vs_share`, `status_behavior`, `continuity_vs_drop`) into one "forthcoming" score maps a punished-the-messenger history → `guarded`, a trust-earned history → `served`, no/neutral history → `request` (a v0.1 hypothesis mapping, versioned with the taxonomy). A solo run now scores itself at the final decision (`scoreSoloRun`) and appends to the CEO's profile exactly as a team session does at finalize; when the run's disposition dial is `Surprise`/`auto`, `loadSolo`/`soloAsk` resolve the real disposition from that history — *"this is not a setting; it is a consequence of how you've led before."* The solo facilitator console surfaces the earned read (sessions, resolved disposition, the postures behind it). This is the platform's compounding asset: every session makes the next one read the person more truly.
 
+**Director-AI (Horizon 1) done.** The layer that decides *when / whether / to whom* the
+authored beats fire in a live run — instead of a facilitator hand-firing each on a fixed
+clock (the `injects.trigger_json` hook reserved in `0009`). `lib/director.ts`
+`runDirector()` runs on a **tick**: it time-gates the not-yet-fired beats (`delay_min`
+elapsed since `started_at`), then releases them — the deterministic layer that alone
+replaces clock-watching, with `fireInject`'s own cancelIf still defusing no-response
+nags. With a key + AI enabled, the beats carrying a free-text `cond` ("David hasn't
+responded", "no escalation by T+20") are judged by Claude against a per-seat engagement
+digest — fire now or hold — and **paced** so one seat isn't buried in a single tick;
+any failure falls back to firing. `/api/facilitator/director` is the tick endpoint
+(make.com/cron pings it; a no-op when the session's Director is off, so scripted/manual
+firing stays the fallback). The team console has a Director panel: on/off + AI toggle,
+Preview (dry-run) and Run-tick, with the fire/hold decisions and reasons. Enable per
+session via `run_config.director`.
+
 ## Deploy
 
 `DEPLOY.md` is the runbook. Summary: apply `supabase/migrations` + `seed.sql` to a
