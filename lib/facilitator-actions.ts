@@ -38,6 +38,111 @@ async function guard() {
   return createAdminClient();
 }
 
+// =============================================================================
+// Create / activate a session. Sessions were previously seed-only (the demo rows);
+// this lets a facilitator spin up a fresh LIVE session for any scenario, with random
+// per-seat magic-link tokens — team seats all human, solo = 1 human CEO + AI advisors
+// (mirroring the seed's casting). Returns the links to hand out. No SQL, no token
+// rotation by hand.
+// =============================================================================
+
+export interface ScenarioOption {
+  id: string;
+  title: string;
+  mode: 'solo' | 'team';
+  seats: number;
+}
+
+export async function listScenarios(): Promise<ScenarioOption[]> {
+  const db = await guard();
+  const { data: scenarios } = await db.from('scenarios').select('id, title').order('title', { ascending: true });
+  const ids = (scenarios ?? []).map((s: any) => s.id);
+  if (!ids.length) return [];
+  const [{ data: metas }, { data: seats }] = await Promise.all([
+    db.from('scenario_meta').select('scenario_id, mode_default').in('scenario_id', ids),
+    db.from('seats').select('scenario_id').in('scenario_id', ids),
+  ]);
+  const modeBy = new Map((metas ?? []).map((m: any) => [m.scenario_id, m.mode_default]));
+  const seatCount = new Map<string, number>();
+  for (const s of seats ?? []) seatCount.set((s as any).scenario_id, (seatCount.get((s as any).scenario_id) ?? 0) + 1);
+  return (scenarios ?? []).map((s: any) => ({
+    id: s.id,
+    title: s.title,
+    mode: (modeBy.get(s.id) ?? 'team') as 'solo' | 'team',
+    seats: seatCount.get(s.id) ?? 0,
+  }));
+}
+
+export interface SessionLink {
+  seatKey: string;
+  name: string;
+  role: string | null;
+  castKind: 'human' | 'ai';
+  path: string | null; // magic-link path for human seats; null for AI-cast seats
+}
+export interface CreateSessionResult {
+  ok: boolean;
+  reason?: string;
+  sessionId?: string;
+  mode?: 'solo' | 'team';
+  links?: SessionLink[];
+}
+
+const newToken = () => (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '');
+
+/** Create a fresh LIVE session for a scenario with random per-seat tokens. */
+export async function createSession(params: { scenarioId: string; disposition?: string }): Promise<CreateSessionResult> {
+  const db = await guard();
+
+  const { data: scenario } = await db.from('scenarios').select('id, title').eq('id', params.scenarioId).maybeSingle<any>();
+  if (!scenario) return { ok: false, reason: 'scenario_not_found' };
+  const { data: meta } = await db.from('scenario_meta').select('mode_default').eq('scenario_id', params.scenarioId).maybeSingle<any>();
+  const mode = (meta?.mode_default ?? 'team') as 'solo' | 'team';
+
+  const { data: seats } = await db.from('seats').select('id, key, name, role, meta').eq('scenario_id', params.scenarioId).order('key', { ascending: true });
+  if (!seats || !seats.length) return { ok: false, reason: 'no_seats' };
+
+  const run_config = mode === 'solo' ? { disposition: params.disposition ?? 'request' } : {};
+  const { data: session } = await db
+    .from('sessions')
+    .insert({ scenario_id: params.scenarioId, status: 'live', started_at: new Date().toISOString(), run_config })
+    .select('id')
+    .single<any>();
+  if (!session) return { ok: false, reason: 'insert_failed' };
+  const sessionId: string = session.id;
+
+  const links: SessionLink[] = [];
+  const rows = (seats as any[]).map((seat) => {
+    // team: every seat is a human player. solo: the CEO hot seat is human; the rest are
+    // AI-cast advisors (they reply through the engine — no magic link).
+    const human = mode !== 'solo' || seat.key === 'ceo';
+    const token = human ? newToken() : null;
+    const cast_kind = human ? 'human' : 'ai';
+    const agent_json = human
+      ? {}
+      : { name: seat.name, role: seat.role ?? null, persona: seat.meta?.persona ?? null, priority: seat.meta?.priority ?? null, autonomy: 'reactive' };
+    links.push({
+      seatKey: seat.key,
+      name: seat.name,
+      role: seat.role ?? null,
+      castKind: cast_kind as 'human' | 'ai',
+      path: token ? `${mode === 'solo' ? '/solo' : '/s'}/${sessionId}?t=${token}` : null,
+    });
+    return { session_id: sessionId, seat_id: seat.id, token, cast_kind, agent_json, name: `${seat.name}` };
+  });
+  await db.from('participants').insert(rows);
+
+  await db.from('events').insert({
+    session_id: sessionId,
+    type: 'session_created',
+    channel: 'system',
+    target: null,
+    payload_json: { scenario: scenario.title, mode, seats: rows.length },
+  });
+
+  return { ok: true, sessionId, mode, links };
+}
+
 export interface SessionSummary {
   id: string;
   status: string;

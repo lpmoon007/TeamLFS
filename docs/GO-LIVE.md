@@ -178,28 +178,20 @@ If all four work, you're live-ready.
 
 ## 7. Run a real session
 
-There is **no in-app "create session" button yet** (see Known gaps). A session comes from
-the seed and is already `live`. Two ways to run real people:
+**Use the console.** On `/facilitator`, click **+ New session** → pick a scenario (and,
+for solo, the disposition) → **Create session**. This makes a fresh **live** session with
+random per-seat magic links and the right casting (team: every seat human; solo: 1 human
+CEO + AI advisors). Copy each link from the panel and hand them out, or **Open console →**
+to run it. The seeded `demo-*` sessions stay untouched.
 
-**Option 1 — reuse a demo session, rotate its tokens** (fastest). Fixed `demo-*-REPLACE`
-tokens are guessable — replace them with random ones before real use:
+- Team: each seat gets `https://<app>/s/<session>?t=<token>`
+- Solo CEO: `https://<app>/solo/<session>?t=<token>`
 
-```sql
--- rotate every human token on a session to a fresh random value, and print the links
--- (gen_random_uuid is built-in on Supabase — no extension needed)
-update participants
-   set token = replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '')
- where session_id = '<session-uuid>' and token is not null
- returning seat_id, token;
-```
-
-Hand each person their link:
-- Team: `https://<app>/s/<session-uuid>?t=<token>`
-- Solo CEO: `https://<app>/solo/<session-uuid>?t=<token>`
-
-**Option 2 — a fresh session** (to keep the demo intact): insert a `sessions` row
-(`status='live'`, same `scenario_id`) + one `participants` row per seat with fresh tokens.
-Copy the shape from the seed's participant inserts.
+> **SQL fallback** (if you prefer): insert a `sessions` row (`status='live'`, the
+> `scenario_id`) + one `participants` row per seat with a random token
+> (`replace(gen_random_uuid()::text,'-','')||replace(gen_random_uuid()::text,'-','')`);
+> for solo, set the CEO seat `cast_kind='human'` (with token) and advisors `cast_kind='ai'`
+> (no token). Or rotate a demo session's `demo-*-REPLACE` tokens the same way.
 
 Before the run:
 - **Solo:** in the facilitator solo console, set the **disposition** dial (or **Surprise**
@@ -213,10 +205,8 @@ Before the run:
 
 ## Known gaps & notes
 
-- **No create/activate-session UI.** Sessions are seeded (`live`). Real runs use token
-  rotation or a SQL insert (Step 7). A facilitator "New session → go live" action is a
-  small, clean follow-up build if you want it before scaling up.
-- **Demo tokens are `*-REPLACE`** and guessable — always rotate before real participants.
+- **Demo tokens are `*-REPLACE`** and guessable — never use the seeded demo sessions for
+  real participants. Use **+ New session** (Step 7), which mints random tokens.
 - **Minute-level cron needs Vercel Pro.** On Hobby, the Director cron runs at most daily;
   use the manual **Run tick** in the console meanwhile.
 - **Disposition-from-history and the Learning lens** only light up once a person (matched
