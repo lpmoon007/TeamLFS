@@ -4,6 +4,10 @@ The stack is **Vercel** (the Next.js app + server actions + API routes) talking 
 **Supabase** (Postgres + Realtime + Auth). Everything is in this repo; deploying is
 provisioning the two services and setting env vars.
 
+> **Going live?** Follow **[`docs/GO-LIVE.md`](docs/GO-LIVE.md)** — the ordered,
+> copy-pasteable runbook (merge → DB → env → cron → smoke test → real session). This
+> file is the per-piece reference behind it.
+
 ## 0. Prerequisites you (the account owner) provide
 
 These require *your* accounts — they can't be created from CI without your tokens:
