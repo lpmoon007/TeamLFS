@@ -9,8 +9,8 @@ import { seatChannel } from '@/lib/channels';
 // `inject_delivered` event so every downstream behavior can be tied to its stimulus
 // (Behavioral Memory Spine §4 — the circularity guardrail).
 //
-// Triggered manually now (the facilitator API route); make.com can call the same
-// endpoint on a schedule/condition later. The full facilitator UI is Phase 8.
+// Triggered manually from the facilitator console, or automatically by the Director
+// (Vercel Cron → /api/cron/director) on a schedule/condition. No external scheduler.
 
 type Db = ReturnType<typeof createAdminClient>;
 

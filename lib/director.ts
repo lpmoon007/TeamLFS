@@ -19,8 +19,10 @@ import { fireInject } from '@/lib/inject';
 //     rule engine can't parse, hand the condition + a session digest to Claude to
 //     decide fire/hold, and pace intensity per seat. Falls back to firing on failure.
 //
-// Runs on a tick (the /api/facilitator/director route; make.com/cron pings it). The
-// scripted timing stays the deterministic fallback whenever the Director is off.
+// Runs on a tick: Vercel Cron hits /api/cron/director on an interval (no external
+// scheduler), and /api/facilitator/director serves manual/preview ticks from the
+// console. The scripted timing stays the deterministic fallback whenever the Director
+// is off.
 
 type Db = ReturnType<typeof createAdminClient>;
 

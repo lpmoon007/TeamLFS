@@ -47,10 +47,16 @@ export function facilitatorSecret(): string {
   const s = process.env.FACILITATOR_SECRET ?? '';
   if (!s) {
     throw new Error(
-      'FACILITATOR_SECRET is not set. The facilitator/make.com inject endpoints require it.',
+      'FACILITATOR_SECRET is not set. The facilitator inject/Director endpoints require it.',
     );
   }
   return s;
+}
+
+/** Secret Vercel Cron sends as `Authorization: Bearer <CRON_SECRET>` on scheduled
+ *  invocations. Empty when unset (the cron route then falls back to FACILITATOR_SECRET). */
+export function cronSecret(): string {
+  return process.env.CRON_SECRET ?? '';
 }
 
 export function assertPublicEnv(): void {

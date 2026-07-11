@@ -6,9 +6,9 @@ import { fireInject } from '@/lib/inject';
 //   Authorization: Bearer <FACILITATOR_SECRET>
 //   { "sessionId": "...", "injectId": "...", "force": false }
 //
-// Fires an authored beat into a live session (handoff §5). Manual trigger now; the
-// same endpoint is what make.com schedules against later. `force` bypasses the
-// best-effort cancelIf check.
+// Fires an authored beat into a live session (handoff §5). Manual trigger from the
+// console; the unattended cadence runs through the Director (Vercel Cron). `force`
+// bypasses the best-effort cancelIf check.
 export async function POST(req: Request) {
   if (!isFacilitator(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

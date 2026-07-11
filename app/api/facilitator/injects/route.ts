@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 //   Authorization: Bearer <FACILITATOR_SECRET>
 //
 // Lists the authored beats for a session's scenario (id, seat, kind, order, timing,
-// condition, preview) so a human or make.com can pick what to fire. Read-only.
+// condition, preview) so a human (or the Director) can pick what to fire. Read-only.
 export async function GET(req: Request) {
   if (!isFacilitator(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

@@ -1,9 +1,9 @@
 # The Signal — Production Build
 
 Re-housing the working prototype (a crisis-simulation training experience) into a
-real client/server stack: **Vercel (UI) · Supabase (data/realtime/auth/edge) ·
-Edge Functions (AI/voice) · make.com (glue)**. See the production handoff doc for
-the full spec — the prototype is the spec, this is the re-housing.
+real client/server stack: **Vercel (UI + Cron) · Supabase (data/realtime/auth) ·
+server routes (AI/voice) · Vercel Cron (scheduling)**. See the production handoff doc
+for the full spec — the prototype is the spec, this is the re-housing.
 
 > Build order is **phased** (handoff §10). We do one phase, verify it, then move on.
 
@@ -16,7 +16,7 @@ the full spec — the prototype is the spec, this is the re-housing.
 | 2 | Participant read path (render a seat from DB, Realtime subscribe) | ✅ done — Next.js app |
 | 3 | Messaging + presence live | ✅ done — send + mirror + presence |
 | 4 | Email + documents (approve/return → events) | ✅ done — read + Approve/Return/Edit |
-| 5 | Inject firing (manual, then make.com) | ✅ done — fire-inject engine + endpoint |
+| 5 | Inject firing (manual + Director/Vercel Cron) | ✅ done — fire-inject engine + Director |
 | 6 | Voice (npc-reply + tts; call overlay) | ✅ done — STT → LLM → TTS loop |
 | 7 | Capture-log hardening + minimal debrief view | ✅ done — omission sweep + debrief |
 | 8 | Facilitator dashboard + debrief suite | ✅ done — control + team/film/wall |
@@ -67,8 +67,8 @@ behavior is tied to its stimulus (spine §4). A best-effort `cancelIf` skips a
 no-response nag if the recipient already replied on that thread ("reply defuses the
 nag").
 
-Triggered manually now via a bearer-guarded endpoint (make.com schedules the *same*
-endpoint later). Set `FACILITATOR_SECRET`, then:
+Triggered manually via a bearer-guarded endpoint, or automatically by the Director
+(Vercel Cron → `/api/cron/director`). Set `FACILITATOR_SECRET`, then:
 
 ```bash
 # list fireable beats for a session
@@ -97,7 +97,7 @@ broadcasts a `curtain` event to live participants. The `events` log stays append
   diagnostic ("who did each person contact first, and when"), per-participant timelines
   (acts + omissions), response latencies, and the v0.1 **hypothesis** trait scores
   (value + confidence + evidence count, clearly marked not-yet-validated).
-- **JSON:** `GET /api/facilitator/debrief?sessionId=` (bearer) for exports/make.com.
+- **JSON:** `GET /api/facilitator/debrief?sessionId=` (bearer) for programmatic exports.
 
 Everything in the debrief is a read of Layer 1 — no new capture. The scoring pipeline
 was runtime-verified (evidence-cited scores, confidence shrinkage, hypothesis gate).
@@ -166,11 +166,12 @@ replaces clock-watching, with `fireInject`'s own cancelIf still defusing no-resp
 nags. With a key + AI enabled, the beats carrying a free-text `cond` ("David hasn't
 responded", "no escalation by T+20") are judged by Claude against a per-seat engagement
 digest — fire now or hold — and **paced** so one seat isn't buried in a single tick;
-any failure falls back to firing. `/api/facilitator/director` is the tick endpoint
-(make.com/cron pings it; a no-op when the session's Director is off, so scripted/manual
-firing stays the fallback). The team console has a Director panel: on/off + AI toggle,
-Preview (dry-run) and Run-tick, with the fire/hold decisions and reasons. Enable per
-session via `run_config.director`.
+any failure falls back to firing. Scheduling is native: **Vercel Cron** (`vercel.json`)
+hits `/api/cron/director` every 2 minutes, which ticks every live Director-enabled
+session — no external scheduler. `/api/facilitator/director` serves manual/preview ticks
+from the console (on/off + AI toggle, Preview and Run-tick, with the fire/hold decisions
+and reasons). A session's Director is off by default (`run_config.director`), so
+scripted/manual firing stays the fallback.
 
 ## Deploy
 

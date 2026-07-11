@@ -81,8 +81,23 @@ npm run dev                    # http://localhost:3000
 
 `supabase status` reprints the local keys; `supabase stop` tears it down.
 
-## make.com (later)
+## Scheduling — the Director (Vercel Cron, native)
 
-The inject endpoints are the integration seam: `GET /api/facilitator/injects` and
-`POST /api/facilitator/fire-inject` (both `Authorization: Bearer <FACILITATOR_SECRET>`).
-make.com fires beats on a schedule/condition against the same endpoints a human uses.
+The sim paces itself through the **Director** — no external scheduler (no make.com).
+`vercel.json` registers a cron that hits `GET /api/cron/director` every 2 minutes;
+Vercel signs the call with `Authorization: Bearer <CRON_SECRET>`. Each tick finds the
+live sessions whose Director is enabled (`run_config.director` — toggled in the console)
+and releases the authored beats whose moment has come, paced by the AI layer when on.
+
+Set two env vars in Vercel:
+- **`CRON_SECRET`** — a random string; Vercel Cron sends it as the bearer (the route
+  rejects anything else; it also accepts `FACILITATOR_SECRET` for manual `curl`).
+- **`FACILITATOR_SECRET`** — guards the console/manual endpoints.
+
+Notes:
+- Minute-level cron needs a Vercel **Pro** plan (Hobby crons run at most daily). Adjust
+  the `schedule` in `vercel.json` to taste (`*/2 * * * *` = every 2 min).
+- Manual control stays available: the console's **Preview / Run tick** and
+  `POST /api/facilitator/director`, plus `GET /api/facilitator/injects` +
+  `POST /api/facilitator/fire-inject` for hand-firing a single beat.
+- Turn a session's Director **off** and firing is fully manual again.

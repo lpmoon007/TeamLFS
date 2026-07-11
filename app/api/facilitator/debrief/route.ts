@@ -5,7 +5,7 @@ import { buildDebrief } from '@/lib/debrief';
 // GET /api/facilitator/debrief?sessionId=...
 //   Authorization: Bearer <FACILITATOR_SECRET>
 // JSON debrief for a session (timeline + first-move + latencies + trait scores).
-// make.com/exports can consume this; the human-readable view is /facilitator/debrief.
+// Programmatic exports can consume this; the human-readable view is /facilitator/debrief.
 export async function GET(req: Request) {
   if (!isFacilitator(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

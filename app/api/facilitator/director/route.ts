@@ -8,10 +8,11 @@ import { runDirector } from '@/lib/director';
 //   { "sessionId": "...", "dryRun": false }
 //
 // One Director tick (Roadmap Horizon 1): evaluate the authored beats against the live
-// session state and release the ones whose moment has come. make.com/cron pings this
-// on an interval; it's a no-op when the session's Director is disabled (manual firing
-// then stands). `dryRun` previews without firing. `useAI` follows run_config.director.ai
-// unless overridden in the body.
+// session state and release the ones whose moment has come. This is the manual/console
+// entry (Preview + Run tick); the unattended schedule runs through Vercel Cron at
+// /api/cron/director. It's a no-op when the session's Director is disabled (manual
+// firing then stands). `dryRun` previews without firing. `useAI` follows
+// run_config.director.ai unless overridden in the body.
 export async function POST(req: Request) {
   if (!isFacilitator(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
