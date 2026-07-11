@@ -18,6 +18,7 @@ export interface Week {
   title: string;
   situation: string;
   advocacy: Record<string, string>;
+  burn?: number; // optional weekly driver burn (e.g. Shockwave cash burn)
 }
 export interface Ruling {
   narrative: string;
@@ -91,6 +92,9 @@ export function buildRefereeSystem(
     `You are fair, sharp, and unsentimental. You never coach the player or reveal a "right answer." You rule on the ` +
     `CEO's written decision by reading it against the world model, then translate it into consequences.\n\n` +
     `WORLD MODEL (current): ${driverList}.\n` +
+    ((content as any).BURN_DRIVER && (w.burn ?? (content as any).BURN_START)
+      ? `Weekly burn: ${DRIVERS[(content as any).BURN_DRIVER]?.label ?? (content as any).BURN_DRIVER} drops ${w.burn ?? (content as any).BURN_START} every week regardless of the decision — your ${(content as any).BURN_DRIVER} delta is ON TOP of that burn, which the world model applies separately.\n`
+      : '') +
     `WEEK ${w.n} — ${w.title}. Situation: ${w.situation}\n` +
     `Team advocated competing priorities: ${advocacy}\n\n` +
     `CONDUCT THIS WEEK: The CEO reached out to ${conduct.asked} of ${TEAM.length} advisors ` +

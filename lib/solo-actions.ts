@@ -244,6 +244,18 @@ export async function soloDecide(params: {
 
   const drivers = applyDeltas(content, params.drivers, ruling.deltas);
 
+  // Optional weekly burn (e.g. Shockwave's cash burn): a fixed cost the world model
+  // applies each week on top of the ruling's deltas. Content-driven via BURN_DRIVER +
+  // the week's `burn` (fallback BURN_START); a no-op for scenarios without a burn.
+  const burnKey: string | undefined = content.BURN_DRIVER;
+  if (burnKey && drivers[burnKey] !== undefined) {
+    const burn = Number(w.burn ?? content.BURN_START ?? 0);
+    if (burn) {
+      const dr = (content.DRIVERS ?? {})[burnKey] ?? {};
+      drivers[burnKey] = Math.max(dr.min ?? 0, drivers[burnKey] - burn);
+    }
+  }
+
   // branch classifier (authored fn) over this decision
   let branchKey: string | null = null;
   const bk = reconstitute(content.branchKey);

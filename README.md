@@ -134,11 +134,15 @@ them; `0009` is authored content + versioned Layer-2 reads only.
 > `0009` is not needed on a live project until the solo runtime is built — apply it
 > then. Fresh installs get it via `deploy/bootstrap.sql`.
 
-**Solo scenario library — 5 built out.** `scripts/seed/build_solo_seed.mjs <content-file>`
+**Solo scenario library — 6 built out.** `scripts/seed/build_solo_seed.mjs <content-file>`
 loads a real-time content file (`prototype/solo/*-realtime-content.js`) and emits the
 seed faithfully-by-construction. Ported into the unified model:
-**Backlash · Exodus · Handover · Overdrive · Squeeze** — `supabase/solo_seed_<name>.sql`
-each. Every one is the CEO **hot seat** + 5–6 advisors as **AI-castable seats**
+**Backlash · Exodus · Handover · Overdrive · Squeeze · Shockwave** —
+`supabase/solo_seed_<name>.sql` each. Shockwave predated the shared crisis-engine.js, so
+its scenario logic was **extracted from `shockwave-v3-engine.js` onto the content object**
+(`prototype/solo/shockwave-realtime-content.js`) verbatim — including its cash-**burn**
+mechanic, which the engine now honors via a content-driven `BURN_DRIVER` (a no-op for
+scenarios without one). Every one is the CEO **hot seat** + 5–6 advisors as **AI-castable seats**
 (persona/voice in `seats.meta`), all held-info **landmines** → `holds`, every week's
 timed beats (situation/feed/surprise/pulse/wire) → `injects` (week/day/tag in
 `trigger_json`), and the **full content + 15 logic functions** (as source) in a
@@ -146,9 +150,7 @@ timed beats (situation/feed/surprise/pulse/wire) → `injects` (week/day/tag in
 clean, all 15 functions reconstitute + execute (branch/ending/villain-hero/COACH/
 fallback), and each ships a demo session (1 human CEO + AI advisors, token
 `demo-<name>-ceo-REPLACE`). The engine is scenario-agnostic — new scenarios are data.
-The older *Shockwave v3* (`shockwave-v3-*`) predates the shared crisis-engine.js
-contracts and needs adaptation before it can be ported. Reference prototype code is
-vendored under `prototype/solo/`.
+Reference prototype code is vendored under `prototype/solo/`.
 
 **Phase 2 (solo read path) done.** `/solo/[sessionId]?t=<token>` renders a Backlash
 week from the DB — driver HUD, the situation, the advisors' opening positions, the
