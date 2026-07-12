@@ -299,3 +299,9 @@
 .soloui #hud{top:0;}
 .soloui .hud{background:var(--bg);backdrop-filter:none;box-shadow:0 1px 0 var(--border),0 6px 16px rgba(12,35,64,.06);}
 .soloui .rail{background:var(--bg);backdrop-filter:none;}
+
+/* persistent driver movement chip on the meters */
+.soloui .meter .mv{display:inline-flex;align-items:baseline;gap:6px;}
+.soloui .mv-d{font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.soloui .mv-d.up{color:var(--good);}
+.soloui .mv-d.dn{color:var(--alert);}

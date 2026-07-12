@@ -227,9 +227,17 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
               {bundle.drivers.map((d) => {
                 const val = drivers[d.key] ?? d.val;
                 const pct = Math.round(((val - d.min) / Math.max(1, d.max - d.min)) * 100);
+                // movement stays visible: this week's ruling once decided, else last week's
+                const dlt = decided && ruling ? ruling.deltas[d.key] ?? 0 : bundle.lastDeltas[d.key] ?? 0;
                 return (
                   <div className="meter" key={d.key}>
-                    <div className="mh"><span className="ml">{d.label}</span><span className="mv">{Math.round(val)}</span></div>
+                    <div className="mh">
+                      <span className="ml">{d.label}</span>
+                      <span className="mv">
+                        {Math.round(val)}
+                        {dlt ? <span className={`mv-d ${dlt > 0 ? 'up' : 'dn'}`}>{dlt > 0 ? '▲' : '▼'}{Math.abs(dlt)}</span> : null}
+                      </span>
+                    </div>
                     <div className="bar"><span style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: meterColor(pct) }} /></div>
                   </div>
                 );

@@ -71,6 +71,7 @@ export interface SoloBundle {
   config: SoloConfig;
   reprieveCost: Record<string, number>;
   disposition: string;
+  lastDeltas: Record<string, number>; // last decided week's driver deltas (empty on week 1)
 }
 
 export type SoloResult =
@@ -103,11 +104,12 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
     .maybeSingle<any>();
   if (!meta || meta.mode_default !== 'solo') return { ok: false, reason: 'not_solo' };
 
-  const [{ data: scenario }, { data: contentDoc }, { data: seats }, { data: branchRulings }] = await Promise.all([
+  const [{ data: scenario }, { data: contentDoc }, { data: seats }, { data: branchRulings }, { data: driverRows }] = await Promise.all([
     db.from('scenarios').select('title').eq('id', session.scenario_id).maybeSingle<any>(),
     db.from('documents').select('body_json').eq('scenario_id', session.scenario_id).eq('key', 'solo_content').maybeSingle<any>(),
     db.from('seats').select('key, name, role, meta').eq('scenario_id', session.scenario_id),
     db.from('rulings').select('branch_key').eq('session_id', sessionId).eq('participant_id', participant.id).not('branch_key', 'is', null).order('week_idx', { ascending: false }),
+    db.from('run_drivers').select('week_idx, driver_key, value, delta').eq('session_id', sessionId).eq('participant_id', participant.id).order('week_idx', { ascending: false }),
   ]);
   const content = contentDoc?.body_json;
   if (!content) return { ok: false, reason: 'no_content' };
@@ -118,10 +120,22 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
   const branchKey: string | null = (branchRulings ?? [])[0]?.branch_key ?? null;
   const w = resolveWeek(content, idx, branchKey) ?? {};
 
+  // carry driver state across weeks: latest value per key + the most recent week's
+  // deltas (so the cockpit shows "how the world moved" persistently, and week N starts
+  // where week N-1 ended rather than at the base values).
+  const rows = (driverRows ?? []) as any[];
+  const latestVal: Record<string, number> = {};
+  const lastDeltas: Record<string, number> = {};
+  const lastWeek = rows.length ? rows[0].week_idx : null;
+  for (const r of rows) {
+    if (latestVal[r.driver_key] === undefined && r.value !== null) latestVal[r.driver_key] = Number(r.value);
+    if (r.week_idx === lastWeek && r.delta !== null) lastDeltas[r.driver_key] = Number(r.delta);
+  }
+
   const drivers: SoloDriver[] = Object.entries(meta.driver_keys ?? {}).map(([key, d]: [string, any]) => ({
     key,
     label: d.label,
-    val: d.val,
+    val: latestVal[key] ?? d.val, // current run value if the run has progressed, else base
     min: d.min ?? 0,
     max: d.max ?? 100,
   }));
@@ -173,6 +187,7 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
       },
       reprieveCost: content.REPRIEVE_COST ?? {},
       disposition: await effectiveDisposition(db, sessionId, participant.id, session.run_config?.disposition),
+      lastDeltas,
     },
   };
 }
