@@ -291,3 +291,6 @@
 /* server-error notice (light) */
 .soloui .solo-notice{max-width:900px;margin:16px auto 0;background:var(--alert-bg);border:1px solid #EAD3D0;color:#7A2820;border-radius:11px;padding:11px 15px;font-size:12.5px;display:flex;justify-content:space-between;gap:10px;cursor:pointer;}
 .soloui .solo-notice-x{color:#9A342A;}
+
+/* in-modal error (ask failure) */
+.soloui .modal-err{margin-top:10px;background:var(--alert-bg);border:1px solid #EAD3D0;color:#9A342A;border-radius:9px;padding:9px 11px;font-size:12px;line-height:1.4;}

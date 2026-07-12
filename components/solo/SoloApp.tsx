@@ -49,7 +49,18 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const [deciding, setDeciding] = useState(false);
   const [ruling, setRuling] = useState<Ruling | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [askErr, setAskErr] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
+
+  // the solo pages are the light "command" theme; keep the page background light so the
+  // dark app theme never peeks on overscroll / short content.
+  useEffect(() => {
+    const prevBody = document.body.style.background;
+    const prevHtml = document.documentElement.style.background;
+    document.body.style.background = '#EEF1F4';
+    document.documentElement.style.background = '#EEF1F4';
+    return () => { document.body.style.background = prevBody; document.documentElement.style.background = prevHtml; };
+  }, []);
 
   const totalDays = config.days + extraDays;
   const weekDurationMs = totalDays * dayMs;
@@ -80,10 +91,8 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
 
   const timeline = useMemo<Released[]>(() => {
     const items: Released[] = [];
-    // opening team reads (advocacy) arrive across the first two days so nothing dumps
-    Object.entries(week.advocacy).forEach(([from, text], i) => {
-      items.push({ key: `adv${i}`, releaseDay: 1 + (i % 2), from, text: String(text), kind: 'advocacy', day: 1 + (i % 2) });
-    });
+    // the feed itself is the team's voice trickling in across the week; the situation
+    // banner carries the opening context, so nothing dumps at the start.
     week.feed.forEach((f, i) => {
       const rd = Math.min(totalDays, (f.day ?? 1) + (disp === 'guarded' ? 1 : 0));
       items.push({ key: `f${i}`, releaseDay: rd, from: f.from, text: f.text, kind: 'feed', day: f.day });
@@ -122,7 +131,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const sendAsk = async (advisorKey: string) => {
     const q = askText.trim();
     if (!q || askBusy) return;
-    setNotice(null);
+    setAskErr(null);
     setAskBusy(true);
     const who = castByKey.get(advisorKey)?.name?.split(' ')[0] ?? 'your advisor';
     try {
@@ -130,12 +139,12 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
       if (res.ok) {
         setAsks((a) => [...a, { id: crypto.randomUUID(), advisorKey, question: q, reply: res.reply ?? '', hold: res.hold ?? null }]);
         setAskText('');
-        setAsking(null);
+        setAsking(null); // success closes the modal
       } else {
-        setNotice(`Couldn’t reach ${who} — try again in a moment.`);
+        setAskErr(`Couldn’t reach ${who}${res.reason ? ` (${res.reason})` : ''}. Try again.`);
       }
     } catch {
-      setNotice(`Something went wrong reaching ${who}. Check the connection and try again.`);
+      setAskErr(`Something went wrong reaching ${who}. Check the connection and try again.`);
     } finally {
       setAskBusy(false);
     }
@@ -154,7 +163,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
         if (res.drivers) setDrivers(res.drivers);
         setBuzzer(false);
       } else {
-        setNotice('The referee couldn’t rule that decision — try sending it again.');
+        setNotice(`The referee couldn’t rule that decision${res.reason ? ` (${res.reason})` : ''} — try again.`);
         setRunning(true);
       }
     } catch {
@@ -308,7 +317,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                         <div className="tn">{c.name}</div>
                         <div className="tr">{c.short ?? c.role}</div>
                       </div>
-                      <button className="ask" onClick={() => { setAsking(c.seatKey); setAskText(''); }}>Ask</button>
+                      <button className="ask" onClick={() => { setAsking(c.seatKey); setAskText(''); setAskErr(null); }}>Ask</button>
                     </div>
                   ))}
                 </div>
@@ -333,7 +342,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                       <p className="c-body">{it.text}</p>
                       {it.from && it.kind !== 'pulse' ? (
                         <div className="card-actions">
-                          <button className="reply-inline" onClick={() => { setAsking(it.from!); setAskText(''); }}>Reply to {c?.name?.split(' ')[0] ?? 'them'}</button>
+                          <button className="reply-inline" onClick={() => { setAsking(it.from!); setAskText(''); setAskErr(null); }}>Reply to {c?.name?.split(' ')[0] ?? 'them'}</button>
                         </div>
                       ) : null}
                     </div>
@@ -406,8 +415,9 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
             <div className="modal-b">
               <p className="hint">Ask a real question. What they hold back until pressed is part of the test.</p>
               <textarea value={askText} onChange={(e) => setAskText(e.target.value)} placeholder={`Ask ${castByKey.get(asking)?.name?.split(' ')[0] ?? 'them'}…`} autoFocus />
+              {askErr ? <div className="modal-err">{askErr}</div> : null}
               <div className="modal-actions">
-                <button className="vm" onClick={() => { setAsking(null); setAskText(''); }}>Cancel</button>
+                <button className="vm" onClick={() => { setAsking(null); setAskText(''); setAskErr(null); }}>Cancel</button>
                 <button className="snd" disabled={askBusy || !askText.trim()} onClick={() => sendAsk(asking)}>
                   {askBusy ? <span className="thinking"><span /><span /><span /></span> : 'Send'}
                 </button>

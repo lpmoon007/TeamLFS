@@ -69,6 +69,7 @@ export async function setRunDisposition(params: {
 
 export interface AskResult {
   ok: boolean;
+  reason?: string; // diagnostic when ok=false (auth | content | advisor:<key>)
   reply?: string;
   hold?: { surfaced: boolean; hedged: boolean; text: string } | null;
 }
@@ -84,12 +85,12 @@ export async function soloAsk(params: {
 }): Promise<AskResult> {
   const db = createAdminClient();
   const auth = await authParticipant(db, params);
-  if (!auth) return { ok: false };
+  if (!auth) return { ok: false, reason: 'auth' };
   const content = await loadContent(db, auth.scenarioId);
-  if (!content) return { ok: false };
+  if (!content) return { ok: false, reason: 'content' };
 
   const advisor = (content.TEAM ?? []).find((t: any) => t.id === params.advisorKey);
-  if (!advisor) return { ok: false };
+  if (!advisor) return { ok: false, reason: `advisor:${params.advisorKey}` };
   const w = resolveWeek(content, params.weekIdx, await runBranch(db, params.sessionId, params.participantId)) ?? {};
 
   // log the ask (message_sent — the directed act; not-asking is the omission)
@@ -207,6 +208,7 @@ async function buildConduct(
 
 export interface DecideResult {
   ok: boolean;
+  reason?: string;
   ruling?: Ruling;
   drivers?: Record<string, number>;
   branchKey?: string | null;
@@ -228,11 +230,11 @@ export async function soloDecide(params: {
 }): Promise<DecideResult> {
   const db = createAdminClient();
   const auth = await authParticipant(db, params);
-  if (!auth) return { ok: false };
+  if (!auth) return { ok: false, reason: 'auth' };
   const text = params.decisionText.trim();
-  if (text.length < 8) return { ok: false };
+  if (text.length < 8) return { ok: false, reason: 'too_short' };
   const content = await loadContent(db, auth.scenarioId);
-  if (!content) return { ok: false };
+  if (!content) return { ok: false, reason: 'content' };
   const w = resolveWeek(content, params.weekIdx, await runBranch(db, params.sessionId, params.participantId)) ?? {};
 
   // log the decision act
