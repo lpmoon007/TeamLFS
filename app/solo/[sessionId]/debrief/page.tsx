@@ -28,8 +28,12 @@ export default async function SoloDebriefPage({
     }
   }
   return (
-    <div className="solo">
-      <SoloDebriefView d={res.debrief} />
+    <div className="soloui">
+      <div className="stage">
+        <div id="main">
+          <SoloDebriefView d={res.debrief} />
+        </div>
+      </div>
     </div>
   );
 }

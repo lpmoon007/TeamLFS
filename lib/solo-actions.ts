@@ -47,6 +47,26 @@ async function loadContent(db: ReturnType<typeof createAdminClient>, scenarioId:
   return data?.body_json ?? null;
 }
 
+/** Set the run's disposition from the intro screen (token-gated to the CEO). Lets the
+ *  player choose the team they walk in with; persisted so the server-side hedge matches
+ *  the client-side drip. */
+export async function setRunDisposition(params: {
+  sessionId: string;
+  participantId: string;
+  token: string;
+  disposition: string;
+}): Promise<{ ok: boolean }> {
+  const db = createAdminClient();
+  const auth = await authParticipant(db, params);
+  if (!auth) return { ok: false };
+  const ok = ['served', 'request', 'guarded', 'surprise'].includes(params.disposition);
+  if (!ok) return { ok: false };
+  const { data: session } = await db.from('sessions').select('run_config').eq('id', params.sessionId).maybeSingle<any>();
+  const run_config = { ...(session?.run_config ?? {}), disposition: params.disposition };
+  await db.from('sessions').update({ run_config }).eq('id', params.sessionId);
+  return { ok: true };
+}
+
 export interface AskResult {
   ok: boolean;
   reply?: string;

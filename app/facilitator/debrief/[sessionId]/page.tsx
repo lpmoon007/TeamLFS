@@ -29,8 +29,12 @@ export default async function TeamDebriefPage({
       return <Notice title="No debrief yet" message="This solo run has no decisions to debrief." />;
     }
     return (
-      <div className="solo">
-        <SoloDebriefView d={res.debrief} />
+      <div className="soloui">
+        <div className="stage">
+          <div id="main">
+            <SoloDebriefView d={res.debrief} />
+          </div>
+        </div>
       </div>
     );
   }
