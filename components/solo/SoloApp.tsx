@@ -240,9 +240,10 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
             <div className="intro">
               {bundle.intro?.kick ? <div className="kick">{String(bundle.intro.kick)}</div> : null}
               <h1>{String(bundle.intro?.title ?? bundle.scenarioTitle)}</h1>
-              {bundle.intro?.role ? <div className="role">{String(bundle.intro.role)}</div> : null}
-              {Array.isArray(bundle.intro?.paras) ? (bundle.intro!.paras as string[]).map((p, i) => <p key={i}>{p}</p>) : null}
-              {bundle.intro?.setup ? <div className="setup"><b>{String(bundle.intro.setup)}</b></div> : null}
+              {/* role/paras/setup carry inline <b>/<i> from our authored content */}
+              {bundle.intro?.role ? <div className="role" dangerouslySetInnerHTML={{ __html: String(bundle.intro.role) }} /> : null}
+              {Array.isArray(bundle.intro?.paras) ? (bundle.intro!.paras as string[]).map((p, i) => <p key={i} dangerouslySetInnerHTML={{ __html: p }} />) : null}
+              {bundle.intro?.setup ? <div className="setup" dangerouslySetInnerHTML={{ __html: String(bundle.intro.setup) }} /> : null}
               <div className="disp-h">The team you walk in with</div>
               <div className="disp-grid">
                 {DISPOSITIONS.map((d) => (
