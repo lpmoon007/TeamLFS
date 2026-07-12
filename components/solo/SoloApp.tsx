@@ -34,6 +34,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const [decisionText, setDecisionText] = useState('');
   const [deciding, setDeciding] = useState(false);
   const [ruling, setRuling] = useState<Ruling | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
 
   const totalDays = config.days + extraDays;
@@ -95,27 +96,46 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const sendAsk = async (advisorKey: string) => {
     const q = askText.trim();
     if (!q || askBusy) return;
+    setNotice(null);
     setAskBusy(true);
-    const res = await soloAsk({ ...auth, advisorKey, weekIdx: bundle.weekIdx, question: q });
-    setAskBusy(false);
-    if (res.ok) {
-      setAsks((a) => [...a, { id: crypto.randomUUID(), advisorKey, question: q, reply: res.reply ?? '', hold: res.hold ?? null }]);
-      setAskText('');
-      setAsking(null);
+    const who = castByKey.get(advisorKey)?.name?.split(' ')[0] ?? 'your advisor';
+    try {
+      const res = await soloAsk({ ...auth, advisorKey, weekIdx: bundle.weekIdx, question: q });
+      if (res.ok) {
+        setAsks((a) => [...a, { id: crypto.randomUUID(), advisorKey, question: q, reply: res.reply ?? '', hold: res.hold ?? null }]);
+        setAskText('');
+        setAsking(null);
+      } else {
+        setNotice(`Couldn’t reach ${who} — try again in a moment.`);
+      }
+    } catch {
+      setNotice(`Something went wrong reaching ${who}. Check the connection and try again.`);
+    } finally {
+      setAskBusy(false);
     }
   };
 
   const submitDecision = async () => {
     const text = decisionText.trim();
     if (text.length < 8 || deciding) return;
+    setNotice(null);
     setDeciding(true);
     setRunning(false);
-    const res = await soloDecide({ ...auth, weekIdx: bundle.weekIdx, decisionText: text, drivers, reprieves, underBuzzer: buzzer, decidedDay: curDay });
-    setDeciding(false);
-    if (res.ok && res.ruling) {
-      setRuling(res.ruling);
-      if (res.drivers) setDrivers(res.drivers);
-      setBuzzer(false);
+    try {
+      const res = await soloDecide({ ...auth, weekIdx: bundle.weekIdx, decisionText: text, drivers, reprieves, underBuzzer: buzzer, decidedDay: curDay });
+      if (res.ok && res.ruling) {
+        setRuling(res.ruling);
+        if (res.drivers) setDrivers(res.drivers);
+        setBuzzer(false);
+      } else {
+        setNotice('The referee couldn’t rule that decision — try sending it again.');
+        setRunning(true); // let the clock resume so they can retry
+      }
+    } catch {
+      setNotice('Something went wrong sending your decision. Try again.');
+      setRunning(true);
+    } finally {
+      setDeciding(false);
     }
   };
 
@@ -169,6 +189,12 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
           );
         })}
       </div>
+
+      {notice ? (
+        <div className="solo-notice" role="alert" onClick={() => setNotice(null)}>
+          {notice} <span className="solo-notice-x">✕</span>
+        </div>
+      ) : null}
 
       <div className="solo-body">
         <main className="solo-main">

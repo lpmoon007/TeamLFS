@@ -34,7 +34,7 @@ export function elevenLabsKey(): string {
 export const VOICE_MODEL = process.env.VOICE_MODEL ?? 'claude-opus-4-8';
 /** Solo referee/advisor model. The prototype uses Haiku 4.5 — many low-latency calls
  *  per run (§8.5 cost decision). Override with SOLO_MODEL. */
-export const SOLO_MODEL = process.env.SOLO_MODEL ?? 'claude-haiku-4-5';
+export const SOLO_MODEL = process.env.SOLO_MODEL ?? 'claude-haiku-4-5-20251001';
 /** Behavioral scorer (the AI coder). Runs once per session at finalize — not latency-
  *  bound — so it can afford a stronger model than the runtime loops. Override with
  *  SCORER_MODEL; falls back to the deterministic heuristic when no key is set. */

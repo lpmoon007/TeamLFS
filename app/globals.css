@@ -483,6 +483,8 @@ button { font-family: inherit; cursor: pointer; }
 .sc-bar { height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 4px; }
 .sc-bar span { display: block; height: 100%; background: var(--accent); transition: width 0.2s linear; }
 .solo-clock.low .sc-bar span { background: var(--warn); }
+.solo-notice { max-width: 1100px; margin: 12px auto 0; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.4); color: var(--text); font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.solo-notice-x { color: var(--text-faint); }
 .solo-days { display: flex; gap: 5px; padding: 8px 20px; border-bottom: 1px solid var(--line-soft); background: var(--bg-elev); }
 .day-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
 .day-dot.past { background: var(--accent-dim); }
