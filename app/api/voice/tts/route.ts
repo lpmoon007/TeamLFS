@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   }
 
   const db = createAdminClient();
-  const auth = await authParticipant(db, { sessionId, participantId, token });
+  const auth = await authParticipant(db, { sessionId, token });
   if (!auth) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const { data: contact } = await db
