@@ -28,5 +28,7 @@ export default async function SoloPage({
         return <Notice title="Scenario not ready" message="This scenario has no solo content seeded yet." />;
     }
   }
-  return <SoloApp bundle={res.bundle} />;
+  // key by week so navigating Continue → Week N+1 REMOUNTS with fresh state
+  // (otherwise the prior week's ruling persists and the decision dock never returns).
+  return <SoloApp key={`${sessionId}:${res.bundle.weekIdx}`} bundle={res.bundle} />;
 }

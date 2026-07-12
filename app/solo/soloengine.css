@@ -294,3 +294,8 @@
 
 /* in-modal error (ask failure) */
 .soloui .modal-err{margin-top:10px;background:var(--alert-bg);border:1px solid #EAD3D0;color:#9A342A;border-radius:9px;padding:9px 11px;font-size:12px;line-height:1.4;}
+
+/* sticky-header fixes: pin to the very top, fully opaque (no scroll-through) */
+.soloui #hud{top:0;}
+.soloui .hud{background:var(--bg);backdrop-filter:none;box-shadow:0 1px 0 var(--border),0 6px 16px rgba(12,35,64,.06);}
+.soloui .rail{background:var(--bg);backdrop-filter:none;}
