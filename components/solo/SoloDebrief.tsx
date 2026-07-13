@@ -1,4 +1,5 @@
 import type { SoloDebrief } from '@/lib/solo-debrief';
+import { DirectorChat } from '@/components/solo/DirectorChat';
 
 // Solo game-film debrief — re-skinned to the prototype debrief layer (soloengine.css:
 // .result / .res-top / .dim / .tl / .coach / .ending / .cf / .vh). Authored prose carries
@@ -8,7 +9,7 @@ function Prose({ html, className }: { html: string; className?: string }) {
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-export function SoloDebriefView({ d }: { d: SoloDebrief }) {
+export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }) {
   return (
     <div className="result">
       <div className={`res-top ${d.survived ? 'survive' : 'fail'}`}>
@@ -142,6 +143,10 @@ export function SoloDebriefView({ d }: { d: SoloDebrief }) {
           </div>
           <div className="vh-close">Every crisis makes you one or the other in someone’s story. The leader who survives with their people’s trust intact did something harder than survive: <b>they stayed the same person under pressure that they were before it.</b></div>
         </div>
+
+        <div className="res-h">Ask the Director</div>
+        <div className="coach-intro">The Director watched every move you made. Ask it anything about your read — why a score landed where it did, where exactly you lost ground, what a stronger move would have looked like. It has the whole game film in front of it.</div>
+        <DirectorChat sessionId={d.sessionId} token={token} weakLabels={d.coaching.map((c) => c.label)} />
       </div>
     </div>
   );

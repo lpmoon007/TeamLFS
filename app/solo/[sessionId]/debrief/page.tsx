@@ -31,7 +31,7 @@ export default async function SoloDebriefPage({
     <div className="soloui">
       <div className="stage">
         <div id="main">
-          <SoloDebriefView d={res.debrief} />
+          <SoloDebriefView d={res.debrief} token={t} />
         </div>
       </div>
     </div>
