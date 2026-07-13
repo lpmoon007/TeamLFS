@@ -134,10 +134,10 @@ them; `0009` is authored content + versioned Layer-2 reads only.
 > `0009` is not needed on a live project until the solo runtime is built — apply it
 > then. Fresh installs get it via `deploy/bootstrap.sql`.
 
-**Solo scenario library — 6 built out.** `scripts/seed/build_solo_seed.mjs <content-file>`
+**Solo scenario library — 9 built out.** `scripts/seed/build_solo_seed.mjs <content-file>`
 loads a real-time content file (`prototype/solo/*-realtime-content.js`) and emits the
 seed faithfully-by-construction. Ported into the unified model:
-**Backlash · Exodus · Handover · Overdrive · Squeeze · Shockwave** —
+**Backlash · Exodus · Handover · Overdrive · Squeeze · Shockwave · Colony · Expedition · Vault** —
 `supabase/solo_seed_<name>.sql` each. Shockwave predated the shared crisis-engine.js, so
 its scenario logic was **extracted from `shockwave-v3-engine.js` onto the content object**
 (`prototype/solo/shockwave-realtime-content.js`) verbatim — including its cash-**burn**

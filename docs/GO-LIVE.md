@@ -76,7 +76,7 @@ psql "$DB" -f deploy/bootstrap.sql
 Then seed the solo scenarios you want live:
 
 ```bash
-for s in backlash exodus handover overdrive squeeze shockwave; do
+for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault; do
   psql "$DB" -f "supabase/solo_seed_${s}.sql"
 done
 ```
@@ -95,7 +95,7 @@ Apply only the migrations your live DB doesn't have yet (0009–0012 are all add
 for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note; do
   psql "$DB" -f "supabase/migrations/${m}.sql"
 done
-for s in backlash exodus handover overdrive squeeze shockwave; do
+for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault; do
   psql "$DB" -f "supabase/solo_seed_${s}.sql"
 done
 ```
