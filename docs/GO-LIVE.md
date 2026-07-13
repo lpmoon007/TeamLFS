@@ -4,7 +4,7 @@ Ordered, copy-pasteable steps to take the full build live on **Vercel + Supabase
 Follow top to bottom. `DEPLOY.md` is the reference for individual pieces; this is the
 sequence. Everything from this build is on branch `claude/inspiring-brahmagupta-jh9lvy`.
 
-**What goes live:** the team app (The Signal), all 6 solo scenarios, the facilitator
+**What goes live:** the team app (The Signal), all 9 solo scenarios, the facilitator
 console (team + solo), the AI referee/advisors/voice, the Director-AI (Vercel Cron), the
 Behavioral Memory Spine (AI coder + cross-session profile + LDOL lens), and the re-score
 + human-coding surfaces.
@@ -104,8 +104,8 @@ done
 
 ```sql
 -- 12 migrations' worth of tables present, 6 solo scenarios + 1 team
-select mode_default, count(*) from scenario_meta group by 1;          -- solo | 6
-select count(*) from scenarios;                                       -- 7 (6 solo + The Signal)
+select mode_default, count(*) from scenario_meta group by 1;          -- solo | 9
+select count(*) from scenarios;                                       -- 10 (9 solo + The Signal)
 select to_regclass('public.subjects'), to_regclass('public.rulings'); -- both non-null
 ```
 
@@ -117,7 +117,7 @@ Open the production URL. You should see the app. Quick health checks:
 
 - `GET /` loads.
 - `/facilitator` → sign in with `FACILITATOR_SECRET` → the session list shows the team
-  session (**team** badge) and the 6 solo sessions (**solo** badge).
+  session (**team** badge) and the 9 solo sessions (**solo** badge).
 
 ---
 
