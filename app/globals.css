@@ -302,6 +302,12 @@ button { font-family: inherit; cursor: pointer; }
 .dq-scores { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
 .dq-scores b { color: var(--accent); }
 .dq-read p { font-size: 12.5px; line-height: 1.55; color: var(--text-dim); margin: 0; }
+
+/* subject dashboard tiles */
+.subj-tiles { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.subj-tile { flex: 1; min-width: 180px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; }
+.subj-tile-n { display: block; font-size: 28px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1; }
+.subj-tile-l { display: block; font-size: 11px; color: var(--text-faint); margin-top: 6px; }
 .tb-note { font-size: 11.5px; color: var(--text-dim); line-height: 1.55; }
 .tb-ev { font-size: 10.5px; color: var(--text-faint); margin-top: 7px; font-variant-numeric: tabular-nums; }
 .tb-shares { display: flex; flex-direction: column; gap: 4px; margin-top: 9px; }

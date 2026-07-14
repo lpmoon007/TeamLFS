@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { SeatTierB } from '@/lib/team-metrics';
 import type { Divergence } from '@/lib/divergence';
 
@@ -15,11 +16,17 @@ function ordinalQuad(q: string): { label: string; hint: string } {
   }
 }
 
-export function SeatTierBPanel({ tierB, divergence }: { tierB: SeatTierB | null; divergence: Divergence | null }) {
-  const exercised = tierB?.markers.filter((m) => m.exercised) ?? [];
+export function SeatTierBPanel({ tierB, divergence, subjectId, keyParam }: { tierB: SeatTierB | null; divergence: Divergence | null; subjectId?: string | null; keyParam?: string }) {
   return (
     <section className="db-panel">
-      <h2>Teaming contribution (Tier B)</h2>
+      <div className="db-traits-head">
+        <h2>Teaming contribution (Tier B)</h2>
+        {subjectId ? (
+          <Link className="btn ghost" href={`/facilitator/subject/${subjectId}${keyParam ?? ''}`}>
+            Full history →
+          </Link>
+        ) : null}
+      </div>
       <p className="db-sub">
         How this person contributed to the team as a unit this session — a per-person read, distinct from the room-level
         board. Markers with no opportunity this session are marked not exercised.

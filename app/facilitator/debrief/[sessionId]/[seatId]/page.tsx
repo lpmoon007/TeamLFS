@@ -137,7 +137,7 @@ export default async function GameFilmPage({
           </div>
         </section>
 
-        <SeatTierBPanel tierB={tierB} divergence={divergence} />
+        <SeatTierBPanel tierB={tierB} divergence={divergence} subjectId={subjectId} keyParam={kp} />
 
         <section className="db-panel">
           <h2>The footage</h2>
