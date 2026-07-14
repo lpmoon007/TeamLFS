@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { facilitatorAllowed } from '@/lib/facilitator-session';
 import { buildDebrief } from '@/lib/debrief';
+import { buildTeamPanel } from '@/lib/team-panel';
 import { isSoloSession, buildSoloDebriefForFacilitator } from '@/lib/solo-debrief';
 import { Notice } from '@/components/Notice';
 import { CommsMap } from '@/components/facilitator/CommsMap';
+import { TeamPanel } from '@/components/facilitator/TeamPanel';
 import { SoloDebriefView } from '@/components/solo/SoloDebrief';
 
 // Team debrief — the "discussion" altitude (Build Addendum A2). The communication
@@ -41,6 +43,7 @@ export default async function TeamDebriefPage({
 
   const d = await buildDebrief(sessionId);
   if (!d) return <Notice title="Session not found" message="No session with that id." />;
+  const panel = await buildTeamPanel(sessionId);
 
   const kp = key ? `?key=${encodeURIComponent(key)}` : '';
 
@@ -84,6 +87,8 @@ export default async function TeamDebriefPage({
           )}
         </div>
       </section>
+
+      {panel ? <TeamPanel panel={panel} /> : null}
 
       <section className="db-panel">
         <h2>The team</h2>

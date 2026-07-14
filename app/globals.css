@@ -208,6 +208,27 @@ button { font-family: inherit; cursor: pointer; }
 .db-trait { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; padding: 6px 8px; background: var(--bg-elev-2); border-radius: var(--radius-sm); font-size: 12px; }
 .db-trait-key { font-weight: 600; }
 .db-trait-val { text-align: right; color: var(--accent); }
+/* Board 03 — team-as-one (Tier B) */
+.tb-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tb-index { display: flex; align-items: baseline; gap: 6px; }
+.tb-index-n { font-size: 26px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.tb-index-l { font-size: 11px; color: var(--text-faint); }
+.tb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.tb-vital { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px; }
+.tb-vital.na { opacity: 0.72; border-style: dashed; }
+.tb-vital-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.tb-vital-top b { font-size: 13px; }
+.tb-sc { font-size: 18px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.tb-sc-max { font-size: 10px; font-weight: 500; color: var(--text-faint); }
+.tb-sc.na { font-size: 11px; font-weight: 600; color: var(--text-faint); font-style: italic; }
+.tb-bar { height: 6px; border-radius: 100px; background: var(--bg-elev-2); overflow: hidden; margin-bottom: 8px; }
+.tb-fill { height: 100%; border-radius: 100px; background: var(--accent); }
+.tb-note { font-size: 11.5px; color: var(--text-dim); line-height: 1.55; }
+.tb-ev { font-size: 10.5px; color: var(--text-faint); margin-top: 7px; font-variant-numeric: tabular-nums; }
+.tb-shares { display: flex; flex-direction: column; gap: 4px; margin-top: 9px; }
+.tb-share { position: relative; height: 15px; background: var(--bg-elev-2); border-radius: var(--radius-sm); overflow: hidden; }
+.tb-share-fill { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 30%, transparent); border-radius: var(--radius-sm); }
+.tb-share-lab { position: relative; z-index: 1; font-size: 9.5px; color: var(--text-dim); line-height: 15px; padding-left: 6px; white-space: nowrap; }
 .db-conf { font-size: 10px; color: var(--text-faint); }
 .db-hyp { font-size: 9px; color: var(--warn); text-transform: uppercase; letter-spacing: 0.08em; text-align: right; }
 .db-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; max-height: 360px; overflow-y: auto; }
