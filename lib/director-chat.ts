@@ -3,6 +3,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { anthropicApiKey, VOICE_MODEL } from '@/lib/env';
 import { buildSoloDebrief, buildSoloDebriefForFacilitator, type SoloDebrief } from '@/lib/solo-debrief';
 import { isFacilitatorSession } from '@/lib/facilitator-session';
+import { buildDebrief, type Debrief } from '@/lib/debrief';
+import { buildTeamPanel } from '@/lib/team-panel';
+import type { TeamMetricsResult } from '@/lib/team-metrics';
 
 // The Director Chat (crisis-engine.js wireDirectorChat, re-housed). After a solo run the
 // player can Q&A with the "Director" — an AI head-coach that has the whole game film and
@@ -105,6 +108,81 @@ export async function askDirector(params: {
       .map((b) => b.text)
       .join('')
       .trim();
+    return { ok: true, reply: reply || 'I couldn’t reach the film just now — ask me again in a moment.' };
+  } catch {
+    return { ok: true, reply: 'I couldn’t reach the film just now — ask me again in a moment.' };
+  }
+}
+
+// ---- Team Director (the room, not the individual) -----------------------------
+// Same head-coach, pointed at a team session. Grounded in the communication map + the
+// Tier-B board (airtime / resilience / coverage / safety) and their raw evidence — so
+// "why did resilience read low?" gets a specific answer, not a platitude (Team Event-Log
+// Spec §4). Facilitator-gated (the team debrief is a facilitator surface).
+
+function buildTeamContext(d: Debrief, panel: TeamMetricsResult | null): string {
+  const persona =
+    `You are the Director — the AI that ran and watched this TEAM crisis simulation. You are debriefing the facilitator ` +
+    `about how the ROOM performed as one unit — not any single person's score, but the team-level properties that only ` +
+    `exist between people. You have the complete record below: who spoke to whom, what was surfaced vs siloed, and the ` +
+    `four team vitals with their raw evidence. Ground every answer in specifics — name the seat, the moment, the number. ` +
+    `Never invent an event not in the record. When a vital reads "not yet instrumented", say the room didn't produce the ` +
+    `signal for it — never treat that as a low score. Be direct and concrete. Keep answers to 2-4 short paragraphs.`;
+
+  const parts = d.participants
+    .map((p) => `- ${p.name}${p.role ? ` (${p.role})` : ''} [${p.flag}] — sent ${p.counts.sent}, first move ${p.firstMessageTo ? `→ ${p.firstMessageTo.target}` : 'never messaged'}${p.counts.omissions ? `, ${p.counts.omissions} omissions` : ''}`)
+    .join('\n');
+  const edges = d.team.blueEdges.length ? d.team.blueEdges.map((e) => `- ${e.from} → ${e.to} (${e.count})`).join('\n') : '- (no directed conversations on record)';
+  const silos = d.team.unaddressed.length
+    ? d.team.unaddressed.map((u) => `- ${u.seat} left "${u.contact ?? 'a thread'}" unaddressed${u.preview ? `: “${u.preview}”` : ''}`).join('\n')
+    : '- Nothing flagged unaddressed.';
+
+  let vitals = '';
+  if (panel) {
+    vitals =
+      `\n=== THE TEAM VITALS (Tier B · panel-v0.1) — collective health index ${panel.healthIndex ?? '—'}/100 ===\n` +
+      Object.values(panel.metrics)
+        .map((m) => {
+          if (!m.exercised || m.score === null) return `- ${m.label}: not yet instrumented — ${strip(m.note)}`;
+          const ev = m.evidence ?? {};
+          let e = '';
+          if (m.key === 'airtime' && Array.isArray(ev.shares)) e = ` [shares: ${ev.shares.map((s: any) => `${s.seat} ${Math.round(s.share * 100)}%`).join(', ')}; Gini ${ev.gini}]`;
+          else if (m.key === 'resilience' && Array.isArray(ev.episodes)) e = ` [${ev.episodes.length} stress episode(s); options considered: ${ev.episodes.map((x: any) => x.considered).join('/')}]`;
+          else if (m.key === 'coverage') e = ` [${ev.surfaced}/${ev.total} surfaced in time; ${ev.pulled} pulled, ${ev.volunteered} volunteered]`;
+          else if (m.key === 'safety') e = ` [dissent first-third ${ev.firstThird} → last-third ${ev.lastThird}, slope ${ev.slope}]`;
+          return `- ${m.label}: ${m.score}/100 — ${strip(m.note)}${e}`;
+        })
+        .join('\n') +
+      `\n${panel.mixedRoom ? 'NOTE: this room mixed human and AI-cast seats — AI seats are excluded from airtime and safety.\n' : ''}`;
+  }
+
+  return (
+    `${persona}\n\n` +
+    `=== SESSION ===\n${d.scenario?.title ?? 'Session'} · ${d.participants.length} participants · status ${d.session.status}\n` +
+    `\n=== THE ROOM ===\n${parts}\n` +
+    `\n=== WHO SPOKE TO WHOM (directed) ===\n${edges}\n` +
+    `\n=== WHAT WAS KNOWN BUT NOT SURFACED ===\n${silos}\n` +
+    vitals +
+    `\n=== END OF RECORD ===`
+  );
+}
+
+/** Ask the Team Director about the room. Facilitator-gated. */
+export async function askTeamDirector(params: { sessionId: string; history: ChatTurn[]; question: string }): Promise<DirectorReply> {
+  const q = params.question.trim();
+  if (!q) return { ok: false };
+  if (!(await isFacilitatorSession())) return { ok: false };
+
+  const d = await buildDebrief(params.sessionId);
+  if (!d) return { ok: false };
+  const panel = await buildTeamPanel(params.sessionId);
+
+  const system = buildTeamContext(d, panel);
+  const history = (params.history ?? []).slice(-12).map((t) => ({ role: t.role, content: t.content }));
+  try {
+    const client = new Anthropic({ apiKey: anthropicApiKey() });
+    const msg = await client.messages.create({ model: VOICE_MODEL, max_tokens: 700, system, messages: [...history, { role: 'user' as const, content: q }] });
+    const reply = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('').trim();
     return { ok: true, reply: reply || 'I couldn’t reach the film just now — ask me again in a moment.' };
   } catch {
     return { ok: true, reply: 'I couldn’t reach the film just now — ask me again in a moment.' };

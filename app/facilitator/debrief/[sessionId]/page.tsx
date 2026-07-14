@@ -6,6 +6,7 @@ import { isSoloSession, buildSoloDebriefForFacilitator } from '@/lib/solo-debrie
 import { Notice } from '@/components/Notice';
 import { CommsMap } from '@/components/facilitator/CommsMap';
 import { TeamPanel } from '@/components/facilitator/TeamPanel';
+import { TeamDirectorChat } from '@/components/facilitator/TeamDirectorChat';
 import { SoloDebriefView } from '@/components/solo/SoloDebrief';
 
 // Team debrief — the "discussion" altitude (Build Addendum A2). The communication
@@ -91,6 +92,15 @@ export default async function TeamDebriefPage({
       {panel ? <TeamPanel panel={panel} /> : null}
 
       <section className="db-panel">
+        <h2>Ask the Director about the room</h2>
+        <p className="db-sub">
+          The Director watched the whole session. Ask why any team vital read the way it did, who carried the room, or what
+          the team’s biggest miss was — it has the communication map and the Tier-B evidence in front of it.
+        </p>
+        <TeamDirectorChat sessionId={sessionId} chips={teamChips(panel)} />
+      </section>
+
+      <section className="db-panel">
         <h2>The team</h2>
         <div className="db-grid">
           {d.participants.map((p) => (
@@ -127,4 +137,17 @@ export default async function TeamDebriefPage({
 function fmtRel(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// Director quick-chips seeded from the board: the weakest exercised vital + any that
+// didn't get instrumented this session (so the facilitator can ask why).
+function teamChips(panel: Awaited<ReturnType<typeof buildTeamPanel>>): string[] {
+  if (!panel) return [];
+  const metrics = Object.values(panel.metrics);
+  const exercised = metrics.filter((m) => m.exercised && m.score !== null).sort((a, b) => (a.score as number) - (b.score as number));
+  const na = metrics.find((m) => !m.exercised);
+  const chips: string[] = [];
+  if (exercised[0]) chips.push(`Why did ${exercised[0].label.toLowerCase()} read low?`);
+  if (na) chips.push(`Why wasn’t ${na.label.toLowerCase()} measured this session?`);
+  return chips;
 }

@@ -266,6 +266,30 @@ button { font-family: inherit; cursor: pointer; }
 .tb-band { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 20%, transparent); border-left: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-right: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
 .tb-fill { position: relative; height: 100%; border-radius: 100px; background: var(--accent); }
 .tb-pctl { color: var(--accent); font-weight: 700; }
+
+/* Team Director chat (facilitator debrief) — debrief-palette variant of the solo chat */
+.debrief .chat { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-elev); overflow: hidden; margin-top: 12px; }
+.debrief .chat-log { max-height: 420px; overflow-y: auto; padding: 16px 16px 4px; display: flex; flex-direction: column; gap: 12px; }
+.debrief .chat-msg { display: flex; flex-direction: column; gap: 4px; max-width: 88%; }
+.debrief .chat-msg.you { align-self: flex-end; align-items: flex-end; }
+.debrief .chat-msg.dir { align-self: flex-start; }
+.debrief .chat-who { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; padding: 0 4px; }
+.debrief .chat-bubble { font-size: 13.5px; line-height: 1.6; padding: 10px 14px; border-radius: 12px; }
+.debrief .chat-msg.dir .chat-bubble { background: var(--bg-elev-2); color: var(--text); border-top-left-radius: 4px; }
+.debrief .chat-msg.you .chat-bubble { background: var(--accent); color: #fff; border-top-right-radius: 4px; }
+.debrief .chat-quick { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 4px; }
+.debrief .chat-chip { font-size: 11.5px; padding: 6px 11px; border-radius: 100px; border: 1px solid var(--line); background: var(--bg-elev-2); color: var(--text-dim); cursor: pointer; }
+.debrief .chat-chip:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+.debrief .chat-chip:disabled { opacity: 0.5; cursor: default; }
+.debrief .chat-input { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.debrief .chat-input input { flex: 1; background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); padding: 9px 12px; font-family: inherit; font-size: 13px; }
+.debrief .chat-input button { flex: 0 0 auto; font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: var(--radius-sm); border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+.debrief .chat-input button:disabled { opacity: 0.5; cursor: default; }
+.debrief .chat-dots { display: inline-flex; gap: 4px; }
+.debrief .chat-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); animation: chatpulse 1s infinite ease-in-out; }
+.debrief .chat-dots i:nth-child(2) { animation-delay: 0.15s; }
+.debrief .chat-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chatpulse { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
 .tb-note { font-size: 11.5px; color: var(--text-dim); line-height: 1.55; }
 .tb-ev { font-size: 10.5px; color: var(--text-faint); margin-top: 7px; font-variant-numeric: tabular-nums; }
 .tb-shares { display: flex; flex-direction: column; gap: 4px; margin-top: 9px; }
