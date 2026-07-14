@@ -2,9 +2,12 @@ import Link from 'next/link';
 import { facilitatorAllowed } from '@/lib/facilitator-session';
 import { buildDebrief, type DebriefEvent } from '@/lib/debrief';
 import { applyLens } from '@/lib/lens/ldol';
-import { lensHistoryForParticipant } from '@/lib/spine';
+import { lensHistoryForParticipant, subjectForParticipant } from '@/lib/spine';
+import { participantTierB } from '@/lib/team-panel';
+import { subjectDivergence, type Divergence } from '@/lib/divergence';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Notice } from '@/components/Notice';
+import { SeatTierBPanel } from '@/components/facilitator/SeatTierBPanel';
 
 // Game-film — the "coaching" altitude (Build Addendum A2). One participant's reel:
 // their footage (acts, un-sent drafts, silences, who they didn't contact), the LDOL
@@ -34,8 +37,14 @@ export default async function GameFilmPage({
 
   // Layer-3 LDOL lens — a versioned read OVER the trait layer (not raw counts). The
   // Learning discipline reads this person's cross-session posture (Phase 9).
-  const history = await lensHistoryForParticipant(createAdminClient(), sessionId, p.participantId);
+  const db = createAdminClient();
+  const history = await lensHistoryForParticipant(db, sessionId, p.participantId);
   const ldol = applyLens({ traits: p.traits, omissions: { count: p.counts.omissions }, history });
+
+  // Tier B (this session's teaming contribution) + cross-session divergence quadrant.
+  const tierB = await participantTierB(sessionId, p.participantId);
+  const subjectId = await subjectForParticipant(db, sessionId, p.participantId);
+  const divergence: Divergence | null = subjectId ? await subjectDivergence(db, subjectId) : null;
 
   return (
     <div className="debrief film">
@@ -127,6 +136,8 @@ export default async function GameFilmPage({
             ))}
           </div>
         </section>
+
+        <SeatTierBPanel tierB={tierB} divergence={divergence} />
 
         <section className="db-panel">
           <h2>The footage</h2>

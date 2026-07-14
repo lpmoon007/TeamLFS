@@ -1,6 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { deriveTeamMetrics, deriveSeatTierB, type TeamEvent, type SeatRef, type HoldRef, type TeamMetricsResult } from '@/lib/team-metrics';
+import { deriveTeamMetrics, deriveSeatTierB, type TeamEvent, type SeatRef, type HoldRef, type TeamMetricsResult, type SeatTierB } from '@/lib/team-metrics';
 import { PANEL_TAXONOMY, PANEL_SCORER } from '@/lib/panel';
 import { readNormsMap, readMarkerNorm, recomputePanelNorms } from '@/lib/panel-norms';
 import { subjectForParticipant } from '@/lib/spine';
@@ -126,6 +126,17 @@ export async function buildTeamPanel(sessionId: string): Promise<TeamMetricsResu
     }
   }
   return result;
+}
+
+/** One participant's per-person Tier B (teaming contribution), computed live from the log
+ *  so the facilitator per-seat view is current even before finalize. Null for AI seats. */
+export async function participantTierB(sessionId: string, participantId: string): Promise<SeatTierB | null> {
+  const db = createAdminClient();
+  const built = await buildTeamStream(db, sessionId);
+  if (!built) return null;
+  const r = built.roster.find((x) => x.participantId === participantId);
+  if (!r || r.ai) return null;
+  return deriveSeatTierB(built.stream, built.seats, r.seatKey);
 }
 
 /** Persist one team-panel row per session (mode 'team') so Tier-B metrics accumulate into

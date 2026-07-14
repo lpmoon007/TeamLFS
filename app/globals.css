@@ -290,6 +290,18 @@ button { font-family: inherit; cursor: pointer; }
 .debrief .chat-dots i:nth-child(2) { animation-delay: 0.15s; }
 .debrief .chat-dots i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes chatpulse { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
+
+/* Divergence quadrant (facilitator per-seat) */
+.dq { display: flex; gap: 18px; align-items: stretch; flex-wrap: wrap; margin-top: 4px; }
+.dq-grid { position: relative; width: 200px; height: 200px; flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; background: var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.dq-cell { background: var(--bg-elev-2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--text-faint); text-align: center; padding: 4px; }
+.dq-cell.hi { color: var(--accent); }
+.dq-dot { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 3px solid var(--bg-elev); box-shadow: 0 1px 5px rgba(0,0,0,0.4); transform: translate(-50%, 50%); z-index: 2; }
+.dq-read { flex: 1; min-width: 200px; display: flex; flex-direction: column; justify-content: center; }
+.dq-label { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.dq-scores { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.dq-scores b { color: var(--accent); }
+.dq-read p { font-size: 12.5px; line-height: 1.55; color: var(--text-dim); margin: 0; }
 .tb-note { font-size: 11.5px; color: var(--text-dim); line-height: 1.55; }
 .tb-ev { font-size: 10.5px; color: var(--text-faint); margin-top: 7px; font-variant-numeric: tabular-nums; }
 .tb-shares { display: flex; flex-direction: column; gap: 4px; margin-top: 9px; }
