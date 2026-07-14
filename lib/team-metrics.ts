@@ -49,6 +49,11 @@ export interface TeamMetric {
   exercised: boolean;
   note: string; // human-readable read (direction/magnitude in words, per §3.4)
   evidence: Record<string, any>; // raw for the debrief board
+  // reference-range overlay (Two-Tier Spec §9) — filled by the norms read, absent in the
+  // pure derivation. percentile stays null until the cohort matures.
+  percentile?: number | null;
+  band?: { p10: number; p50: number; p90: number } | null;
+  cohortN?: number;
 }
 export interface TeamMetricsResult {
   metrics: Record<string, TeamMetric>;

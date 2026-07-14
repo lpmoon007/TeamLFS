@@ -35,6 +35,7 @@ export async function finalizeSession(sessionId: string): Promise<FinalizeResult
   if (session.status === 'ended') {
     // Idempotent: don't double-materialize omission events. Re-score only.
     const scored = await scoreAndPersist(db, sessionId);
+    await persistTeamPanelSafely(sessionId);
     return { ok: true, alreadyEnded: true, scored };
   }
 
@@ -44,6 +45,7 @@ export async function finalizeSession(sessionId: string): Promise<FinalizeResult
   await db.from('sessions').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', sessionId);
 
   const scored = await scoreAndPersist(db, sessionId);
+  await persistTeamPanelSafely(sessionId);
 
   // Live-flip the curtain for anyone still connected.
   const { data: parts } = await db
@@ -55,6 +57,17 @@ export async function finalizeSession(sessionId: string): Promise<FinalizeResult
   }
 
   return { ok: true, omissions, scored };
+}
+
+// Behavioral Panel (Tier B) — persist the team-as-one draw + roll it into the cohort
+// ranges. Derived Layer-2; never fail finalize on it.
+async function persistTeamPanelSafely(sessionId: string): Promise<void> {
+  try {
+    const { persistTeamPanel } = await import('@/lib/team-panel');
+    await persistTeamPanel(sessionId);
+  } catch {
+    /* panel is a convenience read; finalize's real work already committed */
+  }
 }
 
 // Materialize the negatives. Each is a derived Layer-1 event (derived=true) so it's

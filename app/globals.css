@@ -262,8 +262,10 @@ button { font-family: inherit; cursor: pointer; }
 .tb-sc { font-size: 18px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .tb-sc-max { font-size: 10px; font-weight: 500; color: var(--text-faint); }
 .tb-sc.na { font-size: 11px; font-weight: 600; color: var(--text-faint); font-style: italic; }
-.tb-bar { height: 6px; border-radius: 100px; background: var(--bg-elev-2); overflow: hidden; margin-bottom: 8px; }
-.tb-fill { height: 100%; border-radius: 100px; background: var(--accent); }
+.tb-bar { position: relative; height: 7px; border-radius: 100px; background: var(--bg-elev-2); overflow: hidden; margin-bottom: 8px; }
+.tb-band { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 20%, transparent); border-left: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-right: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+.tb-fill { position: relative; height: 100%; border-radius: 100px; background: var(--accent); }
+.tb-pctl { color: var(--accent); font-weight: 700; }
 .tb-note { font-size: 11.5px; color: var(--text-dim); line-height: 1.55; }
 .tb-ev { font-size: 10.5px; color: var(--text-faint); margin-top: 7px; font-variant-numeric: tabular-nums; }
 .tb-shares { display: flex; flex-direction: column; gap: 4px; margin-top: 9px; }

@@ -9,6 +9,12 @@ function Prose({ html, className }: { html: string; className?: string }) {
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
+}
+
 export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }) {
   return (
     <div className="result">
@@ -72,7 +78,9 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
             <div className="coach-intro">
               Six universal behaviors, scored as <b>rates</b> over the openings this crisis actually gave you — so they read the same
               across scenarios. This is the standardized “blood-test” panel: one draw from this run.
-              {d.panel.provisional ? ' Numbers are provisional until the cohort reference ranges mature.' : ''}
+              {d.panel.provisional
+                ? ` Reference ranges are still forming${d.panel.cohortN ? ` (${d.panel.cohortN} run${d.panel.cohortN > 1 ? 's' : ''} so far)` : ''} — percentiles appear once the cohort matures.`
+                : ` Percentiles are vs a cohort of ${d.panel.cohortN} comparable run${d.panel.cohortN > 1 ? 's' : ''}.`}
             </div>
             <div className="panel">
               <div className="panel-top">
@@ -94,12 +102,18 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
                   <div className="pm-top">
                     <b>{m.label}</b>
                     {m.exercised && m.normalized !== null ? (
-                      <span className="s">{m.normalized} / 100 · {m.confidence}</span>
+                      <span className="s">
+                        {m.percentile !== null ? <span className="pm-pctl">{ordinal(m.percentile)} pctl · </span> : null}
+                        {m.normalized} / 100 · {m.confidence}
+                      </span>
                     ) : (
                       <span className="s na">not exercised</span>
                     )}
                   </div>
                   <div className="pm-bar">
+                    {m.band && m.exercised ? (
+                      <div className="pm-band" style={{ left: `${m.band.p10}%`, width: `${Math.max(0, m.band.p90 - m.band.p10)}%` }} title={`cohort ${m.band.p10}–${m.band.p90}`} />
+                    ) : null}
                     <div className="pm-fill" style={{ width: `${m.exercised && m.normalized !== null ? m.normalized : 0}%` }} />
                   </div>
                 </div>

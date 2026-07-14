@@ -66,12 +66,15 @@ export interface SoloPanelMarker {
   normalized: number | null;
   confidence: string;
   exercised: boolean;
+  percentile: number | null; // vs cohort — null until the cohort matures
+  band: { p10: number; p50: number; p90: number } | null; // reference range (provisional-safe)
 }
 export interface SoloPanelRead {
   tierA: number | null;
   tierB: number | null;
   quadrant: string; // multiplier | lone_genius | connector | struggling | na
-  provisional: boolean;
+  provisional: boolean; // cohort not yet mature → percentiles withheld
+  cohortN: number; // how many peer runs the ranges are built from
   markers: SoloPanelMarker[]; // Tier A markers, ordered A1..A6 (Tier B is n/a in solo)
 }
 export interface SoloDebrief {
@@ -389,15 +392,38 @@ async function buildSoloDebriefCore(
   if (panelRow) {
     const m = (panelRow.markers ?? {}) as Record<string, any>;
     const order = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'];
+    // reference ranges (Two-Tier Spec §9): prefer this scenario's cohort, fall back to all.
+    const { readNormsMap, readMarkerNorm } = await import('@/lib/panel-norms');
+    const cohorts = [`scenario:${session.scenario_id}`, 'all'];
+    const norms = await readNormsMap(db, cohorts);
+    let cohortN = 0;
+    let anyMature = false;
+    const markers = order
+      .map((k) => m[k])
+      .filter(Boolean)
+      .map((x: any) => {
+        const norm = readMarkerNorm(norms, cohorts, x.key, x.exercised ? x.normalized : null);
+        if (norm) cohortN = Math.max(cohortN, norm.n);
+        if (norm && !norm.provisional) anyMature = true;
+        return {
+          key: x.key,
+          label: x.label,
+          tier: x.tier,
+          raw: x.raw,
+          normalized: x.normalized,
+          confidence: x.confidence,
+          exercised: x.exercised,
+          percentile: norm?.percentile ?? null,
+          band: norm ? { p10: norm.p10, p50: norm.p50, p90: norm.p90 } : null,
+        };
+      });
     panel = {
       tierA: panelRow.tier_a !== null && panelRow.tier_a !== undefined ? Number(panelRow.tier_a) : null,
       tierB: panelRow.tier_b !== null && panelRow.tier_b !== undefined ? Number(panelRow.tier_b) : null,
       quadrant: panelRow.quadrant ?? 'na',
-      provisional: !!panelRow.provisional,
-      markers: order
-        .map((k) => m[k])
-        .filter(Boolean)
-        .map((x: any) => ({ key: x.key, label: x.label, tier: x.tier, raw: x.raw, normalized: x.normalized, confidence: x.confidence, exercised: x.exercised })),
+      provisional: !anyMature,
+      cohortN,
+      markers,
     };
   }
 

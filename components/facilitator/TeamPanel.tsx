@@ -7,6 +7,12 @@ import type { TeamMetricsResult } from '@/lib/team-metrics';
 
 const ORDER = ['airtime', 'resilience', 'coverage', 'safety'] as const;
 
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
+}
+
 export function TeamPanel({ panel }: { panel: TeamMetricsResult }) {
   const metrics = ORDER.map((k) => panel.metrics[k]).filter(Boolean);
   return (
@@ -33,10 +39,19 @@ export function TeamPanel({ panel }: { panel: TeamMetricsResult }) {
           <div className={`tb-vital ${m.exercised ? '' : 'na'}`} key={m.key}>
             <div className="tb-vital-top">
               <b>{m.label}</b>
-              {m.exercised && m.score !== null ? <span className="tb-sc">{m.score}<span className="tb-sc-max"> / 100</span></span> : <span className="tb-sc na">not yet instrumented</span>}
+              {m.exercised && m.score !== null ? (
+                <span className="tb-sc">
+                  {m.percentile != null ? <span className="tb-pctl">{ordinal(m.percentile)} pctl · </span> : null}
+                  {m.score}
+                  <span className="tb-sc-max"> / 100</span>
+                </span>
+              ) : (
+                <span className="tb-sc na">not yet instrumented</span>
+              )}
             </div>
             {m.exercised && m.score !== null ? (
               <div className="tb-bar">
+                {m.band ? <div className="tb-band" style={{ left: `${m.band.p10}%`, width: `${Math.max(0, m.band.p90 - m.band.p10)}%` }} title={`cohort ${m.band.p10}–${m.band.p90}`} /> : null}
                 <div className="tb-fill" style={{ width: `${m.score}%` }} />
               </div>
             ) : null}

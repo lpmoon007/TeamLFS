@@ -151,4 +151,13 @@ export async function persistSoloPanel(
     taxonomy_version: PANEL_TAXONOMY,
     scorer_version: PANEL_SCORER,
   });
+
+  // Roll this run into the cohort reference ranges (Two-Tier Spec §9). Derived — never
+  // block the run's own panel on the norm update.
+  try {
+    const { recomputePanelNorms } = await import('@/lib/panel-norms');
+    await recomputePanelNorms(db, 'solo');
+  } catch {
+    /* norms are a convenience read; a failure here must not fail scoring */
+  }
 }

@@ -1,6 +1,8 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deriveTeamMetrics, type TeamEvent, type SeatRef, type HoldRef, type TeamMetricsResult } from '@/lib/team-metrics';
+import { PANEL_TAXONOMY, PANEL_SCORER } from '@/lib/panel';
+import { readNormsMap, readMarkerNorm, recomputePanelNorms } from '@/lib/panel-norms';
 
 type Db = ReturnType<typeof createAdminClient>;
 
@@ -86,10 +88,66 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
   return { stream, holds, seats };
 }
 
-/** The team Tier-B board for a session. Returns null if the session doesn't exist. */
+/** The team Tier-B board for a session, with cohort reference ranges overlaid onto each
+ *  metric (percentile shown only once the cohort matures). Null if the session is gone. */
 export async function buildTeamPanel(sessionId: string): Promise<TeamMetricsResult | null> {
   const db = createAdminClient();
+  const { data: session } = await db.from('sessions').select('scenario_id').eq('id', sessionId).maybeSingle<any>();
   const built = await buildTeamStream(db, sessionId);
   if (!built) return null;
-  return deriveTeamMetrics(built.stream, built.holds, built.seats);
+  const result = deriveTeamMetrics(built.stream, built.holds, built.seats);
+
+  const cohorts = [session?.scenario_id ? `scenario:${session.scenario_id}` : '', 'all'].filter(Boolean);
+  const norms = await readNormsMap(db, cohorts);
+  for (const m of Object.values(result.metrics)) {
+    const norm = readMarkerNorm(norms, cohorts, m.key, m.exercised ? m.score : null);
+    if (norm) {
+      m.percentile = norm.percentile;
+      m.band = { p10: norm.p10, p50: norm.p50, p90: norm.p90 };
+      m.cohortN = norm.n;
+    }
+  }
+  return result;
+}
+
+/** Persist one team-panel row per session (mode 'team') so Tier-B metrics accumulate into
+ *  the cohort ranges, then recompute team norms. Called at finalize. Idempotent per session. */
+export async function persistTeamPanel(sessionId: string): Promise<void> {
+  const db = createAdminClient();
+  const { data: session } = await db.from('sessions').select('scenario_id').eq('id', sessionId).maybeSingle<any>();
+  if (!session) return;
+  // team-mode only — finalize can also run for solo runs, which have no team room.
+  const { data: meta } = await db.from('scenario_meta').select('mode_default').eq('scenario_id', session.scenario_id).maybeSingle<any>();
+  if (meta?.mode_default === 'solo') return;
+  const built = await buildTeamStream(db, sessionId);
+  if (!built) return;
+  const result = deriveTeamMetrics(built.stream, built.holds, built.seats);
+
+  // markers keyed by metric key so recomputePanelNorms('team') reads them like Tier-A markers.
+  const markers: Record<string, any> = {};
+  for (const m of Object.values(result.metrics)) {
+    markers[m.key] = { key: m.key, label: m.label, tier: 'B', raw: null, normalized: m.score, percentile: null, confidence: 'medium', exercised: m.exercised };
+  }
+
+  await db.from('behavioral_panel').delete().eq('session_id', sessionId).is('participant_id', null);
+  await db.from('behavioral_panel').insert({
+    session_id: sessionId,
+    participant_id: null,
+    subject_id: null,
+    scenario_id: session.scenario_id,
+    mode: 'team',
+    difficulty: 1,
+    markers: markers as any,
+    tier_a: null,
+    tier_b: result.healthIndex,
+    quadrant: 'na',
+    provisional: true,
+    taxonomy_version: PANEL_TAXONOMY,
+    scorer_version: PANEL_SCORER,
+  });
+  try {
+    await recomputePanelNorms(db, 'team');
+  } catch {
+    /* norms are a convenience read — never fail finalize on them */
+  }
 }
