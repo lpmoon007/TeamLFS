@@ -218,5 +218,13 @@ export async function scoreSoloRun(db: Db, sessionId: string, participantId: str
   const orgId: string | null = sess?.scenario?.org_id ?? null;
   const subjectId = await subjectForParticipant(db, sessionId, participantId);
   if (subjectId) await appendProfile(db, { subjectId, participantId, orgId, sessionId, scores });
+
+  // Behavioral Panel — a per-run "draw" (Two-Tier Spec) alongside the trait scores.
+  try {
+    const { persistSoloPanel } = await import('@/lib/panel');
+    await persistSoloPanel(db, sessionId, participantId, events, subjectId);
+  } catch {
+    /* derived Layer-2 — never block scoring on the panel */
+  }
   return scores.length;
 }
