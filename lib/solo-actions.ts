@@ -498,7 +498,9 @@ export async function soloTeamDecide(params: {
 
   if (w.final) {
     try {
-      await scoreSoloRun(db, params.sessionId, owner.participantId);
+      await scoreSoloRun(db, params.sessionId, owner.participantId); // Tier A (run) under the owner
+      const { persistSoloTeamPanel } = await import('@/lib/solo-team-panel');
+      await persistSoloTeamPanel(params.sessionId); // per-person Tier B → divergence + norms
     } catch {
       /* derived Layer-2 — never block the ruling */
     }

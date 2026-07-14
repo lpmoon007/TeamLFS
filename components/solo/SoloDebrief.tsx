@@ -122,6 +122,45 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
           </>
         ) : null}
 
+        {d.teamCast && d.teamBoard ? (
+          <>
+            <div className="res-h">The team as one — how the room performed</div>
+            <div className="coach-intro">
+              A team-cast run: the weekly calls were made together. These are the room’s collective vitals
+              {d.teamBoard.healthIndex !== null ? <> — collective health <b>{d.teamBoard.healthIndex}/100</b></> : null}. Single-session
+              team reads are directional, not precise.
+            </div>
+            <div className="panel">
+              {d.teamBoard.metrics.map((m) => (
+                <div className="pm" key={m.key}>
+                  <div className="pm-top">
+                    <b>{m.label}</b>
+                    {m.exercised && m.score !== null ? <span className="s">{m.score} / 100</span> : <span className="s na">not exercised</span>}
+                  </div>
+                  <div className="pm-bar"><div className="pm-fill" style={{ width: `${m.exercised && m.score !== null ? m.score : 0}%` }} /></div>
+                  <div className="dim-note">{m.note}</div>
+                </div>
+              ))}
+            </div>
+            {d.myTierB ? (
+              <>
+                <div className="res-h">Your teaming contribution{d.myTierB.tierB !== null ? ` — ${d.myTierB.tierB}/100` : ''}</div>
+                <div className="panel">
+                  {d.myTierB.markers.map((m) => (
+                    <div className="pm" key={m.key}>
+                      <div className="pm-top">
+                        <b>{m.label}</b>
+                        {m.exercised && m.normalized !== null ? <span className="s">{m.normalized} / 100</span> : <span className="s na">not exercised</span>}
+                      </div>
+                      <div className="pm-bar"><div className="pm-fill" style={{ width: `${m.exercised && m.normalized !== null ? m.normalized : 0}%` }} /></div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </>
+        ) : null}
+
         {d.divergence ? (
           <>
             <div className="res-h">The two axes — your judgment × your teaming</div>

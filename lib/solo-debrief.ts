@@ -100,6 +100,10 @@ export interface SoloDebrief {
   lens: LensRead | null; // Layer-3 LDOL read over the spine trait scores (if scored)
   panel: SoloPanelRead | null; // Behavioral Panel (Two-Tier Spec) — Tier A draw for this run
   divergence: import('@/lib/divergence').Divergence | null; // cross-session Tier A × Tier B quadrant
+  // team-cast (solo-as-team) only: the room's collective Tier B + this seat's contribution
+  teamCast: boolean;
+  teamBoard: { healthIndex: number | null; metrics: { key: string; label: string; score: number | null; exercised: boolean; note: string }[] } | null;
+  myTierB: { tierB: number | null; markers: { key: string; label: string; normalized: number | null; exercised: boolean }[] } | null;
 }
 
 export type SoloDebriefResult =
@@ -453,6 +457,26 @@ async function buildSoloDebriefCore(
     divergence = await subjectDivergence(db, subjectId);
   }
 
+  // team-cast: the room's Tier-B board + THIS seat's (viewerId) teaming contribution.
+  const teamCast = !!session.run_config?.team_cast;
+  let teamBoard: SoloDebrief['teamBoard'] = null;
+  let myTierB: SoloDebrief['myTierB'] = null;
+  if (teamCast) {
+    const { buildSoloTeamBoard, soloTeamSeatTierB } = await import('@/lib/solo-team-panel');
+    const board = await buildSoloTeamBoard(sessionId);
+    if (board) {
+      teamBoard = {
+        healthIndex: board.healthIndex,
+        metrics: ['airtime', 'resilience', 'coverage', 'safety'].map((k) => {
+          const m = board.metrics[k];
+          return { key: k, label: m.label, score: m.score, exercised: m.exercised, note: m.note };
+        }),
+      };
+    }
+    const seatB = await soloTeamSeatTierB(sessionId, viewerId);
+    if (seatB) myTierB = { tierB: seatB.tierB, markers: seatB.markers.map((m) => ({ key: m.key, label: m.label, normalized: m.normalized, exercised: m.exercised })) };
+  }
+
   return {
     ok: true,
     debrief: {
@@ -478,6 +502,9 @@ async function buildSoloDebriefCore(
       lens,
       panel,
       divergence,
+      teamCast,
+      teamBoard,
+      myTierB,
     },
   };
 }
