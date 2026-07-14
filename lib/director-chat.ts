@@ -40,6 +40,15 @@ function buildContext(d: SoloDebrief): string {
   const decLines = d.gameFilm.filter((m) => m.type === 'decision').map((m) => `- Week ${m.week}: ${strip(m.text)}`).join('\n');
   const filmLines = d.gameFilm.map((m) => `- Wk${m.week}${m.day ? ` D${m.day}` : ''} [${m.type}] ${strip(m.text)}`).join('\n');
   const coachLines = d.coaching.map((c) => `- ${c.label} (${c.score}/100): ${c.lines.map(strip).join(' | ')}`).join('\n');
+  const panelLines = d.panel
+    ? d.panel.markers
+        .map((m) =>
+          m.exercised && m.normalized !== null
+            ? `- ${m.label} (${m.key}): ${m.normalized}/100 [${m.confidence} confidence]`
+            : `- ${m.label} (${m.key}): not exercised — this crisis never gave you the opening to show it (do not treat as a low score)`,
+        )
+        .join('\n')
+    : '';
 
   return (
     `${persona}\n\n` +
@@ -53,6 +62,12 @@ function buildContext(d: SoloDebrief): string {
     `after being forced scores far below naming it early.\n` +
     `\n=== YOUR WEEKLY CALLS ===\n${decLines || '- (no decisions on record)'}\n` +
     `\n=== COACHING (your two weakest reads) ===\n${coachLines}\n` +
+    (panelLines
+      ? `\n=== THE PANEL — Tier A executive-judgment vitals (panel-v0.1) ===\n` +
+        `Tier A composite: ${d.panel?.tierA ?? '—'}/100. These are RATES over the openings this scenario offered, ` +
+        `normalized for difficulty — so they compare across scenarios where the raw score cannot. Tier B (teaming) is n/a ` +
+        `in a solo run. When a marker is "not exercised", say so plainly — never fold it into a criticism.\n${panelLines}\n`
+      : '') +
     `\n=== THE FULL GAME FILM (every event, in order) ===\n${filmLines}\n=== END OF RECORD ===`
   );
 }
