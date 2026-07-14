@@ -4,7 +4,7 @@ Ordered, copy-pasteable steps to take the full build live on **Vercel + Supabase
 Follow top to bottom. `DEPLOY.md` is the reference for individual pieces; this is the
 sequence. Everything from this build is on branch `claude/inspiring-brahmagupta-jh9lvy`.
 
-**What goes live:** the team app (The Signal), all 9 solo scenarios, the facilitator
+**What goes live:** the team app (The Signal), all 12 solo scenarios, the facilitator
 console (team + solo), the AI referee/advisors/voice, the Director-AI (Vercel Cron), the
 Behavioral Memory Spine (AI coder + cross-session profile + LDOL lens), and the re-score
 + human-coding surfaces.
@@ -76,7 +76,7 @@ psql "$DB" -f deploy/bootstrap.sql
 Then seed the solo scenarios you want live:
 
 ```bash
-for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault; do
+for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault relay ridgeline salvage; do
   psql "$DB" -f "supabase/solo_seed_${s}.sql"
 done
 # difficulty coefficients are already baked into the seeds above; the standalone
@@ -107,7 +107,7 @@ Apply only the migrations your live DB doesn't have yet (0009–0014 are all add
 for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note 0013_behavioral_panel 0014_channel_key; do
   psql "$DB" -f "supabase/migrations/${m}.sql"
 done
-for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault; do
+for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault relay ridgeline salvage; do
   psql "$DB" -f "supabase/solo_seed_${s}.sql"
 done
 ```
@@ -115,9 +115,9 @@ done
 ### Verify
 
 ```sql
--- 14 migrations' worth of tables present, 9 solo scenarios + 1 team
-select mode_default, count(*) from scenario_meta group by 1;          -- solo | 9
-select count(*) from scenarios;                                       -- 10 (9 solo + The Signal)
+-- 14 migrations' worth of tables present, 12 solo scenarios + 1 team
+select mode_default, count(*) from scenario_meta group by 1;          -- solo | 12
+select count(*) from scenarios;                                       -- 13 (12 solo + The Signal)
 select to_regclass('public.subjects'), to_regclass('public.rulings'); -- both non-null
 select to_regclass('public.behavioral_panel'), to_regclass('public.panel_norms'); -- both non-null
 select count(*) from participants where channel_key is null;          -- 0 (realtime hardening)
@@ -131,7 +131,7 @@ Open the production URL. You should see the app. Quick health checks:
 
 - `GET /` loads.
 - `/facilitator` → sign in with `FACILITATOR_SECRET` → the session list shows the team
-  session (**team** badge) and the 9 solo sessions (**solo** badge).
+  session (**team** badge) and the 12 solo sessions (**solo** badge).
 
 ---
 

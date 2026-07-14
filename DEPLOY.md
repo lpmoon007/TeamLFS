@@ -34,7 +34,7 @@ DB="postgresql://postgres:<DB_PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgr
 psql "$DB" -f supabase/seed.sql
 
 # seed the SOLO scenarios you want live (each is standalone + additive)
-for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault; do
+for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault relay ridgeline salvage; do
   psql "$DB" -f "supabase/solo_seed_${s}.sql"
 done
 ```
