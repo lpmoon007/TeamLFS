@@ -58,6 +58,22 @@ export interface SoloEnding {
   title: string;
   txt: string;
 }
+export interface SoloPanelMarker {
+  key: string;
+  label: string;
+  tier: 'A' | 'B';
+  raw: number | null;
+  normalized: number | null;
+  confidence: string;
+  exercised: boolean;
+}
+export interface SoloPanelRead {
+  tierA: number | null;
+  tierB: number | null;
+  quadrant: string; // multiplier | lone_genius | connector | struggling | na
+  provisional: boolean;
+  markers: SoloPanelMarker[]; // Tier A markers, ordered A1..A6 (Tier B is n/a in solo)
+}
 export interface SoloDebrief {
   sessionId: string;
   scenarioTitle: string;
@@ -79,6 +95,7 @@ export interface SoloDebrief {
   gameFilm: SoloFilmMoment[];
   coaching: SoloCoachBlock[];
   lens: LensRead | null; // Layer-3 LDOL read over the spine trait scores (if scored)
+  panel: SoloPanelRead | null; // Behavioral Panel (Two-Tier Spec) — Tier A draw for this run
 }
 
 export type SoloDebriefResult =
@@ -358,6 +375,32 @@ async function buildSoloDebriefCore(
     lens = applyLens({ traits, omissions: { count: missedHolds.length, names: [...new Set(missedHolds.map((h: any) => firstName(h.from)))] }, history });
   }
 
+  // Behavioral Panel — the run's Tier-A draw (persistSoloPanel writes it at final
+  // decision). Latest row wins (replace-on-rescore). Absent → panel stays null.
+  let panel: SoloPanelRead | null = null;
+  const { data: panelRow } = await db
+    .from('behavioral_panel')
+    .select('markers, tier_a, tier_b, quadrant, provisional')
+    .eq('session_id', sessionId)
+    .eq('participant_id', participantId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle<any>();
+  if (panelRow) {
+    const m = (panelRow.markers ?? {}) as Record<string, any>;
+    const order = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'];
+    panel = {
+      tierA: panelRow.tier_a !== null && panelRow.tier_a !== undefined ? Number(panelRow.tier_a) : null,
+      tierB: panelRow.tier_b !== null && panelRow.tier_b !== undefined ? Number(panelRow.tier_b) : null,
+      quadrant: panelRow.quadrant ?? 'na',
+      provisional: !!panelRow.provisional,
+      markers: order
+        .map((k) => m[k])
+        .filter(Boolean)
+        .map((x: any) => ({ key: x.key, label: x.label, tier: x.tier, raw: x.raw, normalized: x.normalized, confidence: x.confidence, exercised: x.exercised })),
+    };
+  }
+
   return {
     ok: true,
     debrief: {
@@ -381,6 +424,7 @@ async function buildSoloDebriefCore(
       gameFilm,
       coaching,
       lens,
+      panel,
     },
   };
 }

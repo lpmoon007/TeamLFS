@@ -66,6 +66,48 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
           </>
         ) : null}
 
+        {d.panel ? (
+          <>
+            <div className="res-h">The panel — your executive-judgment vitals · panel-v0.1</div>
+            <div className="coach-intro">
+              Six universal behaviors, scored as <b>rates</b> over the openings this crisis actually gave you — so they read the same
+              across scenarios. This is the standardized “blood-test” panel: one draw from this run.
+              {d.panel.provisional ? ' Numbers are provisional until the cohort reference ranges mature.' : ''}
+            </div>
+            <div className="panel">
+              <div className="panel-top">
+                <div className="panel-tier">
+                  <div className="panel-tier-lab">Tier A · Executive judgment</div>
+                  <div className="panel-tier-sc">
+                    {d.panel.tierA ?? '—'}
+                    <span className="max"> / 100</span>
+                  </div>
+                </div>
+                <div className="panel-tier b-na">
+                  <div className="panel-tier-lab">Tier B · Teaming contribution</div>
+                  <div className="panel-tier-sc na">n/a</div>
+                  <div className="panel-na-note">Solo has no room to team into — Tier B needs other people. It comes online in a team run.</div>
+                </div>
+              </div>
+              {d.panel.markers.map((m) => (
+                <div className="pm" key={m.key}>
+                  <div className="pm-top">
+                    <b>{m.label}</b>
+                    {m.exercised && m.normalized !== null ? (
+                      <span className="s">{m.normalized} / 100 · {m.confidence}</span>
+                    ) : (
+                      <span className="s na">not exercised</span>
+                    )}
+                  </div>
+                  <div className="pm-bar">
+                    <div className="pm-fill" style={{ width: `${m.exercised && m.normalized !== null ? m.normalized : 0}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : null}
+
         <div className="res-h">The team you walked in with — {d.dispositionLabel}</div>
         <div className="read">{d.dispositionRead}</div>
 
