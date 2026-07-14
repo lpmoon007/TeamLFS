@@ -198,6 +198,15 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                   {bundle.company.sub ? <div className="co-sub">{bundle.company.sub}</div> : null}
                 </div>
               </div>
+              {bundle.teamCast ? (
+                <div className="selfchip" title="Your seat in this room">
+                  {av(bundle.self.seatKey, bundle.self.name, 'av')}
+                  <div>
+                    <div className="sc-you">You are {bundle.self.name}</div>
+                    <div className="sc-role">{bundle.self.role ?? bundle.self.short ?? ''}</div>
+                  </div>
+                </div>
+              ) : null}
               <div className="clock">
                 <div className="wkbox">
                   <div className="n">Week {week.n}</div>
@@ -262,16 +271,42 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
               {bundle.intro?.role ? <div className="role" dangerouslySetInnerHTML={{ __html: String(bundle.intro.role) }} /> : null}
               {Array.isArray(bundle.intro?.paras) ? (bundle.intro!.paras as string[]).map((p, i) => <p key={i} dangerouslySetInnerHTML={{ __html: p }} />) : null}
               {bundle.intro?.setup ? <div className="setup" dangerouslySetInnerHTML={{ __html: String(bundle.intro.setup) }} /> : null}
-              <div className="disp-h">The team you walk in with</div>
-              <div className="disp-grid">
-                {DISPOSITIONS.map((d) => (
-                  <button key={d.key} className={`disp${disp === d.key ? ' on' : ''}`} onClick={() => setDisp(d.key)}>
-                    <div className="dt">{d.label} <span className="dtag">{d.tag}</span></div>
-                    <div className="dc">{d.cap}</div>
-                  </button>
-                ))}
-              </div>
-              <button className="start-btn" onClick={takeCommand}>Take command →</button>
+              {bundle.teamCast ? (
+                <div className="tc-intro">
+                  <div className="disp-h">You’re in the room together</div>
+                  <p className="tc-note">
+                    This crisis is being led by your whole team — not one person. You are <b>{bundle.self.name}</b>
+                    {bundle.self.role ? <>, {bundle.self.role}</> : null}. Each week the team deliberates in the Decision Room and
+                    <b> anyone can lock the call</b> — who steps up, and whether the room is with them, is part of what’s measured.
+                  </p>
+                  {bundle.myHolds.length ? (
+                    <div className="myknow intro-know">
+                      <div className="mk-h">What only you know this week</div>
+                      {bundle.myHolds.map((h, i) => (
+                        <div className={`mk-item${h.critical ? ' crit' : ''}`} key={i}>
+                          {h.critical ? <span className="mk-crit">critical</span> : null}
+                          {h.topic ? <div className="mk-topic">{h.topic}</div> : null}
+                          <div className="mk-reveal">{h.reveal}</div>
+                        </div>
+                      ))}
+                      <div className="mk-foot">It’s yours to surface — or hold. The team can only weigh what reaches the room.</div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <div className="disp-h">The team you walk in with</div>
+                  <div className="disp-grid">
+                    {DISPOSITIONS.map((d) => (
+                      <button key={d.key} className={`disp${disp === d.key ? ' on' : ''}`} onClick={() => setDisp(d.key)}>
+                        <div className="dt">{d.label} <span className="dtag">{d.tag}</span></div>
+                        <div className="dc">{d.cap}</div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <button className="start-btn" onClick={takeCommand}>{bundle.teamCast ? 'Enter the room →' : 'Take command →'}</button>
             </div>
           ) : decided && ruling ? (
             <div className="transition">
@@ -316,8 +351,22 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                 <p>{week.situation}</p>
               </div>
 
+              {bundle.teamCast && bundle.myHolds.length ? (
+                <div className="myknow">
+                  <div className="mk-h">What only you know this week</div>
+                  {bundle.myHolds.map((h, i) => (
+                    <div className={`mk-item${h.critical ? ' crit' : ''}`} key={i}>
+                      {h.critical ? <span className="mk-crit">critical</span> : null}
+                      {h.topic ? <div className="mk-topic">{h.topic}</div> : null}
+                      <div className="mk-reveal">{h.reveal}</div>
+                    </div>
+                  ))}
+                  <div className="mk-foot">Surface it in the room if it should shape the call — or hold it and see what happens.</div>
+                </div>
+              ) : null}
+
               <div className="rail">
-                <div className="rail-h">Your team — reach out</div>
+                <div className="rail-h">{bundle.teamCast ? 'The room — your teammates' : 'Your team — reach out'}</div>
                 <div className="rail-row">
                   {bundle.cast.map((c) => (
                     <div className="tchip" key={c.seatKey}>
