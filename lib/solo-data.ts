@@ -54,6 +54,11 @@ export interface SoloConfig {
   extraDaysPerReprieve: number;
   lowTimeDays: number;
 }
+export interface SoloHeldItem {
+  topic: string | null;
+  reveal: string; // what THIS seat privately knows and may choose to surface to the room
+  critical: boolean;
+}
 export interface SoloBundle {
   sessionId: string;
   seatKey: string;
@@ -72,6 +77,10 @@ export interface SoloBundle {
   reprieveCost: Record<string, number>;
   disposition: string;
   lastDeltas: Record<string, number>; // last decided week's driver deltas (empty on week 1)
+  // "one engine cast two ways" — team-cast solo (Reading 1): every seat is a real player.
+  teamCast: boolean;
+  self: SoloCastMember; // the viewer's OWN seat identity (CEO in a plain solo run)
+  myHolds: SoloHeldItem[]; // the info THIS seat privately holds this week (team-cast only)
 }
 
 export type SoloResult =
@@ -140,17 +149,30 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
     max: d.max ?? 100,
   }));
 
-  const cast: SoloCastMember[] = (seats ?? [])
-    .filter((s: any) => s.key !== 'ceo')
-    .map((s: any) => ({
-      seatKey: s.key,
-      name: s.name,
-      role: s.role,
-      short: s.meta?.short ?? null,
-      initials: s.meta?.initials ?? null,
-      color: s.meta?.color ?? null,
-      priority: s.meta?.priority ?? null,
-    }));
+  const viewerKey: string = participant.seat?.key;
+  const teamCast = !!session.run_config?.team_cast;
+  const memberOf = (s: any): SoloCastMember => ({
+    seatKey: s.key,
+    name: s.name,
+    role: s.role,
+    short: s.meta?.short ?? null,
+    initials: s.meta?.initials ?? null,
+    color: s.meta?.color ?? null,
+    priority: s.meta?.priority ?? null,
+  });
+  // the cast rail = everyone the viewer can consult (their teammates). In a plain solo run
+  // the viewer is the CEO, so this is the advisors; in a team-cast run it's every other seat.
+  const cast: SoloCastMember[] = (seats ?? []).filter((s: any) => s.key !== viewerKey).map(memberOf);
+  const selfSeat = (seats ?? []).find((s: any) => s.key === viewerKey);
+  const self: SoloCastMember = selfSeat ? memberOf(selfSeat) : { seatKey: viewerKey, name: viewerKey, role: null, short: null, initials: null, color: null, priority: null };
+
+  // team-cast: the info THIS seat privately holds this week (hold.from === my seat) — what
+  // they can choose to surface to the room. Plain solo (viewer=CEO) holds nothing.
+  const myHolds: SoloHeldItem[] = teamCast
+    ? ((w.holds ?? []) as any[])
+        .filter((h) => h.from === viewerKey)
+        .map((h) => ({ topic: h.topic ?? null, reveal: h.reveal ?? h.hedge ?? '', critical: !!h.critical }))
+    : [];
 
   const cfg = content.CONFIG ?? {};
   return {
@@ -188,6 +210,9 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
       reprieveCost: content.REPRIEVE_COST ?? {},
       disposition: await effectiveDisposition(db, sessionId, participant.id, session.run_config?.disposition),
       lastDeltas,
+      teamCast,
+      self,
+      myHolds,
     },
   };
 }
