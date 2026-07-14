@@ -79,6 +79,8 @@ Then seed the solo scenarios you want live:
 for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault; do
   psql "$DB" -f "supabase/solo_seed_${s}.sql"
 done
+# difficulty coefficients are already baked into the seeds above; the standalone
+# supabase/scenario_difficulty.sql patch is only for updating an already-live DB.
 ```
 
 > `bootstrap.sql` **drops the public schema first**. That's fine here — nothing was
@@ -94,6 +96,12 @@ Apply only the migrations your live DB doesn't have yet (0009–0013 are all add
 > **Already live before the Behavioral Panel?** You only need `0013_behavioral_panel.sql`
 > (adds `behavioral_panel` + `panel_norms` + a `scenario_meta.difficulty` column — nothing
 > destructive). The panel fills in on the next solo run scored / team debrief opened.
+>
+> **Setting difficulty on a live DB:** apply `supabase/scenario_difficulty.sql` — a
+> **non-destructive** patch that only `update`s `scenario_meta.difficulty` per scenario.
+> Do NOT re-run a full `solo_seed_*.sql` to pick up difficulty on a live DB: those delete +
+> re-insert the scenario and **cascade its sessions** (you'd lose run history). The full
+> seeds already carry the difficulty for fresh installs.
 
 ```bash
 for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note 0013_behavioral_panel; do

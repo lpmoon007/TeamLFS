@@ -60,6 +60,51 @@ const drivers = Object.fromEntries(
   Object.entries(C.DRIVERS).map(([k, d]) => [k, { label: d.label, val: d.val, min: d.min, max: d.max, deltaRange: d.deltaRange }]),
 );
 
+// ---- authored difficulty coefficient (Two-Tier Spec §8.1) --------------------
+// Not a vibe: a transparent, reproducible index from three structural signals of how
+// punishing the scenario is to lead well through. Centered so an average scenario ≈ 1.0;
+// harder ones read up to ~1.25, gentler down to ~0.8. The panel uses it to normalize a
+// behavior-RATE so the same discipline reads the same across scenarios of unequal load.
+function difficultyOf(C) {
+  const weeks = C.WEEKS.length || 1;
+  const seen = new Set();
+  let holds = 0;
+  let critical = 0;
+  const addBlk = (weekN, blk) => {
+    for (const h of blk.holds ?? []) {
+      const k = `${weekN}:${h.from}:${h.topic}`;
+      if (seen.has(k)) continue; // don't double-count a hold that recurs across branches
+      seen.add(k);
+      holds++;
+      if (h.critical) critical++;
+    }
+  };
+  for (const wk of C.WEEKS) {
+    if (wk.branches) for (const blk of Object.values(wk.branches)) addBlk(wk.n, blk);
+    else addBlk(wk.n, wk);
+  }
+  const teamSize = C.TEAM.length;
+  const weekSeconds = Number(C.CONFIG?.weekSeconds) || 240;
+  // driver fragility: how close to failure the company STARTS (low headroom = harder to
+  // lead through). Margin-based so it's robust when a driver omits deltaRange.
+  const dvals = Object.values(C.DRIVERS ?? {});
+  let fragSum = 0;
+  for (const d of dvals) {
+    const span = (Number(d.max) - Number(d.min)) || 1;
+    const margin = Math.max(0, Math.min(1, (Number(d.val) - Number(d.min)) / span)); // 1 = full headroom, 0 = at the floor
+    fragSum += 1 - margin;
+  }
+  const fragility = dvals.length ? fragSum / dvals.length : 0.35;
+  // four sub-signals, each 0..1
+  const infoLoad = Math.min(1, critical / weeks / 1.5); // ≥1.5 CRITICAL holds/week → max: more decisive truth to dig out
+  const consultLoad = Math.min(1, Math.max(0, (teamSize - 3) / 4)); // 3 advisors → 0, 7+ → 1: more people to canvass
+  const timePressure = Math.min(1, Math.max(0, (300 - weekSeconds) / 240)); // 300s/wk → 0, 60s → 1: tighter clock
+  const idx = (infoLoad + consultLoad + timePressure + fragility) / 4;
+  const difficulty = Math.max(0.8, Math.min(1.25, Math.round((0.7 + 0.7 * idx) * 100) / 100));
+  return { difficulty, weeks, holds, critical, teamSize, weekSeconds, infoLoad, consultLoad, timePressure, fragility, idx };
+}
+const DIFF = difficultyOf(C);
+
 // The authoritative content blob = the ENTIRE SCENARIO object, with EVERY function
 // (at any depth) preserved as source — nothing is silently dropped. This captures
 // DRIVERS.*.fmt, COACH.* (per-dimension coaching), branchKey/ending/survived/
@@ -91,8 +136,12 @@ insert into organizations (id, name) values (${q(ORG_ID)}, 'TLFS Library') on co
 out.push(`-- scenario + real-time meta`);
 out.push(`insert into scenarios (id, org_id, title, summary) values (${q(SCEN_ID)}, ${q(ORG_ID)}, ${q(C.INTRO?.title ?? slug)}, ${q(C.INTRO?.setup ?? null)});`);
 out.push(
-  `insert into scenario_meta (scenario_id, mode_default, driver_keys, week_count, week_seconds) values (` +
-    `${q(SCEN_ID)}, 'solo', ${j(drivers)}, ${C.WEEKS.length}, ${C.CONFIG?.weekSeconds ?? 'null'});`,
+  `-- difficulty ${DIFF.difficulty} — ${DIFF.critical} critical holds / ${DIFF.weeks} wks, ${DIFF.teamSize} advisors, ${DIFF.weekSeconds}s/wk` +
+    ` (info ${DIFF.infoLoad.toFixed(2)} · consult ${DIFF.consultLoad.toFixed(2)} · time ${DIFF.timePressure.toFixed(2)} · fragility ${DIFF.fragility.toFixed(2)})`,
+);
+out.push(
+  `insert into scenario_meta (scenario_id, mode_default, driver_keys, week_count, week_seconds, difficulty) values (` +
+    `${q(SCEN_ID)}, 'solo', ${j(drivers)}, ${C.WEEKS.length}, ${C.CONFIG?.weekSeconds ?? 'null'}, ${DIFF.difficulty});`,
 );
 
 out.push(`\n-- full authored content (whole SCENARIO object; all ${capturedFns} functions preserved as source) the runtime loads`);
