@@ -89,19 +89,25 @@ export interface CreateSessionResult {
 
 const newToken = () => (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '');
 
-/** Create a fresh LIVE session for a scenario with random per-seat tokens. */
-export async function createSession(params: { scenarioId: string; disposition?: string }): Promise<CreateSessionResult> {
+/** Create a fresh LIVE session for a scenario with random per-seat tokens.
+ *  `castAsTeam` (solo scenarios only) fills EVERY seat with a human and runs the solo
+ *  engine as a team: advisors become real players who hold that week's info, and the
+ *  weekly call is made collectively in the Decision Room ("one engine cast two ways"). */
+export async function createSession(params: { scenarioId: string; disposition?: string; castAsTeam?: boolean }): Promise<CreateSessionResult> {
   const db = await guard();
 
   const { data: scenario } = await db.from('scenarios').select('id, title').eq('id', params.scenarioId).maybeSingle<any>();
   if (!scenario) return { ok: false, reason: 'scenario_not_found' };
   const { data: meta } = await db.from('scenario_meta').select('mode_default').eq('scenario_id', params.scenarioId).maybeSingle<any>();
   const mode = (meta?.mode_default ?? 'team') as 'solo' | 'team';
+  // team-cast only applies to a solo scenario (a team scenario is already all-human).
+  const teamCast = mode === 'solo' && !!params.castAsTeam;
 
   const { data: seats } = await db.from('seats').select('id, key, name, role, meta').eq('scenario_id', params.scenarioId).order('key', { ascending: true });
   if (!seats || !seats.length) return { ok: false, reason: 'no_seats' };
 
-  const run_config = mode === 'solo' ? { disposition: params.disposition ?? 'request' } : {};
+  const run_config: Record<string, unknown> =
+    mode === 'solo' ? { disposition: params.disposition ?? 'request', ...(teamCast ? { team_cast: true } : {}) } : {};
   const { data: session } = await db
     .from('sessions')
     .insert({ scenario_id: params.scenarioId, status: 'live', started_at: new Date().toISOString(), run_config })
@@ -112,20 +118,22 @@ export async function createSession(params: { scenarioId: string; disposition?: 
 
   const links: SessionLink[] = [];
   const rows = (seats as any[]).map((seat) => {
-    // team: every seat is a human player. solo: the CEO hot seat is human; the rest are
-    // AI-cast advisors (they reply through the engine — no magic link).
-    const human = mode !== 'solo' || seat.key === 'ceo';
+    // team (or team-cast solo): every seat is a human player. plain solo: the CEO hot seat
+    // is human; the rest are AI-cast advisors (they reply through the engine — no link).
+    const human = mode !== 'solo' || teamCast || seat.key === 'ceo';
     const token = human ? newToken() : null;
     const cast_kind = human ? 'human' : 'ai';
     const agent_json = human
       ? {}
       : { name: seat.name, role: seat.role ?? null, persona: seat.meta?.persona ?? null, priority: seat.meta?.priority ?? null, autonomy: 'reactive' };
+    // team-cast solo still runs in the SOLO engine (/solo), just with N humans.
+    const basePath = mode === 'solo' ? '/solo' : '/s';
     links.push({
       seatKey: seat.key,
       name: seat.name,
       role: seat.role ?? null,
       castKind: cast_kind as 'human' | 'ai',
-      path: token ? `${mode === 'solo' ? '/solo' : '/s'}/${sessionId}?t=${token}` : null,
+      path: token ? `${basePath}/${sessionId}?t=${token}` : null,
     });
     return { session_id: sessionId, seat_id: seat.id, token, cast_kind, agent_json, name: `${seat.name}` };
   });
@@ -136,7 +144,7 @@ export async function createSession(params: { scenarioId: string; disposition?: 
     type: 'session_created',
     channel: 'system',
     target: null,
-    payload_json: { scenario: scenario.title, mode, seats: rows.length },
+    payload_json: { scenario: scenario.title, mode, team_cast: teamCast, seats: rows.length },
   });
 
   return { ok: true, sessionId, mode, links };
