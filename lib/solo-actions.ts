@@ -333,3 +333,176 @@ export async function soloDecide(params: {
 
   return { ok: true, ruling, drivers, branchKey };
 }
+
+// =============================================================================
+// Solo-as-team (Reading 1) — the weekly call is made collectively in the Decision
+// Room, not by a lone CEO. Any seat can lock (1a); the referee rules the LOCKED option.
+// Run state (rulings, run_drivers, Tier-A scoring) is keyed to the CEO seat's
+// participant — the canonical "run owner" — so N players share one world model, while
+// each player's own deliberation events stay under their own participant.
+// =============================================================================
+
+/** The CEO seat's participant = the run owner for a team-cast solo session. */
+async function ceoRunOwner(db: ReturnType<typeof createAdminClient>, sessionId: string): Promise<{ participantId: string; seatId: string } | null> {
+  const { data } = await db
+    .from('participants')
+    .select('id, seat_id, seat:seats!inner(key)')
+    .eq('session_id', sessionId)
+    .eq('seat.key', 'ceo')
+    .maybeSingle<any>();
+  return data ? { participantId: data.id, seatId: data.seat_id } : null;
+}
+
+async function seatKeyOf(db: ReturnType<typeof createAdminClient>, participantId: string): Promise<string | null> {
+  const { data } = await db.from('participants').select('seat:seats!inner(key)').eq('id', participantId).maybeSingle<any>();
+  return data?.seat?.key ?? null;
+}
+
+/** A seat surfaces one of the facts it privately holds into the room. Emits an attributed
+ *  `hold_surfaced` event (so coverage / B4 / conduct credit it) + broadcasts the reveal so
+ *  teammates see it. This is the human analogue of the AI advisor's reveal. */
+export async function soloSurfaceHold(params: {
+  sessionId: string;
+  participantId: string;
+  token: string;
+  weekIdx: number;
+  topic: string;
+}): Promise<{ ok: boolean; reason?: string }> {
+  const db = createAdminClient();
+  const auth = await authParticipant(db, params);
+  if (!auth) return { ok: false, reason: 'auth' };
+  const content = await loadContent(db, auth.scenarioId);
+  if (!content) return { ok: false, reason: 'content' };
+  const seatKey = (await seatKeyOf(db, params.participantId)) ?? '';
+  const w = resolveWeek(content, params.weekIdx, await runBranch(db, params.sessionId, params.participantId)) ?? {};
+  const hold = ((w.holds ?? []) as any[]).find((h) => h.from === seatKey && (h.topic ?? '') === params.topic);
+  if (!hold) return { ok: false, reason: 'no_hold' };
+
+  await db.from('events').insert({
+    session_id: params.sessionId,
+    participant_id: params.participantId,
+    seat_id: auth.seatId,
+    type: 'hold_surfaced',
+    channel: 'message',
+    target: seatKey,
+    payload_json: { topic: hold.topic, week: w.n, critical: !!hold.critical, reveal: hold.reveal ?? '', team_cast: true },
+  });
+  const { broadcast } = await import('@/lib/realtime-server');
+  const { sessionRoomChannel } = await import('@/lib/channels');
+  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'surface', from: seatKey, topic: hold.topic ?? null, text: hold.reveal ?? '', critical: !!hold.critical });
+  return { ok: true };
+}
+
+/** Rule the team's LOCKED weekly call. Writes the decision_lock (who locked + dissent) and
+ *  runs the referee on the locked option, persisting under the run owner. */
+export async function soloTeamDecide(params: {
+  sessionId: string;
+  participantId: string; // the seat that locked
+  token: string;
+  weekIdx: number;
+  optionId: string;
+  drivers: Record<string, number>;
+  reprieves: number;
+  underBuzzer: boolean;
+  decidedDay: number;
+}): Promise<DecideResult> {
+  const db = createAdminClient();
+  const auth = await authParticipant(db, params);
+  if (!auth) return { ok: false, reason: 'auth' };
+  const content = await loadContent(db, auth.scenarioId);
+  if (!content) return { ok: false, reason: 'content' };
+  const owner = await ceoRunOwner(db, params.sessionId);
+  if (!owner) return { ok: false, reason: 'no_owner' };
+
+  const w = resolveWeek(content, params.weekIdx, await runBranch(db, params.sessionId, owner.participantId)) ?? {};
+
+  // the locked option's text is the team's decision
+  const { getDecisionBoard, lockDecision } = await import('@/lib/deliberation');
+  const board = await getDecisionBoard(params.sessionId);
+  const opt = board.options.find((o) => o.optionId === params.optionId);
+  if (!opt) return { ok: false, reason: 'no_option' };
+  const text = (opt.summary ?? '').trim();
+  if (text.length < 8) return { ok: false, reason: 'too_short' };
+
+  // record the lock (captures who locked + over what dissent — the leadership signal)
+  const lockerKey = (await seatKeyOf(db, params.participantId)) ?? '';
+  await lockDecision({ sessionId: params.sessionId, participantId: params.participantId, seatId: auth.seatId, seatKey: lockerKey, optionId: params.optionId, text });
+
+  // referee over the LOCKED call — conduct is session-scoped (all seats' surfacing counts)
+  const conduct = await buildConduct(db, params.sessionId, content, w, { reprieves: params.reprieves, underBuzzer: params.underBuzzer });
+  const sys = buildRefereeSystem(content, w, params.drivers, conduct, params.decidedDay);
+  let ruling = parseRulingJSON(await complete(sys, `The team's decision: "${text}"`, 600));
+  if (ruling) {
+    const validIds = new Set((content.TEAM ?? []).map((t: any) => t.id));
+    ruling.teamReactions = (ruling.teamReactions ?? []).filter((r) => validIds.has(r.who));
+    if (!ruling.teamReactions.length) ruling.teamReactions = fallbackRuling(content, text, conduct, params.decidedDay).teamReactions;
+  } else {
+    ruling = fallbackRuling(content, text, conduct, params.decidedDay);
+  }
+
+  const drivers = applyDeltas(content, params.drivers, ruling.deltas);
+  const burnKey: string | undefined = content.BURN_DRIVER;
+  if (burnKey && drivers[burnKey] !== undefined) {
+    const burn = Number(w.burn ?? content.BURN_START ?? 0);
+    if (burn) {
+      const dr = (content.DRIVERS ?? {})[burnKey] ?? {};
+      drivers[burnKey] = Math.max(dr.min ?? 0, drivers[burnKey] - burn);
+    }
+  }
+
+  let branchKey: string | null = null;
+  const bk = reconstitute(content.branchKey);
+  try {
+    branchKey = bk ? String(bk([{ week: w.n, text }])) : null;
+  } catch {
+    branchKey = null;
+  }
+
+  // persist run state under the RUN OWNER (CEO participant) so all seats share one world model
+  const driverRows = Object.keys(content.DRIVERS ?? {}).map((k) => ({
+    session_id: params.sessionId,
+    participant_id: owner.participantId,
+    week_idx: w.n,
+    driver_key: k,
+    value: drivers[k],
+    delta: ruling!.deltas[k] ?? 0,
+  }));
+  if (driverRows.length) await db.from('run_drivers').upsert(driverRows, { onConflict: 'session_id,participant_id,week_idx,driver_key' });
+
+  await db.from('rulings').insert({
+    session_id: params.sessionId,
+    participant_id: owner.participantId,
+    week_idx: w.n,
+    decision_text: text,
+    narrative: ruling.narrative,
+    dimension_scores: ruling.dims,
+    conduct: conduct as any,
+    branch_key: branchKey,
+    buzzer: params.underBuzzer,
+  });
+
+  await db.from('events').insert({
+    session_id: params.sessionId,
+    participant_id: owner.participantId,
+    seat_id: owner.seatId,
+    type: 'decision_ruled',
+    channel: 'system',
+    target: `week-${w.n}`,
+    payload_json: { dims: ruling.dims, deltas: ruling.deltas, branch: branchKey, team_cast: true, lockedBy: lockerKey },
+  });
+
+  // broadcast so every seat in the room transitions to the resolution together
+  const { broadcast } = await import('@/lib/realtime-server');
+  const { sessionRoomChannel } = await import('@/lib/channels');
+  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'ruled', week: w.n, optionId: params.optionId });
+
+  if (w.final) {
+    try {
+      await scoreSoloRun(db, params.sessionId, owner.participantId);
+    } catch {
+      /* derived Layer-2 — never block the ruling */
+    }
+  }
+
+  return { ok: true, ruling, drivers, branchKey };
+}
