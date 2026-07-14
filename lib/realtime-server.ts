@@ -1,5 +1,17 @@
 import 'server-only';
 import { SUPABASE_URL, serviceRoleKey } from '@/lib/env';
+import { seatChannel } from '@/lib/channels';
+
+/** Resolve the private directed topic for a seat from its occupant's channel_key. Returns
+ *  null if the seat has no participant (nothing to deliver to). `db` is any admin client. */
+export async function privateSeatTopic(
+  db: { from: (t: string) => any },
+  sessionId: string,
+  seatId: string,
+): Promise<string | null> {
+  const { data } = await db.from('participants').select('channel_key').eq('session_id', sessionId).eq('seat_id', seatId).maybeSingle();
+  return data?.channel_key ? seatChannel(sessionId, data.channel_key) : null;
+}
 
 // Server-side Realtime broadcast (handoff §6). The DB is the source of truth; a
 // broadcast is a low-latency delivery signal to already-connected participants.

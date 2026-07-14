@@ -5,8 +5,7 @@ import { isFacilitatorSession, setFacilitatorSession, clearFacilitatorSession } 
 import { fireInject } from '@/lib/inject';
 import { finalizeSession } from '@/lib/finalize';
 import { subjectForParticipant, subjectPosture, resolveDispositionFromHistory } from '@/lib/spine';
-import { broadcast } from '@/lib/realtime-server';
-import { seatChannel } from '@/lib/channels';
+import { broadcast, privateSeatTopic } from '@/lib/realtime-server';
 import { runDirector, type DirectorReport } from '@/lib/director';
 import { getRubrics, TAXONOMY_VERSION, AI_SCORER_VERSION } from '@/lib/scoring';
 import type { TraitScore } from '@/lib/scoring/types';
@@ -542,7 +541,9 @@ export async function sendAsNpc(params: {
     .select('id, sent_at')
     .single<any>();
 
-  await broadcast(seatChannel(params.sessionId, params.seatKey), 'message', {
+  const topic = await privateSeatTopic(db, params.sessionId, seat.id);
+  if (topic)
+  await broadcast(topic, 'message', {
     id: msg?.id,
     thread_id: thread.id,
     contact_key: params.contactKey,

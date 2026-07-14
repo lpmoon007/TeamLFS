@@ -106,7 +106,7 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
 
   const { connected } = useParticipantChannel({
     sessionId: session.id,
-    seatKey: seat.key,
+    channelKey: participant.channel_key,
     enabled: accepted && !ended,
     onEvent,
   });

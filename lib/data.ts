@@ -37,7 +37,7 @@ export async function resolveSeat(sessionId: string, token: string | undefined):
 
   const { data: participant } = await db
     .from('participants')
-    .select('id, session_id, seat_id, token, name, email, present, joined_at')
+    .select('id, session_id, seat_id, token, channel_key, name, email, present, joined_at')
     .eq('session_id', sessionId)
     .eq('token', token)
     .maybeSingle<Participant>();

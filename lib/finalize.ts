@@ -50,10 +50,11 @@ export async function finalizeSession(sessionId: string): Promise<FinalizeResult
   // Live-flip the curtain for anyone still connected.
   const { data: parts } = await db
     .from('participants')
-    .select('seat:seats!inner(key)')
+    .select('channel_key')
     .eq('session_id', sessionId);
   for (const p of parts ?? []) {
-    await broadcast(seatChannel(sessionId, (p as any).seat?.key), 'curtain', { ended: true });
+    const key = (p as any).channel_key;
+    if (key) await broadcast(seatChannel(sessionId, key), 'curtain', { ended: true });
   }
 
   return { ok: true, omissions, scored };

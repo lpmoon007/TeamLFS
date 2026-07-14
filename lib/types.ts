@@ -31,6 +31,7 @@ export interface Participant {
   session_id: string;
   seat_id: string;
   token: string;
+  channel_key: string;
   name: string | null;
   email: string | null;
   present: boolean;

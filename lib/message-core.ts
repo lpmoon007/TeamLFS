@@ -1,7 +1,6 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { broadcast } from '@/lib/realtime-server';
-import { seatChannel } from '@/lib/channels';
+import { broadcast, privateSeatTopic } from '@/lib/realtime-server';
 import type { EventChannel } from '@/lib/scoring/types';
 
 // The single message-delivery core of the team engine — the "one engine" seam
@@ -102,14 +101,16 @@ export async function postSeatMessage(
       .select('id, sent_at')
       .single<any>();
 
-    await broadcast(seatChannel(params.sessionId, teammateSeat.key), 'message', {
-      id: mirrored?.id,
-      thread_id: theirThread.id,
-      contact_key: params.senderSeat.key,
-      sender: params.senderSeat.key,
-      body,
-      sent_at: mirrored?.sent_at,
-    });
+    const topic = await privateSeatTopic(db, params.sessionId, teammateSeat.id);
+    if (topic)
+      await broadcast(topic, 'message', {
+        id: mirrored?.id,
+        thread_id: theirThread.id,
+        contact_key: params.senderSeat.key,
+        sender: params.senderSeat.key,
+        body,
+        sent_at: mirrored?.sent_at,
+      });
   }
 
   // Capture log (Layer 1) — same shape whether the sender is human or AI-cast.

@@ -19,22 +19,22 @@ export type RealtimeEvent =
   | { event: 'inject'; payload: any }
   | { event: 'curtain'; payload: any };
 
-/** Subscribe to this seat's directed-event channel. */
+/** Subscribe to this seat's directed-event channel (keyed on the private channel_key). */
 export function useParticipantChannel(opts: {
   sessionId: string;
-  seatKey: string;
+  channelKey: string;
   enabled: boolean;
   onEvent?: (evt: RealtimeEvent) => void;
 }) {
-  const { sessionId, seatKey, enabled, onEvent } = opts;
+  const { sessionId, channelKey, enabled, onEvent } = opts;
   const [connected, setConnected] = useState(false);
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !channelKey) return;
     const supabase = getBrowserClient();
-    const channel = supabase.channel(seatChannel(sessionId, seatKey), {
+    const channel = supabase.channel(seatChannel(sessionId, channelKey), {
       config: { broadcast: { self: false } },
     });
 
@@ -57,7 +57,7 @@ export function useParticipantChannel(opts: {
       setConnected(false);
       supabase.removeChannel(channel);
     };
-  }, [enabled, sessionId, seatKey]);
+  }, [enabled, sessionId, channelKey]);
 
   return { connected };
 }

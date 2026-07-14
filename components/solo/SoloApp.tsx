@@ -29,7 +29,8 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const auth = { sessionId: bundle.sessionId, participantId: bundle.participantId, token: bundle.token };
   const weekSeconds = week.seconds || config.weekSeconds;
   const dayMs = (weekSeconds * 1000) / config.days;
-  useParticipantChannel({ sessionId: bundle.sessionId, seatKey: bundle.seatKey, enabled: true });
+  // solo is single-player — no cross-seat concern; keep the (self-only) subscription.
+  useParticipantChannel({ sessionId: bundle.sessionId, channelKey: bundle.seatKey, enabled: true });
 
   // Intro only on the first week; later weeks come straight into the cockpit.
   const [phase, setPhase] = useState<'intro' | 'run'>(bundle.weekIdx === 0 ? 'intro' : 'run');

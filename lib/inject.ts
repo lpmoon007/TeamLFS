@@ -118,13 +118,14 @@ interface Recipient {
   participantId: string;
   seatId: string;
   seatKey: string;
+  channelKey: string | null;
 }
 
 async function resolveRecipients(db: Db, sessionId: string, seatId: string | null): Promise<Recipient[]> {
-  let q = db.from('participants').select('id, seat_id, seat:seats!inner(key)').eq('session_id', sessionId);
+  let q = db.from('participants').select('id, seat_id, channel_key, seat:seats!inner(key)').eq('session_id', sessionId);
   if (seatId) q = q.eq('seat_id', seatId);
   const { data } = await q;
-  return (data ?? []).map((p: any) => ({ participantId: p.id, seatId: p.seat_id, seatKey: p.seat?.key }));
+  return (data ?? []).map((p: any) => ({ participantId: p.id, seatId: p.seat_id, seatKey: p.seat?.key, channelKey: p.channel_key ?? null }));
 }
 
 function channelForKind(kind: string): string {
@@ -149,7 +150,8 @@ function summarize(payload: any) {
 
 // Materialize the beat into runtime state + broadcast it to the recipient's seat.
 async function materialize(db: Db, scenarioId: string, sessionId: string, inject: any, payload: any, r: Recipient) {
-  const topic = seatChannel(sessionId, r.seatKey);
+  // directed delivery to the recipient's PRIVATE channel (channel_key), not the seat slug.
+  const topic = r.channelKey ? seatChannel(sessionId, r.channelKey) : null;
 
   if (inject.kind === 'message' || inject.kind === 'group') {
     const contactKey: string = payload.thread ?? payload.contact_key ?? 'group';
@@ -167,7 +169,7 @@ async function materialize(db: Db, scenarioId: string, sessionId: string, inject
       .insert({ thread_id: thread.id, sender, body: String(payload.body ?? '') })
       .select('id, sent_at')
       .single<any>();
-    await broadcast(topic, 'message', {
+    if (topic) await broadcast(topic, 'message', {
       id: msg?.id,
       thread_id: thread.id,
       contact_key: contactKey,
@@ -194,7 +196,7 @@ async function materialize(db: Db, scenarioId: string, sessionId: string, inject
       })
       .select('id, contact_key, subject, body_json, document_id, status, delivered_at, read_at, created_at, decision, decision_json, decided_at')
       .single<any>();
-    await broadcast(topic, 'email', email);
+    if (topic) await broadcast(topic, 'email', email);
     return;
   }
 
@@ -205,12 +207,12 @@ async function materialize(db: Db, scenarioId: string, sessionId: string, inject
       .insert({ session_id: sessionId, seat_id: r.seatId, contact_key: contactKey, direction: 'in' })
       .select('id')
       .single<any>();
-    await broadcast(topic, 'call', { id: call?.id, contact_key: contactKey, direction: 'in' });
+    if (topic) await broadcast(topic, 'call', { id: call?.id, contact_key: contactKey, direction: 'in' });
     return;
   }
 
   if (inject.kind === 'situation') {
-    await broadcast(topic, 'situation', { text: String(payload.text ?? payload.body ?? ''), document: payload.document ?? null });
+    if (topic) await broadcast(topic, 'situation', { text: String(payload.text ?? payload.body ?? ''), document: payload.document ?? null });
     return;
   }
 }

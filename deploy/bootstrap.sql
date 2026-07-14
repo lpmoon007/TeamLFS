@@ -2,7 +2,7 @@
 -- The Signal — one-shot bootstrap for a Supabase project.
 -- Paste into the Supabase SQL Editor and Run. It:
 --   1) RESETS the public schema (drops any prior build), then
---   2) applies migrations 0001-0013, then
+--   2) applies migrations 0001-0014, then
 --   3) seeds the "The Signal" scenario (+ a demo session for testing).
 -- Generated — do not hand-edit; regenerate with scripts/build-bootstrap.sh.
 -- =============================================================================
@@ -1074,6 +1074,27 @@ comment on table behavioral_panel is
 comment on table panel_norms is
   'Cohort reference ranges for the panel, accumulated as runs land. Panels read '
   'provisional until N is sufficient (~30-50 per cohort).';
+
+-- ==== 0014_channel_key.sql ====
+
+-- =============================================================================
+-- TLFS — per-seat realtime channel secret. Directed Realtime events (a seat's private
+-- messages, injects, emails, calls) were broadcast on a topic keyed by the seat's SLUG
+-- (signal:session:<uuid>:seat:ceo), which any participant who knows the session UUID can
+-- guess and subscribe to — cross-seat eavesdropping within a session. This adds an
+-- unguessable per-participant `channel_key`; the directed channel is now keyed on it, so
+-- only the seat's own occupant (who received the key in their bundle) can subscribe.
+-- Shared channels (room deliberation, presence) stay session-scoped by design.
+--
+-- Additive; existing rows get a random key via the default. The authoritative store stays
+-- Postgres (RLS); this hardens the low-latency delivery layer on top of it.
+-- =============================================================================
+
+alter table participants add column if not exists channel_key uuid not null default gen_random_uuid();
+
+comment on column participants.channel_key is
+  'Unguessable per-seat secret keying the directed Realtime channel (prevents cross-seat '
+  'eavesdropping). Delivered to the client in its own bundle only; never to teammates.';
 
 -- ==== seed.sql ====
 

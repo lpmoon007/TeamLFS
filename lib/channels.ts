@@ -1,9 +1,11 @@
 // Realtime channel names — shared by the browser (subscribe) and the server
 // (broadcast). Keep these in one place so both sides always agree.
 
-/** Per-seat channel: directed events (messages/emails/calls/injects) for one seat. */
-export function seatChannel(sessionId: string, seatKey: string): string {
-  return `signal:session:${sessionId}:seat:${seatKey}`;
+/** Per-seat DIRECTED channel (messages/emails/calls/injects for one seat). Keyed on the
+ *  participant's unguessable `channel_key` — NOT the seat slug — so a teammate who knows
+ *  the session id can't subscribe to another seat's private stream. */
+export function seatChannel(sessionId: string, channelKey: string): string {
+  return `signal:session:${sessionId}:seat:${channelKey}`;
 }
 
 /** Session-wide presence channel: every seat joins → everyone sees who's online. */
