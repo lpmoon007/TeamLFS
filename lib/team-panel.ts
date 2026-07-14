@@ -29,18 +29,20 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
   if (!session) return null;
 
   const [{ data: parts }, { data: rawEvents }, { data: resolution }] = await Promise.all([
-    db.from('participants').select('id, cast_kind, seat:seats!inner(key)').eq('session_id', sessionId),
+    db.from('participants').select('id, seat_id, cast_kind, seat:seats!inner(key)').eq('session_id', sessionId),
     db.from('events').select('participant_id, ts, scenario_ms, type, target, payload_json').eq('session_id', sessionId).order('ts', { ascending: true }),
     db.from('inject_resolution').select('seat_id, inject_id, state').eq('session_id', sessionId),
   ]);
 
   const seatByParticipant = new Map<string, { key: string; ai: boolean }>();
+  const seatIdToKey = new Map<string, string>(); // seats.id → key (inject_resolution is seat-keyed)
   const seats: SeatRef[] = [];
   const roster: Roster[] = [];
   for (const p of (parts ?? []) as any[]) {
     const key = p.seat?.key ?? p.id;
     const ai = p.cast_kind === 'ai';
     seatByParticipant.set(p.id, { key, ai });
+    if (p.seat_id) seatIdToKey.set(p.seat_id, key);
     seats.push({ id: key, ai });
     roster.push({ participantId: p.id, seatKey: key, ai });
   }
@@ -73,6 +75,11 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
       stream.push({ t: at(e), week: 1, phase: 'decide', actor: p.seat ?? 'system', type: 'decision_lock', target: p.optionId, meta: { optionId: p.optionId, unanimous: !!p.unanimous, dissenters: p.dissenters ?? [] } });
     } else if (e.type === 'pressure') {
       stream.push({ t: at(e), week: 1, phase: 'deliberate', actor: 'system', type: 'pressure', meta: { severity: Number(p.severity) || 2 } });
+    } else if (e.type === 'thread_opened' || e.type === 'email_read') {
+      // a seat attending to someone else's content → 'read' (feeds B6 mutual monitoring).
+      const seat = e.participant_id ? seatByParticipant.get(e.participant_id) : null;
+      if (!seat || !e.target) continue;
+      stream.push({ t: rel(e.ts), week: 1, phase: 'deliberate', actor: seat.key, type: 'read', target: e.target, meta: {} });
     }
   }
 
@@ -84,8 +91,10 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
     if (r.state === 'addressed') {
       // Addressed at all during the session → counts as surfaced-in-time. inject_resolution
       // carries no addressed-timestamp, so we stamp early (t=1) rather than guess a time that
-      // could fall the wrong side of an early lock. Credit is collective (actor 'system').
-      stream.push({ t: 1, week: 1, phase: 'deliberate', actor: 'system', type: 'hold_surface', ref: r.inject_id, meta: { hold: r.inject_id, route: 'volunteered' } });
+      // could fall the wrong side of an early lock. Attributed to the surfacing seat (feeds
+      // B4 unique-info sharing); coverage still counts it collectively regardless of actor.
+      const actor = (r.seat_id && seatIdToKey.get(r.seat_id)) || 'system';
+      stream.push({ t: 1, week: 1, phase: 'deliberate', actor, type: 'hold_surface', ref: r.inject_id, meta: { hold: r.inject_id, route: 'volunteered' } });
     }
   }
   // Fallback decision_lock at session end ONLY when the room never locked one itself — the

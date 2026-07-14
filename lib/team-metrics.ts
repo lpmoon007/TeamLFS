@@ -350,15 +350,36 @@ export function deriveSeatTierB(stream: TeamEvent[], seats: SeatRef[], seatId: s
   );
   const b3 = othersOptions.size ? stancedOnOthers.size / othersOptions.size : 0;
   const b3Ex = othersOptions.size > 0;
-  void humanIds;
+
+  // B4 — unique-information sharing: this seat's share of the holds the room surfaced.
+  const surfacers = stream.filter((e) => e.type === 'hold_surface');
+  const surfacedTotal = new Set(surfacers.map((e) => String(e.ref ?? e.meta?.hold))).size;
+  const surfacedByS = new Set(surfacers.filter((e) => e.actor === seatId).map((e) => String(e.ref ?? e.meta?.hold))).size;
+  const b4 = surfacedTotal ? surfacedByS / surfacedTotal : 0;
+  const b4Ex = surfacedTotal > 0;
+
+  // B5 — responsiveness / closed-loop: of the teammates who messaged this seat, how many
+  // did it message back? (a directed reply closes the loop).
+  const inbound = new Set(stream.filter((e) => e.type === 'message' && e.target === seatId && e.actor !== seatId && humanIds.has(e.actor)).map((e) => e.actor));
+  const repliedTo = new Set(stream.filter((e) => e.type === 'message' && e.actor === seatId && e.target && inbound.has(String(e.target))).map((e) => String(e.target)));
+  const b5 = inbound.size ? repliedTo.size / inbound.size : 0;
+  const b5Ex = inbound.size > 0;
+
+  // B6 — mutual monitoring: distinct teammates whose content this seat read / opened.
+  // Only exercised when the session actually captured read events (else it's uninstrumented,
+  // not "monitored nobody" — the §2 honesty rule).
+  const anyReads = stream.some((e) => e.type === 'read');
+  const monitored = new Set(stream.filter((e) => e.type === 'read' && e.actor === seatId && e.target && e.target !== seatId && humanIds.has(String(e.target))).map((e) => String(e.target)));
+  const b6 = nH > 1 ? monitored.size / (nH - 1) : 0;
+  const b6Ex = nH >= 2 && anyReads;
 
   const markers: SeatMarker[] = [
     { key: 'B1', label: SEAT_B_LABELS.B1, normalized: b1Ex ? Math.round(b1 * 100) : null, exercised: b1Ex, confidence: 'high' },
     { key: 'B2', label: SEAT_B_LABELS.B2, normalized: b2Ex ? Math.round(b2 * 100) : null, exercised: b2Ex, confidence: 'medium' },
     { key: 'B3', label: SEAT_B_LABELS.B3, normalized: b3Ex ? Math.round(b3 * 100) : null, exercised: b3Ex, confidence: 'medium' },
-    { key: 'B4', label: SEAT_B_LABELS.B4, normalized: null, exercised: false, confidence: 'low' },
-    { key: 'B5', label: SEAT_B_LABELS.B5, normalized: null, exercised: false, confidence: 'low' },
-    { key: 'B6', label: SEAT_B_LABELS.B6, normalized: null, exercised: false, confidence: 'low' },
+    { key: 'B4', label: SEAT_B_LABELS.B4, normalized: b4Ex ? Math.round(b4 * 100) : null, exercised: b4Ex, confidence: 'medium' },
+    { key: 'B5', label: SEAT_B_LABELS.B5, normalized: b5Ex ? Math.round(b5 * 100) : null, exercised: b5Ex, confidence: 'medium' },
+    { key: 'B6', label: SEAT_B_LABELS.B6, normalized: b6Ex ? Math.round(b6 * 100) : null, exercised: b6Ex, confidence: 'low' },
   ];
   const scored = markers.filter((m) => m.exercised && m.normalized !== null);
   let num = 0;
