@@ -160,9 +160,23 @@ export async function buildSoloDebriefForFacilitator(sessionId: string): Promise
 async function buildSoloDebriefCore(
   db: ReturnType<typeof createAdminClient>,
   session: any,
-  participantId: string,
+  viewerId: string,
 ): Promise<SoloDebriefResult> {
   const sessionId: string = session.id;
+
+  // team-cast: the run's scored artifacts (rulings, drivers, panel, lens, spine) all live
+  // under the CEO seat's participant — the run owner — so every seat sees the same run
+  // debrief. Plain solo: the viewer IS the owner. (Per-person Tier B is layered on separately.)
+  let participantId = viewerId;
+  if (session.run_config?.team_cast) {
+    const { data: owner } = await db
+      .from('participants')
+      .select('id, seat:seats!inner(key)')
+      .eq('session_id', sessionId)
+      .eq('seat.key', 'ceo')
+      .maybeSingle<any>();
+    if (owner?.id) participantId = owner.id;
+  }
 
   const [{ data: scenario }, { data: contentDoc }, { data: rulings }, { data: driverRows }, { data: events }] =
     await Promise.all([
