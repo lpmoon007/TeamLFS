@@ -21,7 +21,7 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
 
   const [{ data: parts }, { data: rawEvents }, { data: resolution }] = await Promise.all([
     db.from('participants').select('id, cast_kind, seat:seats!inner(key)').eq('session_id', sessionId),
-    db.from('events').select('participant_id, ts, type, target, payload_json').eq('session_id', sessionId).order('ts', { ascending: true }),
+    db.from('events').select('participant_id, ts, scenario_ms, type, target, payload_json').eq('session_id', sessionId).order('ts', { ascending: true }),
     db.from('inject_resolution').select('seat_id, inject_id, state').eq('session_id', sessionId),
   ]);
 
@@ -39,15 +39,30 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
   const endMs = session.ended_at ? new Date(session.ended_at).getTime() : events.length ? new Date(events[events.length - 1].ts).getTime() : startMs;
   const rel = (ts: string) => new Date(ts).getTime() - startMs;
 
+  // All team weeks collapse to one act (the room is continuous), so week:1 throughout.
+  // t is scenario_ms where the emitter stamped it authoritatively (proposal/stance/
+  // decision_lock/pressure), else rel(ts) — both are ms-since-start, one axis.
+  const at = (e: any) => (typeof e.scenario_ms === 'number' ? e.scenario_ms : rel(e.ts));
   const stream: TeamEvent[] = [];
-  // message events → airtime. All team weeks collapse to one act (the room is continuous),
-  // so week:1 throughout; the single decision_lock below is the deadline coverage beats.
+  let sawLock = false;
   for (const e of events) {
-    if (e.type !== 'message_sent') continue;
-    const seat = e.participant_id ? seatByParticipant.get(e.participant_id) : null;
-    if (!seat) continue;
-    const chars = Number(e.payload_json?.length ?? (typeof e.payload_json?.body === 'string' ? e.payload_json.body.length : 0)) || 1;
-    stream.push({ t: rel(e.ts), week: 1, phase: 'deliberate', actor: seat.key, type: 'message', target: e.target ?? null, meta: { chars, channel: 'room' } });
+    const p = e.payload_json ?? {};
+    if (e.type === 'message_sent') {
+      const seat = e.participant_id ? seatByParticipant.get(e.participant_id) : null;
+      if (!seat) continue;
+      const chars = Number(p.length ?? (typeof p.body === 'string' ? p.body.length : 0)) || 1;
+      stream.push({ t: rel(e.ts), week: 1, phase: 'deliberate', actor: seat.key, type: 'message', target: e.target ?? null, meta: { chars, channel: 'room' } });
+    } else if (e.type === 'proposal' && p.optionId) {
+      const actor = p.seat ?? (e.participant_id ? seatByParticipant.get(e.participant_id)?.key : null) ?? 'system';
+      stream.push({ t: at(e), week: 1, phase: 'deliberate', actor, type: 'proposal', meta: { optionId: p.optionId, summary: p.summary } });
+    } else if (e.type === 'stance' && p.optionId && p.seat) {
+      stream.push({ t: at(e), week: 1, phase: 'deliberate', actor: p.seat, type: 'stance', target: p.optionId, meta: { optionId: p.optionId, valence: Number(p.valence) } });
+    } else if (e.type === 'decision_lock' && p.optionId) {
+      sawLock = true;
+      stream.push({ t: at(e), week: 1, phase: 'decide', actor: p.seat ?? 'system', type: 'decision_lock', target: p.optionId, meta: { optionId: p.optionId, unanimous: !!p.unanimous, dissenters: p.dissenters ?? [] } });
+    } else if (e.type === 'pressure') {
+      stream.push({ t: at(e), week: 1, phase: 'deliberate', actor: 'system', type: 'pressure', meta: { severity: Number(p.severity) || 2 } });
+    }
   }
 
   // holds = injects that required a response (every inject_resolution row); surfaced =
@@ -56,13 +71,17 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
   for (const r of (resolution ?? []) as any[]) {
     holds.push({ key: r.inject_id, week: 1 });
     if (r.state === 'addressed') {
-      // surfaced before the deadline (session end) → in-time. Credit is collective, so
-      // actor is 'system' here; the per-seat surfacing act is a later-instrumentation gain.
-      stream.push({ t: Math.max(0, endMs - startMs - 1), week: 1, phase: 'deliberate', actor: 'system', type: 'hold_surface', ref: r.inject_id, meta: { hold: r.inject_id, route: 'volunteered' } });
+      // Addressed at all during the session → counts as surfaced-in-time. inject_resolution
+      // carries no addressed-timestamp, so we stamp early (t=1) rather than guess a time that
+      // could fall the wrong side of an early lock. Credit is collective (actor 'system').
+      stream.push({ t: 1, week: 1, phase: 'deliberate', actor: 'system', type: 'hold_surface', ref: r.inject_id, meta: { hold: r.inject_id, route: 'volunteered' } });
     }
   }
-  // one synthetic decision_lock at session end — the deadline all held info had to beat.
-  stream.push({ t: Math.max(1, endMs - startMs), week: 1, phase: 'decide', actor: 'system', type: 'decision_lock', meta: {} });
+  // Fallback decision_lock at session end ONLY when the room never locked one itself — the
+  // deadline all held info had to beat, so coverage still reads for legacy sessions.
+  if (!sawLock) {
+    stream.push({ t: Math.max(1, endMs - startMs), week: 1, phase: 'decide', actor: 'system', type: 'decision_lock', meta: {} });
+  }
 
   return { stream, holds, seats };
 }

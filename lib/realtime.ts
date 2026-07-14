@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import { seatChannel, sessionPresenceChannel } from '@/lib/channels';
+import { seatChannel, sessionPresenceChannel, sessionRoomChannel } from '@/lib/channels';
 
 // Two channels per participant:
 //  1. seat channel  — directed events (messages/emails/calls/injects) for THIS seat.
@@ -60,6 +60,25 @@ export function useParticipantChannel(opts: {
   }, [enabled, sessionId, seatKey]);
 
   return { connected };
+}
+
+/** Subscribe to the session-wide room channel — shared deliberation signals (proposal /
+ *  stance / decision_lock). Fires `onRoom` on any room event so the board can refetch. */
+export function useRoomChannel(opts: { sessionId: string; enabled: boolean; onRoom?: (payload: any) => void }) {
+  const { sessionId, enabled, onRoom } = opts;
+  const onRoomRef = useRef(onRoom);
+  onRoomRef.current = onRoom;
+
+  useEffect(() => {
+    if (!enabled) return;
+    const supabase = getBrowserClient();
+    const channel = supabase.channel(sessionRoomChannel(sessionId), { config: { broadcast: { self: false } } });
+    channel.on('broadcast', { event: 'room' }, ({ payload }) => onRoomRef.current?.(payload));
+    channel.subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [enabled, sessionId]);
 }
 
 /**

@@ -2,18 +2,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Contact, EmailRow, MessageRow, SeatBundle, ThreadView as ThreadViewT } from '@/lib/types';
 import { acceptDisclaimer, documentAction, logEvent, markEmailRead, sendMessage, type DocAction } from '@/lib/actions';
-import { useParticipantChannel, useSessionPresence, type RealtimeEvent } from '@/lib/realtime';
+import { getDecisionBoard, postProposal, postStance, lockDecision } from '@/lib/deliberation';
+import type { DecisionBoard, Valence } from '@/lib/deliberation-types';
+import { useParticipantChannel, useSessionPresence, useRoomChannel, type RealtimeEvent } from '@/lib/realtime';
 import { colorFrom } from '@/lib/ui';
 import { Header } from './Header';
 import { LeftPanel } from './LeftPanel';
 import { ThreadView } from './ThreadView';
 import { EmailView } from './EmailView';
+import { DecisionRoom } from './DecisionRoom';
 import { CallOverlay } from './CallOverlay';
 import { BriefModal } from './BriefModal';
 import { DisclaimerModal } from './DisclaimerModal';
 import { Curtain } from './Curtain';
 
-type Selection = { kind: 'thread'; contactKey: string } | { kind: 'email'; id: string } | null;
+type Selection = { kind: 'thread'; contactKey: string } | { kind: 'email'; id: string } | { kind: 'decision' } | null;
 interface FeedItem { id: string; text: string }
 
 // Orchestrates the participant experience: three-zone layout + overlays, with the
@@ -32,6 +35,7 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
   const [fullSituationOpen, setFullSituationOpen] = useState(false);
   const [call, setCall] = useState<{ contact: Contact; direction: 'in' | 'out'; callId?: string | null } | null>(null);
   const [ended, setEnded] = useState(session.status === 'ended');
+  const [board, setBoard] = useState<DecisionBoard>({ options: [], lock: null });
 
   // Teammates (other real participants) are conversable too — synthesize pseudo-
   // contacts so threads/selection resolve uniformly with NPC contacts.
@@ -113,6 +117,38 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
     name: seat.name,
     enabled: accepted && !ended,
   });
+
+  // ---- Decision Room: the shared board is reconstructed server-side from the log;
+  // load it once, then refetch on any room broadcast (a teammate proposed / stanced / locked).
+  const refreshBoard = useCallback(() => {
+    void getDecisionBoard(session.id).then(setBoard);
+  }, [session.id]);
+  useEffect(() => {
+    if (accepted && !ended) refreshBoard();
+  }, [accepted, ended, refreshBoard]);
+  useRoomChannel({ sessionId: session.id, enabled: accepted && !ended, onRoom: () => refreshBoard() });
+
+  const propose = useCallback(
+    async (summary: string) => {
+      const res = await postProposal({ sessionId: session.id, participantId: participant.id, seatId: seat.id, seatKey: seat.key, summary });
+      if (res.ok) refreshBoard();
+    },
+    [session.id, participant.id, seat.id, seat.key, refreshBoard],
+  );
+  const takeStance = useCallback(
+    async (optionId: string, valence: Valence) => {
+      const res = await postStance({ sessionId: session.id, participantId: participant.id, seatId: seat.id, seatKey: seat.key, optionId, valence });
+      if (res.ok) refreshBoard();
+    },
+    [session.id, participant.id, seat.id, seat.key, refreshBoard],
+  );
+  const lock = useCallback(
+    async (optionId: string) => {
+      const res = await lockDecision({ sessionId: session.id, participantId: participant.id, seatId: seat.id, seatKey: seat.key, optionId });
+      if (res.ok) refreshBoard();
+    },
+    [session.id, participant.id, seat.id, seat.key, refreshBoard],
+  );
 
   // ---- derived: unread + last-message preview per contact ----
   const { unreadByContact, lastByContact } = useMemo(() => {
@@ -307,6 +343,9 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
           onSelectThread={selectThread}
           onSelectEmail={selectEmail}
           onOpenFullBrief={() => setFullSituationOpen(true)}
+          onOpenDecision={() => setSelection({ kind: 'decision' })}
+          decisionActive={selection?.kind === 'decision'}
+          decisionBadge={board.lock ? '✓' : board.options.length || null}
         />
 
         {selection?.kind === 'thread' && selectedContact !== undefined ? (
@@ -327,6 +366,16 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
             onApprove={() => void actOnDocument(selectedEmail.id, 'approve')}
             onReturn={(reason) => void actOnDocument(selectedEmail.id, 'return', { reason })}
             onEdit={(text) => void actOnDocument(selectedEmail.id, 'edit', { text })}
+          />
+        ) : selection?.kind === 'decision' ? (
+          <DecisionRoom
+            board={board}
+            seatKey={seat.key}
+            teammates={teammates}
+            canAct={canSend}
+            onProposal={(summary) => void propose(summary)}
+            onStance={(optionId, valence) => void takeStance(optionId, valence)}
+            onLock={(optionId) => void lock(optionId)}
           />
         ) : (
           <div className="main">

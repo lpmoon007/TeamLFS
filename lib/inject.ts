@@ -39,7 +39,7 @@ export async function fireInject(
 
   const { data: session } = await db
     .from('sessions')
-    .select('id, scenario_id, status')
+    .select('id, scenario_id, status, started_at')
     .eq('id', sessionId)
     .maybeSingle<any>();
   if (!session || session.status !== 'live') return { ok: false, fired: false, reason: 'session_not_live' };
@@ -90,6 +90,25 @@ export async function fireInject(
       payload_json: { inject_id: inject.id, kind: inject.kind, ...summarize(payload) },
     });
     delivered++;
+  }
+
+  // Tier-B reference frame (Team Event-Log Spec §2): the engine raising stakes. One
+  // session-level `pressure` event per fired inject — it opens the stress window that
+  // resilience measures deliberation diversity within. Severity authored on the inject
+  // (default 2 = enough to count as an episode). scenario_ms authoritative from start.
+  if (delivered > 0) {
+    const startMs = session.started_at ? new Date(session.started_at).getTime() : Date.now();
+    const severity = Number(payload.severity ?? payload.sev) || 2;
+    await db.from('events').insert({
+      session_id: sessionId,
+      participant_id: null,
+      seat_id: null,
+      type: 'pressure',
+      channel: 'system',
+      target: null,
+      scenario_ms: Math.max(0, Date.now() - startMs),
+      payload_json: { inject_id: inject.id, kind: inject.kind, severity },
+    });
   }
 
   return { ok: true, fired: true, kind: inject.kind, delivered, cond };

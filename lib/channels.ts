@@ -10,3 +10,9 @@ export function seatChannel(sessionId: string, seatKey: string): string {
 export function sessionPresenceChannel(sessionId: string): string {
   return `signal:session:${sessionId}:presence`;
 }
+
+/** Session-wide room channel: shared deliberation events (proposals / stances /
+ *  decision-lock) that every seat must see, not just one recipient. */
+export function sessionRoomChannel(sessionId: string): string {
+  return `signal:session:${sessionId}:room`;
+}

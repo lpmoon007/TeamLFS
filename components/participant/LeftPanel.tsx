@@ -18,6 +18,9 @@ export function LeftPanel({
   onSelectThread,
   onSelectEmail,
   onOpenFullBrief,
+  onOpenDecision,
+  decisionActive,
+  decisionBadge,
 }: {
   openingBrief: DocumentRow | null;
   feed: FeedItem[];
@@ -32,6 +35,9 @@ export function LeftPanel({
   onSelectThread: (contactKey: string) => void;
   onSelectEmail: (id: string) => void;
   onOpenFullBrief: () => void;
+  onOpenDecision: () => void;
+  decisionActive: boolean;
+  decisionBadge?: string | number | null;
 }) {
   const summary = (openingBrief?.body_json?.text as string | undefined) ?? '';
   const external = contacts.filter((c) => c.section === 'EXTERNAL');
@@ -55,6 +61,17 @@ export function LeftPanel({
               {summary ? truncate(summary, 320) : 'Awaiting situation brief…'}
             </div>
           </div>
+        </section>
+
+        {/* Decision Room — the team's shared deliberation surface */}
+        <section className="panel">
+          <button className={`droom-nav${decisionActive ? ' active' : ''}`} onClick={onOpenDecision}>
+            <span className="droom-nav-main">
+              <span className="droom-nav-title">Decision Room</span>
+              <span className="droom-nav-sub">Propose · take a stance · lock the call</span>
+            </span>
+            {decisionBadge ? <span className="droom-nav-badge">{decisionBadge}</span> : null}
+          </button>
         </section>
 
         {/* Live feed */}
