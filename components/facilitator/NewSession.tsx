@@ -17,6 +17,7 @@ export function NewSession({ scenarios }: { scenarios: ScenarioOption[] }) {
   const [open, setOpen] = useState(false);
   const [scenarioId, setScenarioId] = useState(scenarios[0]?.id ?? '');
   const [disposition, setDisposition] = useState('request');
+  const [castAsTeam, setCastAsTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ sessionId: string; mode: string; links: SessionLink[] } | null>(null);
   const [err, setErr] = useState('');
@@ -27,7 +28,11 @@ export function NewSession({ scenarios }: { scenarios: ScenarioOption[] }) {
   const create = async () => {
     setBusy(true);
     setErr('');
-    const res = await createSession({ scenarioId, disposition: chosen?.mode === 'solo' ? disposition : undefined });
+    const res = await createSession({
+      scenarioId,
+      disposition: chosen?.mode === 'solo' ? disposition : undefined,
+      castAsTeam: chosen?.mode === 'solo' ? castAsTeam : undefined,
+    });
     setBusy(false);
     if (res.ok && res.sessionId) setResult({ sessionId: res.sessionId, mode: res.mode ?? 'team', links: res.links ?? [] });
     else setErr(res.reason ?? 'failed');
@@ -57,7 +62,7 @@ export function NewSession({ scenarios }: { scenarios: ScenarioOption[] }) {
                     ))}
                   </select>
                 </label>
-                {chosen?.mode === 'solo' ? (
+                {chosen?.mode === 'solo' && !castAsTeam ? (
                   <label>
                     Disposition
                     <select value={disposition} onChange={(e) => setDisposition(e.target.value)}>
@@ -70,10 +75,21 @@ export function NewSession({ scenarios }: { scenarios: ScenarioOption[] }) {
                   </label>
                 ) : null}
               </div>
+              {chosen?.mode === 'solo' ? (
+                <label className="ns-check">
+                  <input type="checkbox" checked={castAsTeam} onChange={(e) => setCastAsTeam(e.target.checked)} />
+                  <span>
+                    <b>Cast as a team</b> — fill every seat with a real player. The room deliberates and locks each weekly
+                    call together in the Decision Room (anyone can lock). Advisors hold their own info to surface.
+                  </span>
+                </label>
+              ) : null}
               <p className="db-sub">
                 Creates a <b>live</b> session with fresh magic links.{' '}
                 {chosen?.mode === 'solo'
-                  ? 'The CEO seat gets a link; advisors are AI-cast.'
+                  ? castAsTeam
+                    ? 'Every seat gets a link — the solo scenario, played by a whole team.'
+                    : 'The CEO seat gets a link; advisors are AI-cast.'
                   : 'Every seat gets its own participant link.'}
               </p>
               {err ? <div className="fac-flash">Couldn’t create: {err}</div> : null}
