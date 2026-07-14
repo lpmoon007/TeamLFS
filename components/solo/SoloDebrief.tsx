@@ -122,6 +122,47 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
           </>
         ) : null}
 
+        {d.divergence ? (
+          <>
+            <div className="res-h">The two axes — your judgment × your teaming</div>
+            {d.divergence.quadrant === 'na' ? (
+              <div className="read">
+                The panel reads on <b>two independent axes</b>: executive judgment (how you decide, measured in solo runs) and teaming
+                contribution (how you lift a room, measured in team runs).
+                {d.divergence.teamRuns === 0
+                  ? ' You have solo runs on record but no team session yet — play one to unlock your teaming axis and see where the two cross.'
+                  : d.divergence.soloRuns === 0
+                    ? ' You have team runs on record but no scored solo run yet — the two axes cross once both exist.'
+                    : ' Both axes need a run to place you.'}
+              </div>
+            ) : (
+              <div className={`quad q-${d.divergence.quadrant}`}>
+                <div className="quad-grid" aria-hidden>
+                  <div className="quad-cell tl">Connector</div>
+                  <div className="quad-cell tr">Multiplier</div>
+                  <div className="quad-cell bl">Still forming</div>
+                  <div className="quad-cell br">Lone Genius</div>
+                  <div
+                    className="quad-dot"
+                    style={{ left: `${d.divergence.tierA ?? 0}%`, bottom: `${d.divergence.tierB ?? 0}%` }}
+                    title={`Judgment ${d.divergence.tierA} · Teaming ${d.divergence.tierB}`}
+                  />
+                  <div className="quad-axis-x">Executive judgment →</div>
+                  <div className="quad-axis-y">Teaming →</div>
+                </div>
+                <div className="quad-read">
+                  <div className="quad-label">{d.divergence.label}</div>
+                  <div className="quad-scores">
+                    Judgment <b>{d.divergence.tierA}</b> ({d.divergence.soloRuns} solo{d.divergence.soloRuns === 1 ? '' : ' runs'}) · Teaming{' '}
+                    <b>{d.divergence.tierB}</b> ({d.divergence.teamRuns} team{d.divergence.teamRuns === 1 ? '' : ' runs'})
+                  </div>
+                  <p>{d.divergence.read}</p>
+                </div>
+              </div>
+            )}
+          </>
+        ) : null}
+
         <div className="res-h">The team you walked in with — {d.dispositionLabel}</div>
         <div className="read">{d.dispositionRead}</div>
 

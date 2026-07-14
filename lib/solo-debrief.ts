@@ -99,6 +99,7 @@ export interface SoloDebrief {
   coaching: SoloCoachBlock[];
   lens: LensRead | null; // Layer-3 LDOL read over the spine trait scores (if scored)
   panel: SoloPanelRead | null; // Behavioral Panel (Two-Tier Spec) — Tier A draw for this run
+  divergence: import('@/lib/divergence').Divergence | null; // cross-session Tier A × Tier B quadrant
 }
 
 export type SoloDebriefResult =
@@ -427,6 +428,17 @@ async function buildSoloDebriefCore(
     };
   }
 
+  // Cross-session divergence quadrant (Two-Tier Spec §5): this person's solo Tier A ×
+  // team Tier B, read off their subject spine. Absent (null) when we can't resolve a
+  // stable identity for the seat.
+  let divergence: import('@/lib/divergence').Divergence | null = null;
+  const { subjectForParticipant } = await import('@/lib/spine');
+  const subjectId = await subjectForParticipant(db, sessionId, participantId);
+  if (subjectId) {
+    const { subjectDivergence } = await import('@/lib/divergence');
+    divergence = await subjectDivergence(db, subjectId);
+  }
+
   return {
     ok: true,
     debrief: {
@@ -451,6 +463,7 @@ async function buildSoloDebriefCore(
       coaching,
       lens,
       panel,
+      divergence,
     },
   };
 }

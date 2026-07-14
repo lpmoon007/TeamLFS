@@ -1,8 +1,15 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { deriveTeamMetrics, type TeamEvent, type SeatRef, type HoldRef, type TeamMetricsResult } from '@/lib/team-metrics';
+import { deriveTeamMetrics, deriveSeatTierB, type TeamEvent, type SeatRef, type HoldRef, type TeamMetricsResult } from '@/lib/team-metrics';
 import { PANEL_TAXONOMY, PANEL_SCORER } from '@/lib/panel';
 import { readNormsMap, readMarkerNorm, recomputePanelNorms } from '@/lib/panel-norms';
+import { subjectForParticipant } from '@/lib/spine';
+
+interface Roster {
+  participantId: string;
+  seatKey: string;
+  ai: boolean;
+}
 
 type Db = ReturnType<typeof createAdminClient>;
 
@@ -17,7 +24,7 @@ type Db = ReturnType<typeof createAdminClient>;
 // Those come online when the room grows real deliberation affordances.
 
 /** Build the Tier-B stream + holds + seat roster for a team session from the real log. */
-async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: TeamEvent[]; holds: HoldRef[]; seats: SeatRef[] } | null> {
+async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: TeamEvent[]; holds: HoldRef[]; seats: SeatRef[]; roster: Roster[] } | null> {
   const { data: session } = await db.from('sessions').select('id, started_at, ended_at').eq('id', sessionId).maybeSingle<any>();
   if (!session) return null;
 
@@ -29,11 +36,13 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
 
   const seatByParticipant = new Map<string, { key: string; ai: boolean }>();
   const seats: SeatRef[] = [];
+  const roster: Roster[] = [];
   for (const p of (parts ?? []) as any[]) {
     const key = p.seat?.key ?? p.id;
     const ai = p.cast_kind === 'ai';
     seatByParticipant.set(p.id, { key, ai });
     seats.push({ id: key, ai });
+    roster.push({ participantId: p.id, seatKey: key, ai });
   }
 
   const events = (rawEvents ?? []) as any[];
@@ -85,7 +94,7 @@ async function buildTeamStream(db: Db, sessionId: string): Promise<{ stream: Tea
     stream.push({ t: Math.max(1, endMs - startMs), week: 1, phase: 'decide', actor: 'system', type: 'decision_lock', meta: {} });
   }
 
-  return { stream, holds, seats };
+  return { stream, holds, seats, roster };
 }
 
 /** The team Tier-B board for a session, with cohort reference ranges overlaid onto each
@@ -129,22 +138,50 @@ export async function persistTeamPanel(sessionId: string): Promise<void> {
     markers[m.key] = { key: m.key, label: m.label, tier: 'B', raw: null, normalized: m.score, percentile: null, confidence: 'medium', exercised: m.exercised };
   }
 
-  await db.from('behavioral_panel').delete().eq('session_id', sessionId).is('participant_id', null);
-  await db.from('behavioral_panel').insert({
-    session_id: sessionId,
-    participant_id: null,
-    subject_id: null,
-    scenario_id: session.scenario_id,
-    mode: 'team',
-    difficulty: 1,
-    markers: markers as any,
-    tier_a: null,
-    tier_b: result.healthIndex,
-    quadrant: 'na',
-    provisional: true,
-    taxonomy_version: PANEL_TAXONOMY,
-    scorer_version: PANEL_SCORER,
-  });
+  const rows: any[] = [
+    {
+      session_id: sessionId,
+      participant_id: null,
+      subject_id: null,
+      scenario_id: session.scenario_id,
+      mode: 'team',
+      difficulty: 1,
+      markers: markers as any, // room-level metrics (airtime/resilience/coverage/safety)
+      tier_a: null,
+      tier_b: result.healthIndex,
+      quadrant: 'na',
+      provisional: true,
+      taxonomy_version: PANEL_TAXONOMY,
+      scorer_version: PANEL_SCORER,
+    },
+  ];
+
+  // Per-person Tier B — one row per human seat, attributed to their cross-session subject,
+  // so the divergence quadrant can pair a person's team contribution with their solo judgment.
+  for (const r of built.roster.filter((x) => !x.ai)) {
+    const seatB = deriveSeatTierB(built.stream, built.seats, r.seatKey);
+    const subjectId = await subjectForParticipant(db, sessionId, r.participantId);
+    const seatMarkers = Object.fromEntries(seatB.markers.map((m) => [m.key, m]));
+    rows.push({
+      session_id: sessionId,
+      participant_id: r.participantId,
+      subject_id: subjectId,
+      scenario_id: session.scenario_id,
+      mode: 'team',
+      difficulty: 1,
+      markers: seatMarkers as any,
+      tier_a: null,
+      tier_b: seatB.tierB,
+      quadrant: 'na',
+      provisional: true,
+      taxonomy_version: PANEL_TAXONOMY,
+      scorer_version: PANEL_SCORER,
+    });
+  }
+
+  // Replace this session's team panel rows wholesale (team sessions carry no solo rows).
+  await db.from('behavioral_panel').delete().eq('session_id', sessionId);
+  await db.from('behavioral_panel').insert(rows);
   try {
     await recomputePanelNorms(db, 'team');
   } catch {

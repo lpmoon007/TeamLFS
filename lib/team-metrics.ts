@@ -282,6 +282,94 @@ function safety(stream: TeamEvent[], seats: SeatRef[]): TeamMetric {
 // exercised metrics count toward the index (weights renormalized over what was tested).
 const WEIGHTS: Record<string, number> = { airtime: 0.2, resilience: 0.35, coverage: 0.3, safety: 0.15 };
 
+// ---- per-person Tier B (teaming contribution) ---------------------------------
+// The team metrics above describe the ROOM. Tier B on the panel is per-PERSON: how much
+// THIS individual contributed to the team's functioning. Derived from what the stream
+// attributes to a seat — B1 pull-your-weight, B2 voice, B3 backup. B4 (unique-info),
+// B5 (responsiveness), B6 (mutual monitoring) need ask/answer/attributed-surface signals
+// the current room doesn't emit → reported not-exercised (never a fake 0).
+
+export interface SeatMarker {
+  key: string;
+  label: string;
+  normalized: number | null; // 0..100
+  exercised: boolean;
+  confidence: Confidence;
+}
+export interface SeatTierB {
+  seat: string;
+  markers: SeatMarker[];
+  tierB: number | null; // 0..100 composite (null when nothing exercised, e.g. a silent seat)
+}
+type Confidence = 'high' | 'medium' | 'low';
+const cw = (c: Confidence) => (c === 'high' ? 1 : c === 'medium' ? 0.6 : 0.3);
+
+const SEAT_B_LABELS: Record<string, string> = {
+  B1: 'Pulled their weight (airtime)',
+  B2: 'Voice — spoke up & proposed',
+  B3: 'Backup — engaged teammates’ ideas',
+  B4: 'Unique-information sharing',
+  B5: 'Responsiveness / closed-loop',
+  B6: 'Mutual monitoring',
+};
+
+export function deriveSeatTierB(stream: TeamEvent[], seats: SeatRef[], seatId: string): SeatTierB {
+  const humans = seats.filter((s) => !s.ai);
+  const humanIds = new Set(humans.map((s) => s.id));
+  const nH = Math.max(1, humans.length);
+
+  // contribution weight per seat (same basis as airtime)
+  const weight = new Map(humans.map((s) => [s.id, 0]));
+  for (const e of stream) {
+    if (!CONTRIB_TYPES.has(e.type) || !weight.has(e.actor)) continue;
+    const w = e.type === 'message' ? Math.min(MSG_CAP, Math.max(1, Number(e.meta?.chars) || 1)) / 60 : 1;
+    weight.set(e.actor, (weight.get(e.actor) as number) + w);
+  }
+  const total = [...weight.values()].reduce((a, b) => a + b, 0);
+  const share = total ? (weight.get(seatId) ?? 0) / total : 0;
+  const equal = 1 / nH;
+  // B1 — share relative to an equal cut, capped at 1 (above your share reads as full).
+  const b1 = clamp(share / equal, 0, 1);
+  const b1Ex = total > 0 && humans.length >= 2;
+
+  // B2 — voice: this seat's proposals + dissenting stances + (challenging) asks, relative
+  // to the most vocal seat in the room (so it's a within-room rate, not an absolute count).
+  const voiceOf = (id: string) =>
+    stream.filter((e) => e.actor === id && (e.type === 'proposal' || (e.type === 'stance' && Number(e.meta?.valence) === -1) || (e.type === 'ask' && e.meta?.challenge === true))).length;
+  const myVoice = voiceOf(seatId);
+  const maxVoice = Math.max(0, ...humans.map((s) => voiceOf(s.id)));
+  const b2 = maxVoice ? myVoice / maxVoice : 0;
+  const b2Ex = maxVoice > 0;
+
+  // B3 — backup: distinct OTHERS' options this seat put a stance on / others' options.
+  const optionAuthor = new Map<string, string>();
+  for (const e of stream) if (e.type === 'proposal' && e.meta?.optionId) optionAuthor.set(String(e.meta.optionId), e.actor);
+  const othersOptions = new Set([...optionAuthor.entries()].filter(([, a]) => a !== seatId).map(([o]) => o));
+  const stancedOnOthers = new Set(
+    stream.filter((e) => e.type === 'stance' && e.actor === seatId && e.meta?.optionId && othersOptions.has(String(e.meta.optionId))).map((e) => String(e.meta!.optionId)),
+  );
+  const b3 = othersOptions.size ? stancedOnOthers.size / othersOptions.size : 0;
+  const b3Ex = othersOptions.size > 0;
+  void humanIds;
+
+  const markers: SeatMarker[] = [
+    { key: 'B1', label: SEAT_B_LABELS.B1, normalized: b1Ex ? Math.round(b1 * 100) : null, exercised: b1Ex, confidence: 'high' },
+    { key: 'B2', label: SEAT_B_LABELS.B2, normalized: b2Ex ? Math.round(b2 * 100) : null, exercised: b2Ex, confidence: 'medium' },
+    { key: 'B3', label: SEAT_B_LABELS.B3, normalized: b3Ex ? Math.round(b3 * 100) : null, exercised: b3Ex, confidence: 'medium' },
+    { key: 'B4', label: SEAT_B_LABELS.B4, normalized: null, exercised: false, confidence: 'low' },
+    { key: 'B5', label: SEAT_B_LABELS.B5, normalized: null, exercised: false, confidence: 'low' },
+    { key: 'B6', label: SEAT_B_LABELS.B6, normalized: null, exercised: false, confidence: 'low' },
+  ];
+  const scored = markers.filter((m) => m.exercised && m.normalized !== null);
+  let num = 0;
+  let den = 0;
+  for (const m of scored) {
+    num += (m.normalized as number) * cw(m.confidence);
+    den += cw(m.confidence);
+  }
+  return { seat: seatId, markers, tierB: den ? Math.round(num / den) : null };
+}
+
 export function deriveTeamMetrics(stream: TeamEvent[], holds: HoldRef[], seats: SeatRef[]): TeamMetricsResult {
   const metrics = [airtime(stream, seats), resilience(stream, seats), coverage(stream, holds), safety(stream, seats)];
   let num = 0;
