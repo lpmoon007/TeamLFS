@@ -491,10 +491,10 @@ export async function soloTeamDecide(params: {
     payload_json: { dims: ruling.dims, deltas: ruling.deltas, branch: branchKey, team_cast: true, lockedBy: lockerKey },
   });
 
-  // broadcast so every seat in the room transitions to the resolution together
+  // broadcast the resolution so EVERY seat transitions together (not just the locker)
   const { broadcast } = await import('@/lib/realtime-server');
   const { sessionRoomChannel } = await import('@/lib/channels');
-  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'ruled', week: w.n, optionId: params.optionId });
+  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'ruled', week: w.n, ruling, drivers });
 
   if (w.final) {
     try {

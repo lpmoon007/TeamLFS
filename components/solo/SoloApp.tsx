@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useParticipantChannel } from '@/lib/realtime';
+import { useParticipantChannel, useRoomChannel } from '@/lib/realtime';
 import { logEvent } from '@/lib/actions';
-import { soloAsk, soloDecide, setRunDisposition } from '@/lib/solo-actions';
+import { soloAsk, soloDecide, setRunDisposition, soloTeamDecide, soloSurfaceHold } from '@/lib/solo-actions';
+import { getDecisionBoard, postProposal, postStance } from '@/lib/deliberation';
+import type { DecisionBoard, Valence } from '@/lib/deliberation-types';
 import type { Ruling } from '@/lib/solo-referee';
 import { initials as ini, colorFrom } from '@/lib/ui';
 import type { SoloBundle } from '@/lib/solo-data';
@@ -52,6 +54,13 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [askErr, setAskErr] = useState<string | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
+
+  // team-cast (Reading 1): the shared Decision Room + surfaced-hold feed.
+  const [board, setBoard] = useState<DecisionBoard>({ options: [], lock: null });
+  const [surfaced, setSurfaced] = useState<Set<string>>(new Set());
+  const [roomSurfaces, setRoomSurfaces] = useState<{ from: string; topic: string | null; text: string; critical: boolean }[]>([]);
+  const [propDraft, setPropDraft] = useState('');
+  const refreshBoard = () => { if (bundle.teamCast) void getDecisionBoard(bundle.sessionId).then(setBoard); };
 
   // the solo pages are the light "command" theme; keep the page background light so the
   // dark app theme never peeks on overscroll / short content.
@@ -108,6 +117,63 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   }, [timeline.length, asks.length]);
 
   const castByKey = useMemo(() => new Map(bundle.cast.map((c) => [c.seatKey, c])), [bundle.cast]);
+
+  // team-cast: load the shared board once, and react to room events (proposals/stances/
+  // locks → refetch; a teammate surfacing a hold → append; the ruling → transition together).
+  useEffect(() => { if (bundle.teamCast && phase === 'run') refreshBoard(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [bundle.teamCast, phase]);
+  useRoomChannel({
+    sessionId: bundle.sessionId,
+    enabled: bundle.teamCast && phase === 'run' && !decided,
+    onRoom: (p: any) => {
+      if (p?.kind === 'surface') {
+        setRoomSurfaces((s) => [...s, { from: p.from, topic: p.topic ?? null, text: p.text ?? '', critical: !!p.critical }]);
+      } else if (p?.kind === 'ruled' && p.ruling) {
+        setRuling(p.ruling as Ruling);
+        if (p.drivers) setDrivers(p.drivers);
+        setRunning(false);
+        setBuzzer(false);
+      } else {
+        refreshBoard();
+      }
+    },
+  });
+
+  const propose = async () => {
+    const s = propDraft.trim();
+    if (!s) return;
+    const res = await postProposal({ sessionId: bundle.sessionId, participantId: bundle.participantId, seatId: undefined, seatKey: bundle.seatKey, summary: s });
+    if (res.ok) { setPropDraft(''); refreshBoard(); }
+  };
+  const doStance = async (optionId: string, valence: Valence) => {
+    const res = await postStance({ sessionId: bundle.sessionId, participantId: bundle.participantId, seatKey: bundle.seatKey, optionId, valence });
+    if (res.ok) refreshBoard();
+  };
+  const surface = async (topic: string) => {
+    setSurfaced((s) => new Set(s).add(topic));
+    try { await soloSurfaceHold({ ...auth, weekIdx: bundle.weekIdx, topic }); } catch { /* non-blocking */ }
+  };
+  const lockAndRule = async (optionId: string) => {
+    if (deciding) return;
+    setNotice(null);
+    setDeciding(true);
+    setRunning(false);
+    try {
+      const res = await soloTeamDecide({ ...auth, weekIdx: bundle.weekIdx, optionId, drivers, reprieves, underBuzzer: buzzer, decidedDay: curDay });
+      if (res.ok && res.ruling) {
+        setRuling(res.ruling);
+        if (res.drivers) setDrivers(res.drivers);
+        setBuzzer(false);
+      } else {
+        setNotice(`The referee couldn’t rule that call${res.reason ? ` (${res.reason})` : ''} — try again.`);
+        setRunning(true);
+      }
+    } catch {
+      setNotice('Something went wrong locking the call. Try again.');
+      setRunning(true);
+    } finally {
+      setDeciding(false);
+    }
+  };
 
   const takeCommand = async () => {
     if (disp !== bundle.disposition) {
@@ -354,13 +420,19 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
               {bundle.teamCast && bundle.myHolds.length ? (
                 <div className="myknow">
                   <div className="mk-h">What only you know this week</div>
-                  {bundle.myHolds.map((h, i) => (
-                    <div className={`mk-item${h.critical ? ' crit' : ''}`} key={i}>
-                      {h.critical ? <span className="mk-crit">critical</span> : null}
-                      {h.topic ? <div className="mk-topic">{h.topic}</div> : null}
-                      <div className="mk-reveal">{h.reveal}</div>
-                    </div>
-                  ))}
+                  {bundle.myHolds.map((h, i) => {
+                    const done = surfaced.has(h.topic ?? '');
+                    return (
+                      <div className={`mk-item${h.critical ? ' crit' : ''}`} key={i}>
+                        {h.critical ? <span className="mk-crit">critical</span> : null}
+                        {h.topic ? <div className="mk-topic">{h.topic}</div> : null}
+                        <div className="mk-reveal">{h.reveal}</div>
+                        <button className={`mk-surface${done ? ' done' : ''}`} disabled={done} onClick={() => surface(h.topic ?? '')}>
+                          {done ? '✓ Surfaced to the room' : 'Surface to the room'}
+                        </button>
+                      </div>
+                    );
+                  })}
                   <div className="mk-foot">Surface it in the room if it should shape the call — or hold it and see what happens.</div>
                 </div>
               ) : null}
@@ -431,14 +503,57 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                     </div>
                   );
                 })}
+
+                {/* team-cast: holds a teammate has surfaced into the room */}
+                {roomSurfaces.map((s, i) => (
+                  <div className="card reveal" key={`surf${i}`}>
+                    <div className="c-kick reveal">{castByKey.get(s.from)?.name?.split(' ')[0] ?? s.from} surfaced {s.critical ? 'something critical' : 'what they were holding'}</div>
+                    {s.topic ? <div className="c-title">{s.topic}</div> : null}
+                    <p className="c-body">{s.text}</p>
+                  </div>
+                ))}
               </div>
+
+              {bundle.teamCast ? (
+                <div className="droom-solo">
+                  <div className="ds-h">Decision Room — Week {week.n}</div>
+                  <div className="ds-sub">Put the options on the table, take a stance, and lock the team’s call. Anyone can lock — the room’s buy-in is part of the read.</div>
+                  {board.options.length === 0 ? (
+                    <div className="ds-empty">No options yet. Propose the team’s first direction below.</div>
+                  ) : (
+                    board.options.map((o) => {
+                      const mine = o.stances.find((st) => st.seat === bundle.seatKey)?.valence;
+                      const support = o.stances.filter((st) => st.valence === 1).length;
+                      const dissent = o.stances.filter((st) => st.valence === -1).length;
+                      return (
+                        <div className="ds-opt" key={o.optionId}>
+                          <div className="ds-opt-top">
+                            <div className="ds-summary">{o.summary}</div>
+                            <div className="ds-author">{o.author === bundle.seatKey ? 'you' : castByKey.get(o.author)?.name?.split(' ')[0] ?? o.author}</div>
+                          </div>
+                          <div className="ds-tally"><span className="ds-pill up">▲ {support}</span><span className="ds-pill dn">▼ {dissent}</span></div>
+                          <div className="ds-actions">
+                            <button className={`ds-btn${mine === 1 ? ' on up' : ''}`} onClick={() => doStance(o.optionId, mine === 1 ? 0 : 1)}>Support</button>
+                            <button className={`ds-btn${mine === -1 ? ' on dn' : ''}`} onClick={() => doStance(o.optionId, mine === -1 ? 0 : -1)}>Dissent</button>
+                            <button className="ds-btn lock" disabled={deciding} onClick={() => lockAndRule(o.optionId)}>{deciding ? '…' : 'Lock this call'}</button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div className="ds-compose">
+                    <textarea value={propDraft} onChange={(e) => setPropDraft(e.target.value)} placeholder="Propose a direction the team could take…" rows={2} />
+                    <button className="ds-propose" disabled={!propDraft.trim()} onClick={propose}>Put on the table</button>
+                  </div>
+                </div>
+              ) : null}
             </>
           )}
         </div>
       </div>
 
-      {/* fixed decision dock */}
-      {phase === 'run' && !decided ? (
+      {/* fixed decision dock — solo only (team-cast decides in the Decision Room) */}
+      {phase === 'run' && !decided && !bundle.teamCast ? (
         <div className="dock">
           <div className="dock-in">
             <div className="dock-lbl">

@@ -113,12 +113,27 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
     .maybeSingle<any>();
   if (!meta || meta.mode_default !== 'solo') return { ok: false, reason: 'not_solo' };
 
+  // team-cast: the SHARED run state (rulings, drivers, branch) lives under the CEO seat's
+  // participant — the run owner — so every seat reads the same world model. Plain solo:
+  // the viewer IS the owner.
+  const teamCast = !!session.run_config?.team_cast;
+  let runOwnerId = participant.id;
+  if (teamCast && participant.seat?.key !== 'ceo') {
+    const { data: owner } = await db
+      .from('participants')
+      .select('id, seat:seats!inner(key)')
+      .eq('session_id', sessionId)
+      .eq('seat.key', 'ceo')
+      .maybeSingle<any>();
+    if (owner?.id) runOwnerId = owner.id;
+  }
+
   const [{ data: scenario }, { data: contentDoc }, { data: seats }, { data: branchRulings }, { data: driverRows }] = await Promise.all([
     db.from('scenarios').select('title').eq('id', session.scenario_id).maybeSingle<any>(),
     db.from('documents').select('body_json').eq('scenario_id', session.scenario_id).eq('key', 'solo_content').maybeSingle<any>(),
     db.from('seats').select('key, name, role, meta').eq('scenario_id', session.scenario_id),
-    db.from('rulings').select('branch_key').eq('session_id', sessionId).eq('participant_id', participant.id).not('branch_key', 'is', null).order('week_idx', { ascending: false }),
-    db.from('run_drivers').select('week_idx, driver_key, value, delta').eq('session_id', sessionId).eq('participant_id', participant.id).order('week_idx', { ascending: false }),
+    db.from('rulings').select('branch_key').eq('session_id', sessionId).eq('participant_id', runOwnerId).not('branch_key', 'is', null).order('week_idx', { ascending: false }),
+    db.from('run_drivers').select('week_idx, driver_key, value, delta').eq('session_id', sessionId).eq('participant_id', runOwnerId).order('week_idx', { ascending: false }),
   ]);
   const content = contentDoc?.body_json;
   if (!content) return { ok: false, reason: 'no_content' };
@@ -150,7 +165,6 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
   }));
 
   const viewerKey: string = participant.seat?.key;
-  const teamCast = !!session.run_config?.team_cast;
   const memberOf = (s: any): SoloCastMember => ({
     seatKey: s.key,
     name: s.name,
