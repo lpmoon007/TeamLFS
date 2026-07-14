@@ -4,6 +4,7 @@ import { listSessions, listScenarios } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
 import { NewSession } from '@/components/facilitator/NewSession';
+import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
 
 // Facilitator home: sign-in gate → live session list.
 export default async function FacilitatorHome() {
@@ -11,7 +12,9 @@ export default async function FacilitatorHome() {
 
   const [sessions, scenarios] = await Promise.all([listSessions(), listScenarios()]);
   return (
-    <div className="fac">
+    <div className="fac-shell">
+      <FacilitatorNav />
+      <div className="fac">
       <header className="fac-head">
         <div className="wm">
           IN<span>COMMAND</span> · FACILITATOR
@@ -65,6 +68,7 @@ export default async function FacilitatorHome() {
             </table>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

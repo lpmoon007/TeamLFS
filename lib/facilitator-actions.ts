@@ -859,3 +859,123 @@ function previewOf(payload: any): string | null {
   const b = payload?.body ?? payload?.text ?? payload?.preview ?? payload?.edited_text ?? null;
   return b ? String(b).slice(0, 100) : null;
 }
+
+// =============================================================================
+// Admin console (scenario library + editor + session setup). All facilitator-gated.
+// =============================================================================
+
+export interface ScenarioLibItem {
+  id: string;
+  title: string;
+  summary: string | null;
+  mode: 'solo' | 'team';
+  seats: number;
+  difficulty: number;
+  weekCount: number | null;
+  weekSeconds: number | null;
+  teamCastable: boolean; // a solo scenario can be cast as a team room
+  sessions: number;
+}
+
+/** Full scenario library for the admin — metadata + counts, one row per scenario. */
+export async function listScenariosFull(): Promise<ScenarioLibItem[]> {
+  const db = await guard();
+  const { data: scenarios } = await db.from('scenarios').select('id, title, summary').order('title', { ascending: true });
+  const ids = (scenarios ?? []).map((s: any) => s.id);
+  if (!ids.length) return [];
+  const [{ data: metas }, { data: seats }, { data: sessions }] = await Promise.all([
+    db.from('scenario_meta').select('scenario_id, mode_default, week_count, week_seconds, difficulty').in('scenario_id', ids),
+    db.from('seats').select('scenario_id').in('scenario_id', ids),
+    db.from('sessions').select('scenario_id').in('scenario_id', ids),
+  ]);
+  const metaBy = new Map((metas ?? []).map((m: any) => [m.scenario_id, m]));
+  const count = (rows: any[]) => {
+    const m = new Map<string, number>();
+    for (const r of rows ?? []) m.set(r.scenario_id, (m.get(r.scenario_id) ?? 0) + 1);
+    return m;
+  };
+  const seatCount = count(seats ?? []);
+  const sessCount = count(sessions ?? []);
+  return (scenarios ?? []).map((s: any) => {
+    const m = metaBy.get(s.id) ?? {};
+    const mode = (m.mode_default ?? 'team') as 'solo' | 'team';
+    return {
+      id: s.id,
+      title: s.title,
+      summary: s.summary ?? null,
+      mode,
+      seats: seatCount.get(s.id) ?? 0,
+      difficulty: Number(m.difficulty ?? 1),
+      weekCount: m.week_count ?? null,
+      weekSeconds: m.week_seconds ?? null,
+      teamCastable: mode === 'solo',
+      sessions: sessCount.get(s.id) ?? 0,
+    };
+  });
+}
+
+export interface ScenarioSeatInfo { key: string; name: string; role: string | null }
+export interface ScenarioWeekInfo { n: number; title: string; situation: string; holds: number; criticalHolds: number }
+export interface ScenarioDetail {
+  id: string;
+  title: string;
+  summary: string | null;
+  mode: 'solo' | 'team';
+  difficulty: number;
+  weekCount: number | null;
+  weekSeconds: number | null;
+  seatsList: ScenarioSeatInfo[];
+  drivers: { key: string; label: string }[];
+  dimensions: { key: string; label: string }[];
+  weeks: ScenarioWeekInfo[]; // solo structure (empty for team)
+}
+
+/** Full detail for the scenario editor — metadata + the authored structure (read model). */
+export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDetail | null> {
+  const db = await guard();
+  const { data: sc } = await db.from('scenarios').select('id, title, summary').eq('id', scenarioId).maybeSingle<any>();
+  if (!sc) return null;
+  const [{ data: meta }, { data: seats }, { data: contentDoc }] = await Promise.all([
+    db.from('scenario_meta').select('mode_default, week_count, week_seconds, difficulty, driver_keys').eq('scenario_id', scenarioId).maybeSingle<any>(),
+    db.from('seats').select('key, name, role').eq('scenario_id', scenarioId).order('key', { ascending: true }),
+    db.from('documents').select('body_json').eq('scenario_id', scenarioId).eq('key', 'solo_content').maybeSingle<any>(),
+  ]);
+  const content = contentDoc?.body_json;
+  const drivers = Object.entries((meta?.driver_keys ?? {}) as Record<string, any>).map(([key, d]) => ({ key, label: d?.label ?? key }));
+  const dimensions = Object.entries((content?.DIMENSIONS ?? {}) as Record<string, any>).map(([key, label]) => ({ key, label: String(label) }));
+  const weeks: ScenarioWeekInfo[] = ((content?.WEEKS ?? []) as any[]).map((w) => {
+    const hs = (w.holds ?? []) as any[];
+    return { n: w.n, title: w.title ?? '', situation: String(w.situation ?? '').slice(0, 220), holds: hs.length, criticalHolds: hs.filter((h) => h.critical).length };
+  });
+  return {
+    id: sc.id,
+    title: sc.title,
+    summary: sc.summary ?? null,
+    mode: (meta?.mode_default ?? 'team') as 'solo' | 'team',
+    difficulty: Number(meta?.difficulty ?? 1),
+    weekCount: meta?.week_count ?? null,
+    weekSeconds: meta?.week_seconds ?? null,
+    seatsList: (seats ?? []).map((s: any) => ({ key: s.key, name: s.name, role: s.role ?? null })),
+    drivers,
+    dimensions,
+    weeks,
+  };
+}
+
+/** Edit the safe, non-content scenario metadata (title, summary, difficulty coefficient). */
+export async function updateScenario(params: { scenarioId: string; title?: string; summary?: string; difficulty?: number }): Promise<{ ok: boolean; reason?: string }> {
+  const db = await guard();
+  const scPatch: Record<string, unknown> = {};
+  if (typeof params.title === 'string' && params.title.trim()) scPatch.title = params.title.trim().slice(0, 200);
+  if (typeof params.summary === 'string') scPatch.summary = params.summary.trim().slice(0, 2000);
+  if (Object.keys(scPatch).length) {
+    const { error } = await db.from('scenarios').update(scPatch).eq('id', params.scenarioId);
+    if (error) return { ok: false, reason: error.message };
+  }
+  if (typeof params.difficulty === 'number' && isFinite(params.difficulty)) {
+    const d = Math.max(0.5, Math.min(2, params.difficulty));
+    const { error } = await db.from('scenario_meta').update({ difficulty: d }).eq('scenario_id', params.scenarioId);
+    if (error) return { ok: false, reason: error.message };
+  }
+  return { ok: true };
+}
