@@ -66,7 +66,7 @@ DB="postgresql://postgres:<DB_PASSWORD>@db.zoxyfwjdtzdqlcfcwlvx.supabase.co:5432
 
 ### Path A — clean project (recommended)
 
-`deploy/bootstrap.sql` resets the `public` schema, applies **migrations 0001–0012**, and
+`deploy/bootstrap.sql` resets the `public` schema, applies **migrations 0001–0013**, and
 seeds the **team** scenario ("The Signal") — voices included (they live in the seed).
 
 ```bash
@@ -87,12 +87,16 @@ done
 
 ### Path B — existing data you must keep
 
-Apply only the migrations your live DB doesn't have yet (0009–0012 are all additive —
+Apply only the migrations your live DB doesn't have yet (0009–0013 are all additive —
 `create table` / `add column if not exists`), then the solo seeds. Do **not** re-run
 `seed.sql` if the team scenario is already seeded.
 
+> **Already live before the Behavioral Panel?** You only need `0013_behavioral_panel.sql`
+> (adds `behavioral_panel` + `panel_norms` + a `scenario_meta.difficulty` column — nothing
+> destructive). The panel fills in on the next solo run scored / team debrief opened.
+
 ```bash
-for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note; do
+for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note 0013_behavioral_panel; do
   psql "$DB" -f "supabase/migrations/${m}.sql"
 done
 for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault; do
@@ -103,10 +107,11 @@ done
 ### Verify
 
 ```sql
--- 12 migrations' worth of tables present, 6 solo scenarios + 1 team
+-- 13 migrations' worth of tables present, 9 solo scenarios + 1 team
 select mode_default, count(*) from scenario_meta group by 1;          -- solo | 9
 select count(*) from scenarios;                                       -- 10 (9 solo + The Signal)
 select to_regclass('public.subjects'), to_regclass('public.rulings'); -- both non-null
+select to_regclass('public.behavioral_panel'), to_regclass('public.panel_norms'); -- both non-null
 ```
 
 ---
@@ -221,6 +226,6 @@ Before the run:
 ## Rollback
 
 - **App:** Vercel → Deployments → promote the previous good deployment.
-- **DB:** migrations 0009–0012 and the solo seeds are additive; to remove a solo scenario,
+- **DB:** migrations 0009–0013 and the solo seeds are additive; to remove a solo scenario,
   delete its `scenarios` row (cascades). Restore from a Supabase backup if you took one
   before Step 3.
