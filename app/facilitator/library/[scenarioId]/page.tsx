@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
-import { getScenarioDetail } from '@/lib/facilitator-actions';
+import { getScenarioDetail, listPeople } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
 import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
@@ -15,6 +15,7 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
   if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
   const { scenarioId } = await params;
   const [d, me] = await Promise.all([getScenarioDetail(scenarioId), facilitator()]);
+  const people = d ? await listPeople(d.orgId) : [];
   if (!d) {
     return (
       <div className="fac-shell">
@@ -44,8 +45,8 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
           <div className="sc-grid">
             <section className="db-panel">
               <h2>Set up a session</h2>
-              <p className="db-sub">Cast this scenario and generate per-seat links.</p>
-              <SessionSetup scenarioId={d.id} mode={d.mode} />
+              <p className="db-sub">Cast this scenario, assign people, and generate per-seat links.</p>
+              <SessionSetup scenarioId={d.id} mode={d.mode} seats={d.seatsList} people={people} orgId={d.orgId} />
             </section>
 
             <section className="db-panel">

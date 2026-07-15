@@ -93,7 +93,12 @@ const newToken = () => (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g,
  *  `castAsTeam` (solo scenarios only) fills EVERY seat with a human and runs the solo
  *  engine as a team: advisors become real players who hold that week's info, and the
  *  weekly call is made collectively in the Decision Room ("one engine cast two ways"). */
-export async function createSession(params: { scenarioId: string; disposition?: string; castAsTeam?: boolean }): Promise<CreateSessionResult> {
+export async function createSession(params: {
+  scenarioId: string;
+  disposition?: string;
+  castAsTeam?: boolean;
+  assignments?: { seatKey: string; subjectId: string }[]; // pre-link named people to seats
+}): Promise<CreateSessionResult> {
   const db = await guard();
 
   const { data: scenario } = await db.from('scenarios').select('id, title').eq('id', params.scenarioId).maybeSingle<any>();
@@ -105,6 +110,15 @@ export async function createSession(params: { scenarioId: string; disposition?: 
 
   const { data: seats } = await db.from('seats').select('id, key, name, role, meta').eq('scenario_id', params.scenarioId).order('key', { ascending: true });
   if (!seats || !seats.length) return { ok: false, reason: 'no_seats' };
+
+  // roster assignment: pre-link a seat's participant to a person (subject) so their runs
+  // attribute to the right cross-session profile and their name pre-fills.
+  const assignBySeat = new Map<string, string>((params.assignments ?? []).map((a) => [a.seatKey, a.subjectId]));
+  const subjectById = new Map<string, { display_name: string | null; handle: string }>();
+  if (assignBySeat.size) {
+    const { data: subs } = await db.from('subjects').select('id, display_name, handle').in('id', [...new Set(assignBySeat.values())]);
+    for (const s of subs ?? []) subjectById.set((s as any).id, { display_name: (s as any).display_name, handle: (s as any).handle });
+  }
 
   const run_config: Record<string, unknown> =
     mode === 'solo' ? { disposition: params.disposition ?? 'request', ...(teamCast ? { team_cast: true } : {}) } : {};
@@ -128,14 +142,19 @@ export async function createSession(params: { scenarioId: string; disposition?: 
       : { name: seat.name, role: seat.role ?? null, persona: seat.meta?.persona ?? null, priority: seat.meta?.priority ?? null, autonomy: 'reactive' };
     // team-cast solo still runs in the SOLO engine (/solo), just with N humans.
     const basePath = mode === 'solo' ? '/solo' : '/s';
+    // assigned person (only meaningful for human seats): pre-link subject + name/email.
+    const subjectId = human ? assignBySeat.get(seat.key) ?? null : null;
+    const person = subjectId ? subjectById.get(subjectId) : null;
+    const displayName = person?.display_name || seat.name;
+    const email = person && /@/.test(person.handle) ? person.handle : null;
     links.push({
       seatKey: seat.key,
-      name: seat.name,
+      name: displayName,
       role: seat.role ?? null,
       castKind: cast_kind as 'human' | 'ai',
       path: token ? `${basePath}/${sessionId}?t=${token}` : null,
     });
-    return { session_id: sessionId, seat_id: seat.id, token, cast_kind, agent_json, name: `${seat.name}` };
+    return { session_id: sessionId, seat_id: seat.id, token, cast_kind, agent_json, name: displayName, email, subject_id: subjectId };
   });
   await db.from('participants').insert(rows);
 
@@ -920,6 +939,7 @@ export interface ScenarioDetail {
   id: string;
   title: string;
   summary: string | null;
+  orgId: string | null;
   mode: 'solo' | 'team';
   difficulty: number;
   weekCount: number | null;
@@ -933,7 +953,7 @@ export interface ScenarioDetail {
 /** Full detail for the scenario editor — metadata + the authored structure (read model). */
 export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDetail | null> {
   const db = await guard();
-  const { data: sc } = await db.from('scenarios').select('id, title, summary').eq('id', scenarioId).maybeSingle<any>();
+  const { data: sc } = await db.from('scenarios').select('id, title, summary, org_id').eq('id', scenarioId).maybeSingle<any>();
   if (!sc) return null;
   const [{ data: meta }, { data: seats }, { data: contentDoc }] = await Promise.all([
     db.from('scenario_meta').select('mode_default, week_count, week_seconds, difficulty, driver_keys').eq('scenario_id', scenarioId).maybeSingle<any>(),
@@ -951,6 +971,7 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
     id: sc.id,
     title: sc.title,
     summary: sc.summary ?? null,
+    orgId: sc.org_id ?? null,
     mode: (meta?.mode_default ?? 'team') as 'solo' | 'team',
     difficulty: Number(meta?.difficulty ?? 1),
     weekCount: meta?.week_count ?? null,
@@ -978,4 +999,61 @@ export async function updateScenario(params: { scenarioId: string; title?: strin
     if (error) return { ok: false, reason: error.message };
   }
   return { ok: true };
+}
+
+// =============================================================================
+// People roster — the players assigned to seats. A "person" is a cross-session
+// subject (spine identity); assigning one to a seat pre-links the participant so
+// runs attribute to the right profile. Facilitator-gated.
+// =============================================================================
+
+function personSlug(s: string): string {
+  return s.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9._@-]/g, '').slice(0, 120);
+}
+
+export interface PersonItem {
+  id: string;
+  name: string;
+  email: string | null;
+  runs: number;
+}
+
+/** List people (subjects) — optionally scoped to an org. */
+export async function listPeople(orgId?: string | null): Promise<PersonItem[]> {
+  const db = await guard();
+  let q = db.from('subjects').select('id, handle, display_name, org_id');
+  if (orgId) q = q.eq('org_id', orgId);
+  const { data } = await q.order('display_name', { ascending: true });
+  const rows = (data ?? []) as any[];
+  const ids = rows.map((s) => s.id);
+  const runs = new Map<string, number>();
+  if (ids.length) {
+    const { data: parts } = await db.from('participants').select('subject_id').in('subject_id', ids);
+    for (const p of parts ?? []) runs.set((p as any).subject_id, (runs.get((p as any).subject_id) ?? 0) + 1);
+  }
+  return rows.map((s) => ({
+    id: s.id,
+    name: s.display_name || s.handle,
+    email: /@/.test(s.handle) ? s.handle : null,
+    runs: runs.get(s.id) ?? 0,
+  }));
+}
+
+/** Add a person to the roster (get-or-create by org + handle). Handle = email if given. */
+export async function createPerson(params: { name: string; email?: string; orgId?: string | null }): Promise<{ ok: boolean; reason?: string; id?: string }> {
+  const db = await guard();
+  const handleRaw = (params.email && params.email.trim()) || params.name.trim();
+  if (!handleRaw) return { ok: false, reason: 'empty' };
+  const handle = personSlug(handleRaw);
+  if (!handle) return { ok: false, reason: 'invalid' };
+  const sel = db.from('subjects').select('id').eq('handle', handle);
+  const { data: found } = await (params.orgId ? sel.eq('org_id', params.orgId) : sel.is('org_id', null)).maybeSingle<any>();
+  if (found) return { ok: true, id: found.id }; // idempotent
+  const { data, error } = await db
+    .from('subjects')
+    .insert({ org_id: params.orgId ?? null, handle, display_name: params.name.trim() || null })
+    .select('id')
+    .single<any>();
+  if (error || !data) return { ok: false, reason: error?.message ?? 'insert_failed' };
+  return { ok: true, id: data.id };
 }
