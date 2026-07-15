@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate deploy/bootstrap.sql = public-schema reset + migrations 0001-0014 + seed.
+# Regenerate deploy/bootstrap.sql = public-schema reset + migrations 0001-0015 + seed.
 # Run from repo root:  ./scripts/build-bootstrap.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -14,7 +14,7 @@ mkdir -p deploy
 -- The Signal — one-shot bootstrap for a Supabase project.
 -- Paste into the Supabase SQL Editor and Run. It:
 --   1) RESETS the public schema (drops any prior build), then
---   2) applies migrations 0001-0014, then
+--   2) applies migrations 0001-0015, then
 --   3) seeds the "The Signal" scenario (+ a demo session for testing).
 -- Generated — do not hand-edit; regenerate with scripts/build-bootstrap.sh.
 -- =============================================================================
@@ -42,7 +42,8 @@ HDR
            supabase/migrations/0011_cross_session_spine.sql \
            supabase/migrations/0012_trait_score_note.sql \
            supabase/migrations/0013_behavioral_panel.sql \
-           supabase/migrations/0014_channel_key.sql; do
+           supabase/migrations/0014_channel_key.sql \
+           supabase/migrations/0015_facilitator_accounts.sql; do
     printf '\n-- ==== %s ====\n\n' "$(basename "$f")"
     cat "$f"
   done

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { isFacilitatorSession } from '@/lib/facilitator-session';
+import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
 import { listSessions, listScenarios } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
@@ -10,10 +10,10 @@ import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
 export default async function FacilitatorHome() {
   if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
 
-  const [sessions, scenarios] = await Promise.all([listSessions(), listScenarios()]);
+  const [sessions, scenarios, me] = await Promise.all([listSessions(), listScenarios(), facilitator()]);
   return (
     <div className="fac-shell">
-      <FacilitatorNav />
+      <FacilitatorNav user={me} />
       <div className="fac">
       <header className="fac-head">
         <div className="wm">

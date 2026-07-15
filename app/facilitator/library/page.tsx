@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { isFacilitatorSession } from '@/lib/facilitator-session';
+import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
 import { listScenariosFull } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
@@ -10,7 +10,7 @@ import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
 // set up a session or edit it.
 export default async function ScenarioLibraryPage() {
   if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
-  const scenarios = await listScenariosFull();
+  const [scenarios, me] = await Promise.all([listScenariosFull(), facilitator()]);
   const solo = scenarios.filter((s) => s.mode === 'solo');
   const team = scenarios.filter((s) => s.mode === 'team');
 
@@ -35,7 +35,7 @@ export default async function ScenarioLibraryPage() {
 
   return (
     <div className="fac-shell">
-      <FacilitatorNav />
+      <FacilitatorNav user={me} />
       <div className="fac">
         <header className="fac-head">
           <div className="wm">IN<span>COMMAND</span> · SCENARIO LIBRARY</div>

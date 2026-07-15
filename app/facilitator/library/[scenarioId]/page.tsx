@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { isFacilitatorSession } from '@/lib/facilitator-session';
+import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
 import { getScenarioDetail } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
@@ -14,11 +14,11 @@ import { Notice } from '@/components/Notice';
 export default async function ScenarioDetailPage({ params }: { params: Promise<{ scenarioId: string }> }) {
   if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
   const { scenarioId } = await params;
-  const d = await getScenarioDetail(scenarioId);
+  const [d, me] = await Promise.all([getScenarioDetail(scenarioId), facilitator()]);
   if (!d) {
     return (
       <div className="fac-shell">
-        <FacilitatorNav />
+        <FacilitatorNav user={me} />
         <div className="fac"><Notice title="Not found" message="No scenario with that id." /></div>
       </div>
     );
@@ -26,7 +26,7 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="fac-shell">
-      <FacilitatorNav />
+      <FacilitatorNav user={me} />
       <div className="fac">
         <header className="fac-head">
           <div className="wm">IN<span>COMMAND</span> · SCENARIO</div>
