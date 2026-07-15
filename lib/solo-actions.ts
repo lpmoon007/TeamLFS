@@ -416,6 +416,36 @@ export async function soloTeamDecide(params: {
 
   const w = resolveWeek(content, params.weekIdx, await runBranch(db, params.sessionId, owner.participantId)) ?? {};
 
+  // Idempotency (1a: any seat can lock → two seats can race). If this week was already
+  // ruled, don't double-rule — reconstruct the outcome and return it so the race-loser
+  // transitions cleanly. (Application-level guard; the window is a single DB round-trip.)
+  const { data: already } = await db
+    .from('rulings')
+    .select('narrative, dimension_scores')
+    .eq('session_id', params.sessionId)
+    .eq('participant_id', owner.participantId)
+    .eq('week_idx', w.n)
+    .maybeSingle<any>();
+  if (already) {
+    const { data: ruledEv } = await db
+      .from('events')
+      .select('payload_json')
+      .eq('session_id', params.sessionId)
+      .eq('participant_id', owner.participantId)
+      .eq('type', 'decision_ruled')
+      .eq('target', `week-${w.n}`)
+      .order('ts', { ascending: false })
+      .limit(1)
+      .maybeSingle<any>();
+    const deltas = (ruledEv?.payload_json?.deltas ?? {}) as Record<string, number>;
+    return {
+      ok: true,
+      ruling: { narrative: already.narrative ?? '', deltas, dims: already.dimension_scores ?? {}, teamReactions: [] } as Ruling,
+      drivers: applyDeltas(content, params.drivers, deltas),
+      branchKey: (ruledEv?.payload_json?.branch as string | null) ?? null,
+    };
+  }
+
   // the locked option's text is the team's decision
   const { getDecisionBoard, lockDecision } = await import('@/lib/deliberation');
   const board = await getDecisionBoard(params.sessionId);
