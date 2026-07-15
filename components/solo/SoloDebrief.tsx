@@ -27,6 +27,7 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
           <span className="max">/ 100 leadership</span>
           <span className="gr">{d.grade}</span>
         </div>
+        <div className="res-ver">Scored against {d.scenarioTitle} · content v{d.contentVersion}</div>
       </div>
 
       <div className="res-body">

@@ -80,6 +80,7 @@ export interface SoloPanelRead {
 export interface SoloDebrief {
   sessionId: string;
   scenarioTitle: string;
+  contentVersion: number; // the scenario content version this run was played on
   company: { name: string; sub?: string; logo?: string };
   survived: boolean;
   verdictTag: string;
@@ -136,7 +137,7 @@ export async function isSoloSession(sessionId: string): Promise<boolean> {
 /** Participant-facing: token-gated to the CEO's own run. */
 export async function buildSoloDebrief(sessionId: string, token: string | undefined): Promise<SoloDebriefResult> {
   const db = createAdminClient();
-  const { data: session } = await db.from('sessions').select('id, scenario_id, run_config').eq('id', sessionId).maybeSingle<any>();
+  const { data: session } = await db.from('sessions').select('id, scenario_id, run_config, content_version').eq('id', sessionId).maybeSingle<any>();
   if (!session) return { ok: false, reason: 'not_found' };
   if (!token) return { ok: false, reason: 'invalid_token' };
 
@@ -150,7 +151,7 @@ export async function buildSoloDebrief(sessionId: string, token: string | undefi
  *  caller must gate on the facilitator cookie. */
 export async function buildSoloDebriefForFacilitator(sessionId: string): Promise<SoloDebriefResult> {
   const db = createAdminClient();
-  const { data: session } = await db.from('sessions').select('id, scenario_id, run_config').eq('id', sessionId).maybeSingle<any>();
+  const { data: session } = await db.from('sessions').select('id, scenario_id, run_config, content_version').eq('id', sessionId).maybeSingle<any>();
   if (!session) return { ok: false, reason: 'not_found' };
 
   // the CEO hot seat is the human occupant (advisors are AI-cast). Fall back to any
@@ -482,6 +483,7 @@ async function buildSoloDebriefCore(
     debrief: {
       sessionId,
       scenarioTitle: scenario?.title ?? 'Scenario',
+      contentVersion: Number(session.content_version ?? 1),
       company: content.COMPANY ?? { name: scenario?.title ?? '' },
       survived,
       verdictTag,

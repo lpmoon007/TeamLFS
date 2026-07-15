@@ -103,8 +103,9 @@ export async function createSession(params: {
 
   const { data: scenario } = await db.from('scenarios').select('id, title').eq('id', params.scenarioId).maybeSingle<any>();
   if (!scenario) return { ok: false, reason: 'scenario_not_found' };
-  const { data: meta } = await db.from('scenario_meta').select('mode_default').eq('scenario_id', params.scenarioId).maybeSingle<any>();
+  const { data: meta } = await db.from('scenario_meta').select('mode_default, content_version').eq('scenario_id', params.scenarioId).maybeSingle<any>();
   const mode = (meta?.mode_default ?? 'team') as 'solo' | 'team';
+  const contentVersion = Number(meta?.content_version ?? 1); // freeze the played-on version
   // team-cast only applies to a solo scenario (a team scenario is already all-human).
   const teamCast = mode === 'solo' && !!params.castAsTeam;
 
@@ -124,7 +125,7 @@ export async function createSession(params: {
     mode === 'solo' ? { disposition: params.disposition ?? 'request', ...(teamCast ? { team_cast: true } : {}) } : {};
   const { data: session } = await db
     .from('sessions')
-    .insert({ scenario_id: params.scenarioId, status: 'live', started_at: new Date().toISOString(), run_config })
+    .insert({ scenario_id: params.scenarioId, status: 'live', started_at: new Date().toISOString(), run_config, content_version: contentVersion })
     .select('id')
     .single<any>();
   if (!session) return { ok: false, reason: 'insert_failed' };
@@ -942,6 +943,7 @@ export interface ScenarioDetail {
   orgId: string | null;
   mode: 'solo' | 'team';
   difficulty: number;
+  contentVersion: number;
   weekCount: number | null;
   weekSeconds: number | null;
   seatsList: ScenarioSeatInfo[];
@@ -956,7 +958,7 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
   const { data: sc } = await db.from('scenarios').select('id, title, summary, org_id').eq('id', scenarioId).maybeSingle<any>();
   if (!sc) return null;
   const [{ data: meta }, { data: seats }, { data: contentDoc }] = await Promise.all([
-    db.from('scenario_meta').select('mode_default, week_count, week_seconds, difficulty, driver_keys').eq('scenario_id', scenarioId).maybeSingle<any>(),
+    db.from('scenario_meta').select('mode_default, week_count, week_seconds, difficulty, driver_keys, content_version').eq('scenario_id', scenarioId).maybeSingle<any>(),
     db.from('seats').select('key, name, role').eq('scenario_id', scenarioId).order('key', { ascending: true }),
     db.from('documents').select('body_json').eq('scenario_id', scenarioId).eq('key', 'solo_content').maybeSingle<any>(),
   ]);
@@ -974,6 +976,7 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
     orgId: sc.org_id ?? null,
     mode: (meta?.mode_default ?? 'team') as 'solo' | 'team',
     difficulty: Number(meta?.difficulty ?? 1),
+    contentVersion: Number(meta?.content_version ?? 1),
     weekCount: meta?.week_count ?? null,
     weekSeconds: meta?.week_seconds ?? null,
     seatsList: (seats ?? []).map((s: any) => ({ key: s.key, name: s.name, role: s.role ?? null })),

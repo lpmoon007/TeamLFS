@@ -66,7 +66,7 @@ DB="postgresql://postgres:<DB_PASSWORD>@db.zoxyfwjdtzdqlcfcwlvx.supabase.co:5432
 
 ### Path A — clean project (recommended)
 
-`deploy/bootstrap.sql` resets the `public` schema, applies **migrations 0001–0016**, and
+`deploy/bootstrap.sql` resets the `public` schema, applies **migrations 0001–0017**, and
 seeds the **team** scenario ("The Signal") — voices included (they live in the seed).
 
 ```bash
@@ -89,7 +89,7 @@ done
 
 ### Path B — existing data you must keep
 
-Apply only the migrations your live DB doesn't have yet (0009–0016 are all additive —
+Apply only the migrations your live DB doesn't have yet (0009–0017 are all additive —
 `create table` / `add column if not exists`), then the solo seeds. Do **not** re-run
 `seed.sql` if the team scenario is already seeded.
 
@@ -102,9 +102,22 @@ Apply only the migrations your live DB doesn't have yet (0009–0016 are all add
 > Do NOT re-run a full `solo_seed_*.sql` to pick up difficulty on a live DB: those delete +
 > re-insert the scenario and **cascade its sessions** (you'd lose run history). The full
 > seeds already carry the difficulty for fresh installs.
+>
+> **Editing a live scenario's content (0017).** Scenarios are authored off-site (design)
+> and written in via the seed pipeline. To edit one that already has runs, do NOT re-seed —
+> regenerate a **non-destructive content patch** and apply it:
+> ```bash
+> node scripts/seed/build_solo_patch.mjs prototype/solo/<slug>-realtime-content.js
+> psql "$DB" -f supabase/solo_patch_<slug>.sql
+> ```
+> It `update`s the content blob + metadata in place (no delete → sessions/participants
+> preserved) and **bumps `content_version`**. Existing runs keep the version they were
+> played on (frozen on the session); new sessions get the bumped version — so every debrief
+> stays interpretable against the exact content it was scored on. A material *structural*
+> change (new/removed seat keys) should instead ship as a new scenario id via the full seed.
 
 ```bash
-for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note 0013_behavioral_panel 0014_channel_key 0015_facilitator_accounts 0016_room_key; do
+for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note 0013_behavioral_panel 0014_channel_key 0015_facilitator_accounts 0016_room_key 0017_content_version; do
   psql "$DB" -f "supabase/migrations/${m}.sql"
 done
 for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault relay ridgeline salvage; do
@@ -115,7 +128,7 @@ done
 ### Verify
 
 ```sql
--- 16 migrations' worth of tables present, 12 solo scenarios + 1 team
+-- 17 migrations' worth of tables present, 12 solo scenarios + 1 team
 select mode_default, count(*) from scenario_meta group by 1;          -- solo | 12
 select count(*) from scenarios;                                       -- 13 (12 solo + The Signal)
 select to_regclass('public.subjects'), to_regclass('public.rulings'); -- both non-null
@@ -243,6 +256,6 @@ Before the run:
 ## Rollback
 
 - **App:** Vercel → Deployments → promote the previous good deployment.
-- **DB:** migrations 0009–0016 and the solo seeds are additive; to remove a solo scenario,
+- **DB:** migrations 0009–0017 and the solo seeds are additive; to remove a solo scenario,
   delete its `scenarios` row (cascades). Restore from a Supabase backup if you took one
   before Step 3.

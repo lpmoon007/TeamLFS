@@ -39,7 +39,10 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
             <Link href="/facilitator/library">Scenario Library</Link> ▸ <strong>{d.title}</strong>
           </div>
           <div className="fac-body-top">
-            <h1>{d.title} <span className={`cast-badge ${d.mode === 'solo' ? 'ai' : 'human'}`}>{d.mode}</span></h1>
+            <h1>
+              {d.title} <span className={`cast-badge ${d.mode === 'solo' ? 'ai' : 'human'}`}>{d.mode}</span>
+              <span className="cast-badge" style={{ background: 'var(--bg-elev-2)', color: 'var(--text-dim)' }}>content v{d.contentVersion}</span>
+            </h1>
           </div>
 
           <div className="sc-grid">
