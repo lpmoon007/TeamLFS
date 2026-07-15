@@ -16,6 +16,7 @@ export interface SessionRow {
   status: SessionStatus;
   started_at: string | null;
   ended_at: string | null;
+  room_key: string; // shared-channel secret (realtime hardening)
 }
 
 export interface Seat {

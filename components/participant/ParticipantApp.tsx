@@ -113,6 +113,7 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
 
   const { online } = useSessionPresence({
     sessionId: session.id,
+    roomKey: session.room_key,
     seatKey: seat.key,
     name: seat.name,
     enabled: accepted && !ended,
@@ -126,7 +127,7 @@ export function ParticipantApp({ bundle }: { bundle: SeatBundle }) {
   useEffect(() => {
     if (accepted && !ended) refreshBoard();
   }, [accepted, ended, refreshBoard]);
-  useRoomChannel({ sessionId: session.id, enabled: accepted && !ended, onRoom: () => refreshBoard() });
+  useRoomChannel({ sessionId: session.id, roomKey: session.room_key, enabled: accepted && !ended, onRoom: () => refreshBoard() });
 
   const propose = useCallback(
     async (summary: string) => {

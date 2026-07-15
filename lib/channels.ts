@@ -8,13 +8,15 @@ export function seatChannel(sessionId: string, channelKey: string): string {
   return `signal:session:${sessionId}:seat:${channelKey}`;
 }
 
-/** Session-wide presence channel: every seat joins → everyone sees who's online. */
-export function sessionPresenceChannel(sessionId: string): string {
-  return `signal:session:${sessionId}:presence`;
+/** Session-wide presence channel: every seat joins → everyone sees who's online. Keyed on
+ *  the per-session room_key so an outsider with only the session id can't subscribe. */
+export function sessionPresenceChannel(sessionId: string, roomKey: string): string {
+  return `signal:session:${sessionId}:presence:${roomKey}`;
 }
 
 /** Session-wide room channel: shared deliberation events (proposals / stances /
- *  decision-lock) that every seat must see, not just one recipient. */
-export function sessionRoomChannel(sessionId: string): string {
-  return `signal:session:${sessionId}:room`;
+ *  decision-lock / surface / ruled) every seat must see. Keyed on the per-session
+ *  room_key (delivered only in the session's own participant bundles). */
+export function sessionRoomChannel(sessionId: string, roomKey: string): string {
+  return `signal:session:${sessionId}:room:${roomKey}`;
 }

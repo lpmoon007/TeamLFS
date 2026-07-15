@@ -66,7 +66,7 @@ DB="postgresql://postgres:<DB_PASSWORD>@db.zoxyfwjdtzdqlcfcwlvx.supabase.co:5432
 
 ### Path A — clean project (recommended)
 
-`deploy/bootstrap.sql` resets the `public` schema, applies **migrations 0001–0015**, and
+`deploy/bootstrap.sql` resets the `public` schema, applies **migrations 0001–0016**, and
 seeds the **team** scenario ("The Signal") — voices included (they live in the seed).
 
 ```bash
@@ -89,7 +89,7 @@ done
 
 ### Path B — existing data you must keep
 
-Apply only the migrations your live DB doesn't have yet (0009–0015 are all additive —
+Apply only the migrations your live DB doesn't have yet (0009–0016 are all additive —
 `create table` / `add column if not exists`), then the solo seeds. Do **not** re-run
 `seed.sql` if the team scenario is already seeded.
 
@@ -104,7 +104,7 @@ Apply only the migrations your live DB doesn't have yet (0009–0015 are all add
 > seeds already carry the difficulty for fresh installs.
 
 ```bash
-for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note 0013_behavioral_panel 0014_channel_key 0015_facilitator_accounts; do
+for m in 0009_solo_engine 0010_run_config 0011_cross_session_spine 0012_trait_score_note 0013_behavioral_panel 0014_channel_key 0015_facilitator_accounts 0016_room_key; do
   psql "$DB" -f "supabase/migrations/${m}.sql"
 done
 for s in backlash exodus handover overdrive squeeze shockwave colony expedition vault relay ridgeline salvage; do
@@ -115,12 +115,13 @@ done
 ### Verify
 
 ```sql
--- 15 migrations' worth of tables present, 12 solo scenarios + 1 team
+-- 16 migrations' worth of tables present, 12 solo scenarios + 1 team
 select mode_default, count(*) from scenario_meta group by 1;          -- solo | 12
 select count(*) from scenarios;                                       -- 13 (12 solo + The Signal)
 select to_regclass('public.subjects'), to_regclass('public.rulings'); -- both non-null
 select to_regclass('public.behavioral_panel'), to_regclass('public.panel_norms'); -- both non-null
-select count(*) from participants where channel_key is null;          -- 0 (realtime hardening)
+select count(*) from participants where channel_key is null;          -- 0 (directed-channel hardening)
+select count(*) from sessions where room_key is null;                 -- 0 (shared-channel hardening)
 ```
 
 ---
@@ -242,6 +243,6 @@ Before the run:
 ## Rollback
 
 - **App:** Vercel → Deployments → promote the previous good deployment.
-- **DB:** migrations 0009–0015 and the solo seeds are additive; to remove a solo scenario,
+- **DB:** migrations 0009–0016 and the solo seeds are additive; to remove a solo scenario,
   delete its `scenarios` row (cascades). Restore from a Supabase backup if you took one
   before Step 3.

@@ -1,8 +1,7 @@
 'use server';
 import { randomUUID } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { broadcast } from '@/lib/realtime-server';
-import { sessionRoomChannel } from '@/lib/channels';
+import { broadcast, roomTopicFor } from '@/lib/realtime-server';
 import type { Valence, BoardStance, BoardOption, DecisionBoard, DecisionLock } from '@/lib/deliberation-types';
 
 // The Decision Room — the team's shared deliberation surface (Team Event-Log Spec §2
@@ -43,7 +42,8 @@ export async function postProposal(params: {
     scenario_ms: ms,
     payload_json: { optionId, summary, seat: params.seatKey },
   });
-  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'proposal', optionId, seat: params.seatKey });
+  const topic = await roomTopicFor(db, params.sessionId);
+  if (topic) await broadcast(topic, 'room', { kind: 'proposal', optionId, seat: params.seatKey });
   return { ok: true, optionId };
 }
 
@@ -70,7 +70,8 @@ export async function postStance(params: {
     scenario_ms: ms,
     payload_json: { optionId: params.optionId, valence: params.valence, seat: params.seatKey },
   });
-  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'stance', optionId: params.optionId, seat: params.seatKey, valence: params.valence });
+  const topic = await roomTopicFor(db, params.sessionId);
+  if (topic) await broadcast(topic, 'room', { kind: 'stance', optionId: params.optionId, seat: params.seatKey, valence: params.valence });
   return { ok: true };
 }
 
@@ -105,7 +106,8 @@ export async function lockDecision(params: {
     scenario_ms: ms,
     payload_json: { optionId: params.optionId, text, seat: params.seatKey, unanimous: !anyDissentOrAbstain, dissenters },
   });
-  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'decision_lock', optionId: params.optionId, seat: params.seatKey });
+  const topic = await roomTopicFor(db, params.sessionId);
+  if (topic) await broadcast(topic, 'room', { kind: 'decision_lock', optionId: params.optionId, seat: params.seatKey });
   return { ok: true };
 }
 

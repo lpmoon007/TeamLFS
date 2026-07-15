@@ -61,6 +61,7 @@ export interface SoloHeldItem {
 }
 export interface SoloBundle {
   sessionId: string;
+  roomKey: string; // shared-channel secret (realtime hardening) for the Decision Room
   seatKey: string;
   token: string;
   participantId: string;
@@ -92,7 +93,7 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
 
   const { data: session } = await db
     .from('sessions')
-    .select('id, scenario_id, status, run_config')
+    .select('id, scenario_id, status, run_config, room_key')
     .eq('id', sessionId)
     .maybeSingle<any>();
   if (!session) return { ok: false, reason: 'not_found' };
@@ -193,6 +194,7 @@ export async function loadSolo(sessionId: string, token: string | undefined, wee
     ok: true,
     bundle: {
       sessionId,
+      roomKey: session.room_key,
       seatKey: participant.seat?.key,
       token,
       participantId: participant.id,

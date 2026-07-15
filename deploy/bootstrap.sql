@@ -2,7 +2,7 @@
 -- The Signal — one-shot bootstrap for a Supabase project.
 -- Paste into the Supabase SQL Editor and Run. It:
 --   1) RESETS the public schema (drops any prior build), then
---   2) applies migrations 0001-0015, then
+--   2) applies migrations 0001-0016, then
 --   3) seeds the "The Signal" scenario (+ a demo session for testing).
 -- Generated — do not hand-edit; regenerate with scripts/build-bootstrap.sh.
 -- =============================================================================
@@ -1136,6 +1136,27 @@ comment on table facilitators is
   'Admin/facilitator accounts (email + scrypt password + role). The legacy FACILITATOR_SECRET '
   'still works as a bootstrap master key; real accounts are managed from the console.';
 comment on table facilitator_sessions is 'Opaque, revocable session tokens for facilitator accounts.';
+
+-- ==== 0016_room_key.sql ====
+
+-- =============================================================================
+-- TLFS — per-session realtime room secret. The SHARED channels (room deliberation:
+-- proposal/stance/decision_lock/surface/ruled, and presence) are session-wide by design —
+-- every seat joins them — so they can't use the per-seat channel_key. They were keyed only
+-- by the session UUID, which appears in participant links, so an OUTSIDER who obtains a
+-- session id could subscribe and observe the room. This adds an unguessable per-session
+-- `room_key`: the shared channels are keyed on it, and it's delivered only inside the
+-- session's own participant bundles (each gated by that seat's magic-link token).
+--
+-- Additive; existing rows get a random key via the default. The DB (RLS) stays the
+-- authoritative store; this hardens the low-latency delivery layer on top of it.
+-- =============================================================================
+
+alter table sessions add column if not exists room_key uuid not null default gen_random_uuid();
+
+comment on column sessions.room_key is
+  'Unguessable per-session secret keying the SHARED realtime channels (room + presence). '
+  'Delivered only in the session participants'' own bundles; never derivable from the session id alone.';
 
 -- ==== seed.sql ====
 

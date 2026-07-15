@@ -387,9 +387,9 @@ export async function soloSurfaceHold(params: {
     target: seatKey,
     payload_json: { topic: hold.topic, week: w.n, critical: !!hold.critical, reveal: hold.reveal ?? '', team_cast: true },
   });
-  const { broadcast } = await import('@/lib/realtime-server');
-  const { sessionRoomChannel } = await import('@/lib/channels');
-  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'surface', from: seatKey, topic: hold.topic ?? null, text: hold.reveal ?? '', critical: !!hold.critical });
+  const { broadcast, roomTopicFor } = await import('@/lib/realtime-server');
+  const topic = await roomTopicFor(db, params.sessionId);
+  if (topic) await broadcast(topic, 'room', { kind: 'surface', from: seatKey, topic: hold.topic ?? null, text: hold.reveal ?? '', critical: !!hold.critical });
   return { ok: true };
 }
 
@@ -522,9 +522,9 @@ export async function soloTeamDecide(params: {
   });
 
   // broadcast the resolution so EVERY seat transitions together (not just the locker)
-  const { broadcast } = await import('@/lib/realtime-server');
-  const { sessionRoomChannel } = await import('@/lib/channels');
-  await broadcast(sessionRoomChannel(params.sessionId), 'room', { kind: 'ruled', week: w.n, ruling, drivers });
+  const { broadcast, roomTopicFor } = await import('@/lib/realtime-server');
+  const topic = await roomTopicFor(db, params.sessionId);
+  if (topic) await broadcast(topic, 'room', { kind: 'ruled', week: w.n, ruling, drivers });
 
   if (w.final) {
     try {

@@ -64,21 +64,21 @@ export function useParticipantChannel(opts: {
 
 /** Subscribe to the session-wide room channel — shared deliberation signals (proposal /
  *  stance / decision_lock). Fires `onRoom` on any room event so the board can refetch. */
-export function useRoomChannel(opts: { sessionId: string; enabled: boolean; onRoom?: (payload: any) => void }) {
-  const { sessionId, enabled, onRoom } = opts;
+export function useRoomChannel(opts: { sessionId: string; roomKey: string; enabled: boolean; onRoom?: (payload: any) => void }) {
+  const { sessionId, roomKey, enabled, onRoom } = opts;
   const onRoomRef = useRef(onRoom);
   onRoomRef.current = onRoom;
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !roomKey) return;
     const supabase = getBrowserClient();
-    const channel = supabase.channel(sessionRoomChannel(sessionId), { config: { broadcast: { self: false } } });
+    const channel = supabase.channel(sessionRoomChannel(sessionId, roomKey), { config: { broadcast: { self: false } } });
     channel.on('broadcast', { event: 'room' }, ({ payload }) => onRoomRef.current?.(payload));
     channel.subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [enabled, sessionId]);
+  }, [enabled, sessionId, roomKey]);
 }
 
 /**
@@ -88,18 +88,19 @@ export function useRoomChannel(opts: { sessionId: string; enabled: boolean; onRo
  */
 export function useSessionPresence(opts: {
   sessionId: string;
+  roomKey: string;
   seatKey: string;
   name?: string;
   enabled: boolean;
 }) {
-  const { sessionId, seatKey, name, enabled } = opts;
+  const { sessionId, roomKey, seatKey, name, enabled } = opts;
   const [online, setOnline] = useState<Set<string>>(new Set());
   const chanRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !roomKey) return;
     const supabase = getBrowserClient();
-    const channel = supabase.channel(sessionPresenceChannel(sessionId), {
+    const channel = supabase.channel(sessionPresenceChannel(sessionId, roomKey), {
       config: { presence: { key: seatKey } },
     });
     chanRef.current = channel;
@@ -118,7 +119,7 @@ export function useSessionPresence(opts: {
       supabase.removeChannel(channel);
       chanRef.current = null;
     };
-  }, [enabled, sessionId, seatKey, name]);
+  }, [enabled, sessionId, roomKey, seatKey, name]);
 
   return { online };
 }

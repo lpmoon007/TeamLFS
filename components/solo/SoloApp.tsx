@@ -123,6 +123,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   useEffect(() => { if (bundle.teamCast && phase === 'run') refreshBoard(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [bundle.teamCast, phase]);
   useRoomChannel({
     sessionId: bundle.sessionId,
+    roomKey: bundle.roomKey,
     enabled: bundle.teamCast && phase === 'run' && !decided,
     onRoom: (p: any) => {
       if (p?.kind === 'surface') {

@@ -1,6 +1,13 @@
 import 'server-only';
 import { SUPABASE_URL, serviceRoleKey } from '@/lib/env';
-import { seatChannel } from '@/lib/channels';
+import { seatChannel, sessionRoomChannel } from '@/lib/channels';
+
+/** Resolve the SHARED room topic for a session from its room_key (server-authoritative —
+ *  never trust a client-supplied key). Returns null if the session is gone. */
+export async function roomTopicFor(db: { from: (t: string) => any }, sessionId: string): Promise<string | null> {
+  const { data } = await db.from('sessions').select('room_key').eq('id', sessionId).maybeSingle();
+  return data?.room_key ? sessionRoomChannel(sessionId, data.room_key) : null;
+}
 
 /** Resolve the private directed topic for a seat from its occupant's channel_key. Returns
  *  null if the seat has no participant (nothing to deliver to). `db` is any admin client. */
