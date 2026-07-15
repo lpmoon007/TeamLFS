@@ -9,8 +9,9 @@ export function FacilitatorNav({ user }: { user?: { displayName: string | null; 
   const path = usePathname() ?? '';
   const router = useRouter();
   const items = [
-    { href: '/facilitator', label: 'Sessions', match: (p: string) => p === '/facilitator' || (p.startsWith('/facilitator/') && !p.startsWith('/facilitator/library') && !p.startsWith('/facilitator/accounts')) },
+    { href: '/facilitator', label: 'Sessions', match: (p: string) => p === '/facilitator' || (p.startsWith('/facilitator/') && !p.startsWith('/facilitator/library') && !p.startsWith('/facilitator/accounts') && !p.startsWith('/facilitator/people')) },
     { href: '/facilitator/library', label: 'Scenario Library', match: (p: string) => p.startsWith('/facilitator/library') },
+    { href: '/facilitator/people', label: 'People', match: (p: string) => p.startsWith('/facilitator/people') },
     ...(user?.role === 'admin' ? [{ href: '/facilitator/accounts', label: 'Accounts', match: (p: string) => p.startsWith('/facilitator/accounts') }] : []),
   ];
 
