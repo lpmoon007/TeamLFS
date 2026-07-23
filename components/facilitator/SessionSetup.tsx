@@ -19,18 +19,20 @@ export function SessionSetup({
   seats,
   people: people0,
   orgId,
+  initialAssign,
 }: {
   scenarioId: string;
   mode: 'solo' | 'team';
   seats: ScenarioSeatInfo[];
   people: PersonItem[];
   orgId: string | null;
+  initialAssign?: Record<string, string>; // seatKey → subjectId, pre-selected (e.g. from a profile)
 }) {
   const router = useRouter();
   const [disposition, setDisposition] = useState('request');
   const [castAsTeam, setCastAsTeam] = useState(false);
   const [people, setPeople] = useState<PersonItem[]>(people0);
-  const [assign, setAssign] = useState<Record<string, string>>({}); // seatKey → subjectId
+  const [assign, setAssign] = useState<Record<string, string>>(initialAssign ?? {}); // seatKey → subjectId
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');

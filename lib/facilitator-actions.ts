@@ -123,12 +123,17 @@ export async function createSession(params: {
 
   const run_config: Record<string, unknown> =
     mode === 'solo' ? { disposition: params.disposition ?? 'request', ...(teamCast ? { team_cast: true } : {}) } : {};
-  const { data: session } = await db
+  const { data: session, error: sessErr } = await db
     .from('sessions')
     .insert({ scenario_id: params.scenarioId, status: 'live', started_at: new Date().toISOString(), run_config, content_version: contentVersion })
     .select('id')
     .single<any>();
-  if (!session) return { ok: false, reason: 'insert_failed' };
+  if (sessErr || !session) {
+    // Surface the real cause (was a bare 'insert_failed'). The most common one is a live DB
+    // that's behind on migrations — the code writes columns (e.g. content_version, 0017)
+    // the DB doesn't have yet. Apply the pending migrations (0013–0017).
+    return { ok: false, reason: sessErr?.message ? `insert_failed: ${sessErr.message}` : 'insert_failed' };
+  }
   const sessionId: string = session.id;
 
   const links: SessionLink[] = [];
@@ -157,7 +162,8 @@ export async function createSession(params: {
     });
     return { session_id: sessionId, seat_id: seat.id, token, cast_kind, agent_json, name: displayName, email, subject_id: subjectId };
   });
-  await db.from('participants').insert(rows);
+  const { error: partErr } = await db.from('participants').insert(rows);
+  if (partErr) return { ok: false, reason: `participants_failed: ${partErr.message}` };
 
   await db.from('events').insert({
     session_id: sessionId,
@@ -179,6 +185,7 @@ export interface SessionSummary {
   ended_at: string | null;
   participants: number;
   present: number;
+  demo: boolean; // seeded demo/test session (not a real run)
 }
 
 export async function listSessions(): Promise<SessionSummary[]> {
@@ -189,13 +196,15 @@ export async function listSessions(): Promise<SessionSummary[]> {
     .order('created_at', { ascending: false });
   const ids = (sessions ?? []).map((s: any) => s.id);
   const counts = new Map<string, { total: number; present: number }>();
+  const demo = new Set<string>();
   if (ids.length) {
-    const { data: parts } = await db.from('participants').select('session_id, present').in('session_id', ids);
+    const { data: parts } = await db.from('participants').select('session_id, present, token').in('session_id', ids);
     for (const p of parts ?? []) {
       const c = counts.get((p as any).session_id) ?? { total: 0, present: 0 };
       c.total++;
       if ((p as any).present) c.present++;
       counts.set((p as any).session_id, c);
+      if (String((p as any).token ?? '').startsWith('demo-')) demo.add((p as any).session_id); // seeded demo session
     }
   }
   // mode per scenario (solo runs get the solo console + solo debrief)
@@ -214,6 +223,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
     ended_at: s.ended_at,
     participants: counts.get(s.id)?.total ?? 0,
     present: counts.get(s.id)?.present ?? 0,
+    demo: demo.has(s.id),
   }));
 }
 
@@ -1059,4 +1069,27 @@ export async function createPerson(params: { name: string; email?: string; orgId
     .single<any>();
   if (error || !data) return { ok: false, reason: error?.message ?? 'insert_failed' };
   return { ok: true, id: data.id };
+}
+
+// Lean setup info for a scenario (for the New Session picker + a person's profile): the
+// human-castable seats + the people roster, in one call.
+export interface SessionSetupInfo {
+  mode: 'solo' | 'team';
+  orgId: string | null;
+  seats: ScenarioSeatInfo[];
+  people: PersonItem[];
+}
+export async function getSessionSetupInfo(scenarioId: string): Promise<SessionSetupInfo | null> {
+  const db = await guard();
+  const { data: sc } = await db.from('scenarios').select('org_id').eq('id', scenarioId).maybeSingle<any>();
+  if (!sc) return null;
+  const { data: meta } = await db.from('scenario_meta').select('mode_default').eq('scenario_id', scenarioId).maybeSingle<any>();
+  const { data: seats } = await db.from('seats').select('key, name, role').eq('scenario_id', scenarioId).order('key', { ascending: true });
+  const people = await listPeople(sc.org_id ?? null);
+  return {
+    mode: (meta?.mode_default ?? 'team') as 'solo' | 'team',
+    orgId: sc.org_id ?? null,
+    seats: (seats ?? []).map((s: any) => ({ key: s.key, name: s.name, role: s.role ?? null })),
+    people,
+  };
 }

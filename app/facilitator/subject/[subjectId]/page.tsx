@@ -1,6 +1,8 @@
 import Link from 'next/link';
-import { facilitatorAllowed } from '@/lib/facilitator-session';
+import { facilitatorAllowed, isFacilitatorSession } from '@/lib/facilitator-session';
 import { loadSubjectDashboard } from '@/lib/subject-dashboard';
+import { listScenarios } from '@/lib/facilitator-actions';
+import { StartSessionForPerson } from '@/components/facilitator/StartSessionForPerson';
 import { Notice } from '@/components/Notice';
 
 // The longitudinal subject dashboard — a person's arc across sessions (Behavioral Memory
@@ -30,6 +32,9 @@ export default async function SubjectDashboardPage({
   if (!d) return <Notice title="Not found" message="No such subject." />;
   const kp = key ? `?key=${encodeURIComponent(key)}` : '';
   const div = d.divergence;
+  // starting a session needs a real facilitator login (not just a shared ?key= debrief link)
+  const canStart = await isFacilitatorSession();
+  const scenarios = canStart ? await listScenarios() : [];
 
   return (
     <div className="debrief">
@@ -40,6 +45,14 @@ export default async function SubjectDashboardPage({
           {d.handle} · {d.sessions} session{d.sessions === 1 ? '' : 's'} on record · {d.runs.length} scored panel{d.runs.length === 1 ? '' : 's'}
         </div>
       </header>
+
+      {canStart ? (
+        <section className="db-panel">
+          <h2>Start a session with {d.displayName.split(' ')[0]}</h2>
+          <p className="db-sub">Pick a scenario — they’ll be pre-assigned to the lead seat, and their runs attribute to this profile.</p>
+          <StartSessionForPerson subjectId={subjectId} name={d.displayName} scenarios={scenarios} />
+        </section>
+      ) : null}
 
       <section className="db-panel">
         <h2>Judgment × teaming — across sessions</h2>
