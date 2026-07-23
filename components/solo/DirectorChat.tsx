@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import { askDirector, type ChatTurn } from '@/lib/director-chat';
+import { DictateButton } from '@/components/DictateButton';
 
 // The Director Chat panel in the solo game-film debrief — an AI head-coach Q&A grounded
 // in the run record. Shown for every scenario; works for the participant (token) and the
@@ -75,6 +76,7 @@ export function DirectorChat({ sessionId, token, weakLabels }: { sessionId: stri
           placeholder="Ask the Director about your read…"
           autoComplete="off"
         />
+        <DictateButton onText={(t) => setBox((v) => (v ? v + ' ' + t : t))} />
         <button disabled={busy || !box.trim()} onClick={() => ask(box)}>Ask</button>
       </div>
     </div>

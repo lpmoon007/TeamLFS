@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import { askTeamDirector, type ChatTurn } from '@/lib/director-chat';
+import { DictateButton } from '@/components/DictateButton';
 
 // The Team Director chat on the facilitator team debrief — an AI head-coach Q&A grounded
 // in the communication map + the Tier-B board. Facilitator-gated (no token). Reuses the
@@ -72,6 +73,7 @@ export function TeamDirectorChat({ sessionId, chips }: { sessionId: string; chip
           placeholder="Ask the Director about the team…"
           autoComplete="off"
         />
+        <DictateButton onText={(t) => setBox((v) => (v ? v + ' ' + t : t))} />
         <button disabled={busy || !box.trim()} onClick={() => ask(box)}>Ask</button>
       </div>
     </div>
