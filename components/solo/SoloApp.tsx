@@ -8,6 +8,7 @@ import { getDecisionBoard, postProposal, postStance } from '@/lib/deliberation';
 import type { DecisionBoard, Valence } from '@/lib/deliberation-types';
 import type { Ruling } from '@/lib/solo-referee';
 import { initials as ini, colorFrom } from '@/lib/ui';
+import { DictateButton } from '@/components/DictateButton';
 import type { SoloBundle } from '@/lib/solo-data';
 
 // Solo cockpit — re-skinned to the validated prototype visual layer (soloengine.css):
@@ -45,7 +46,8 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const [reprieves, setReprieves] = useState(0);
   const [drivers, setDrivers] = useState<Record<string, number>>(() => Object.fromEntries(bundle.drivers.map((d) => [d.key, d.val])));
   const [asks, setAsks] = useState<Ask[]>([]);
-  const [asking, setAsking] = useState<string | null>(null);
+  const [asking, setAsking] = useState<string | null>(null); // the open advisor THREAD
+  const [openedThreads, setOpenedThreads] = useState<Set<string>>(new Set());
   const [askText, setAskText] = useState('');
   const [askBusy, setAskBusy] = useState(false);
   const [decisionText, setDecisionText] = useState('');
@@ -117,6 +119,28 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   }, [timeline.length, asks.length]);
 
   const castByKey = useMemo(() => new Map(bundle.cast.map((c) => [c.seatKey, c])), [bundle.cast]);
+
+  // per-advisor threads: each advisor gets their own conversation (their drips + your Q&A),
+  // so you reply directly underneath them instead of scrolling one long shared feed.
+  const dripsBy = useMemo(() => {
+    const m = new Map<string, Released[]>();
+    for (const it of timeline) if (it.from) (m.get(it.from) ?? m.set(it.from, []).get(it.from)!).push(it);
+    return m;
+  }, [timeline]);
+  const asksBy = useMemo(() => {
+    const m = new Map<string, Ask[]>();
+    for (const a of asks) (m.get(a.advisorKey) ?? m.set(a.advisorKey, []).get(a.advisorKey)!).push(a);
+    return m;
+  }, [asks]);
+  const openThread = (key: string) => {
+    setAsking(key);
+    setAskText('');
+    setAskErr(null);
+    setOpenedThreads((s) => (s.has(key) ? s : new Set(s).add(key)));
+  };
+  const unread = (key: string) => (dripsBy.get(key)?.length ?? 0) > 0 && !openedThreads.has(key);
+  // non-personal feed items (situation / wire / surprises with no person) stay in the main stream
+  const ambient = useMemo(() => timeline.filter((it) => !it.from), [timeline]);
 
   // team-cast: load the shared board once, and react to room events (proposals/stances/
   // locks → refetch; a teammate surfacing a hold → append; the ruling → transition together).
@@ -207,7 +231,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
       if (res.ok) {
         setAsks((a) => [...a, { id: crypto.randomUUID(), advisorKey, question: q, reply: res.reply ?? '', hold: res.hold ?? null }]);
         setAskText('');
-        setAsking(null); // success closes the modal
+        // keep the thread open so you can reply directly underneath their response
       } else {
         setAskErr(`Couldn’t reach ${who}${res.reason ? ` (${res.reason})` : ''}. Try again.`);
       }
@@ -439,68 +463,38 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
               ) : null}
 
               <div className="rail">
-                <div className="rail-h">{bundle.teamCast ? 'The room — your teammates' : 'Your team — reach out'}</div>
+                <div className="rail-h">{bundle.teamCast ? 'The room — open a thread' : 'Your team — open a thread'}</div>
                 <div className="rail-row">
-                  {bundle.cast.map((c) => (
-                    <div className="tchip" key={c.seatKey}>
-                      {av(c.seatKey, c.name, 'av')}
-                      <div>
-                        <div className="tn">{c.name}</div>
-                        <div className="tr">{c.short ?? c.role}</div>
-                      </div>
-                      <button className="ask" onClick={() => { setAsking(c.seatKey); setAskText(''); setAskErr(null); }}>Ask</button>
-                    </div>
-                  ))}
+                  {bundle.cast.map((c) => {
+                    const n = (dripsBy.get(c.seatKey)?.length ?? 0) + (asksBy.get(c.seatKey)?.length ?? 0);
+                    return (
+                      <button className={`tchip tchip-btn${asking === c.seatKey ? ' active' : ''}`} key={c.seatKey} onClick={() => openThread(c.seatKey)}>
+                        <span className="tchip-av-wrap">
+                          {av(c.seatKey, c.name, 'av')}
+                          {unread(c.seatKey) ? <span className="tchip-dot" /> : null}
+                        </span>
+                        <span className="tchip-main">
+                          <span className="tn">{c.name}</span>
+                          <span className="tr">{c.short ?? c.role}</span>
+                        </span>
+                        <span className="tchip-meta">{n > 0 ? <span className="tchip-count">{n}</span> : <span className="ask-hint">Open</span>}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="feed" ref={feedRef}>
-                {timeline.map((it) => {
-                  const c = it.from ? castByKey.get(it.from) : null;
+                {/* ambient stream — the situation + non-personal beats. Anything FROM an
+                    advisor lives in that advisor's thread (open it from the rail). */}
+                {ambient.map((it) => {
                   const kindCls = it.kind === 'surprise' ? 'surprise' : it.kind === 'pulse' ? 'reveal' : 'inbound';
                   return (
                     <div className={`card ${kindCls}`} key={it.key}>
-                      {it.kind === 'surprise' ? <div className="c-kick surprise">Incoming</div> : it.kind === 'pulse' ? <div className="c-kick reveal">A quiet word</div> : null}
-                      <div className="c-from">
-                        {av(it.from ?? 'x', c?.name)}
-                        <div>
-                          <div className="c-name">{c?.name ?? it.from ?? '—'}</div>
-                          <div className="c-role">{c?.short ?? c?.role ?? ''}</div>
-                        </div>
-                        {it.day ? <span className="c-time">Day {it.day}</span> : null}
-                      </div>
+                      {it.kind === 'surprise' ? <div className="c-kick surprise">Incoming</div> : null}
                       {it.title ? <div className="c-title">{it.title}</div> : null}
                       <p className="c-body">{it.text}</p>
-                      {it.from && it.kind !== 'pulse' ? (
-                        <div className="card-actions">
-                          <button className="reply-inline" onClick={() => { setAsking(it.from!); setAskText(''); setAskErr(null); }}>Reply to {c?.name?.split(' ')[0] ?? 'them'}</button>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-
-                {asks.map((a) => {
-                  const c = castByKey.get(a.advisorKey);
-                  return (
-                    <div key={a.id}>
-                      <div className="card reply">
-                        <div className="c-kick reply">You asked {c?.name?.split(' ')[0] ?? a.advisorKey}: “{a.question}”</div>
-                        <div className="c-from">
-                          {av(a.advisorKey, c?.name)}
-                          <div>
-                            <div className="c-name">{c?.name ?? a.advisorKey}</div>
-                            <div className="c-role">{c?.short ?? c?.role ?? ''}</div>
-                          </div>
-                        </div>
-                        <p className="c-body">{a.reply}</p>
-                      </div>
-                      {a.hold ? (
-                        <div className="card reveal">
-                          <div className={`c-kick reveal`}>{a.hold.surfaced ? 'Now it comes out' : 'They hold something back'}</div>
-                          <p className="c-body">{a.hold.text}</p>
-                        </div>
-                      ) : null}
+                      {it.day ? <span className="c-time">Day {it.day}</span> : null}
                     </div>
                   );
                 })}
@@ -513,6 +507,9 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                     <p className="c-body">{s.text}</p>
                   </div>
                 ))}
+                {ambient.length === 0 && roomSurfaces.length === 0 ? (
+                  <div className="feed-hint">Your team’s messages arrive in their threads — open anyone on the left to talk.</div>
+                ) : null}
               </div>
 
               {bundle.teamCast ? (
@@ -544,6 +541,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                   )}
                   <div className="ds-compose">
                     <textarea value={propDraft} onChange={(e) => setPropDraft(e.target.value)} placeholder="Propose a direction the team could take…" rows={2} />
+                    <DictateButton onText={(t) => setPropDraft((v) => (v ? v + ' ' + t : t))} />
                     <button className="ds-propose" disabled={!propDraft.trim()} onClick={propose}>Put on the table</button>
                   </div>
                 </div>
@@ -563,6 +561,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
             </div>
             <div className="dock-row">
               <textarea value={decisionText} onChange={(e) => setDecisionText(e.target.value)} placeholder="This week I'm deciding to…" disabled={deciding} />
+              <DictateButton onText={(t) => setDecisionText((v) => (v ? v + ' ' + t : t))} />
               <button className="send" disabled={deciding || decisionText.trim().length < 8} onClick={submitDecision}>
                 {deciding ? <span className="thinking"><span /><span /><span /></span> : 'Send'}
               </button>
@@ -574,10 +573,10 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
         </div>
       ) : null}
 
-      {/* compose modal */}
+      {/* per-advisor THREAD — their messages + your Q&A, reply directly underneath */}
       {asking ? (
         <div className="scrim" onClick={(e) => { if (e.target === e.currentTarget) { setAsking(null); setAskText(''); } }}>
-          <div className="modal">
+          <div className="modal thread-modal">
             <div className="modal-h">
               {av(asking, castByKey.get(asking)?.name, 'av')}
               <div>
@@ -586,16 +585,43 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
               </div>
               <button className="x" onClick={() => { setAsking(null); setAskText(''); }}>×</button>
             </div>
-            <div className="modal-b">
-              <p className="hint">Ask a real question. What they hold back until pressed is part of the test.</p>
-              <textarea value={askText} onChange={(e) => setAskText(e.target.value)} placeholder={`Ask ${castByKey.get(asking)?.name?.split(' ')[0] ?? 'them'}…`} autoFocus />
-              {askErr ? <div className="modal-err">{askErr}</div> : null}
-              <div className="modal-actions">
-                <button className="vm" onClick={() => { setAsking(null); setAskText(''); setAskErr(null); }}>Cancel</button>
-                <button className="snd" disabled={askBusy || !askText.trim()} onClick={() => sendAsk(asking)}>
-                  {askBusy ? <span className="thinking"><span /><span /><span /></span> : 'Send'}
-                </button>
-              </div>
+            <div className="thread-body">
+              {(dripsBy.get(asking) ?? []).map((it) => (
+                <div className="th-msg them" key={it.key}>
+                  {it.title ? <div className="th-title">{it.title}</div> : null}
+                  <div className="th-bubble">{it.text}</div>
+                  {it.day ? <div className="th-when">Day {it.day}</div> : null}
+                </div>
+              ))}
+              {(asksBy.get(asking) ?? []).map((a) => (
+                <div key={a.id}>
+                  <div className="th-msg you"><div className="th-bubble">{a.question}</div></div>
+                  {a.reply ? <div className="th-msg them"><div className="th-bubble">{a.reply}</div></div> : null}
+                  {a.hold ? (
+                    <div className="th-msg them">
+                      <div className="th-kick">{a.hold.surfaced ? 'Now it comes out' : 'They hold something back'}</div>
+                      <div className="th-bubble reveal">{a.hold.text}</div>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+              {(dripsBy.get(asking)?.length ?? 0) + (asksBy.get(asking)?.length ?? 0) === 0 ? (
+                <p className="hint">Ask a real question. What they hold back until pressed is part of the test.</p>
+              ) : null}
+            </div>
+            {askErr ? <div className="modal-err">{askErr}</div> : null}
+            <div className="thread-compose">
+              <textarea
+                value={askText}
+                onChange={(e) => setAskText(e.target.value)}
+                placeholder={`Message ${castByKey.get(asking)?.name?.split(' ')[0] ?? 'them'}…`}
+                autoFocus
+                onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendAsk(asking); }}
+              />
+              <DictateButton onText={(t) => setAskText((v) => (v ? v + ' ' + t : t))} />
+              <button className="snd" disabled={askBusy || !askText.trim()} onClick={() => sendAsk(asking)}>
+                {askBusy ? <span className="thinking"><span /><span /><span /></span> : 'Send'}
+              </button>
             </div>
           </div>
         </div>

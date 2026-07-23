@@ -212,6 +212,36 @@
 .soloui .pm-band{position:absolute;top:0;bottom:0;background:rgba(24,95,165,.16);border-left:1px solid rgba(24,95,165,.35);border-right:1px solid rgba(24,95,165,.35);}
 .soloui .pm-fill{position:relative;height:100%;border-radius:100px;background:linear-gradient(90deg,var(--steel),var(--navy));transition:width .4s ease;}
 .soloui .pm-pctl{color:var(--steel-deep);font-weight:700;}
+/* per-advisor threads: rail chips + thread modal + dictation */
+.soloui .tchip-btn{width:100%;text-align:left;border:1px solid var(--border);background:var(--surface);cursor:pointer;}
+.soloui .tchip-btn:hover{border-color:var(--steel);}
+.soloui .tchip-btn.active{border-color:var(--steel);box-shadow:inset 0 0 0 1px var(--steel);}
+.soloui .tchip-av-wrap{position:relative;display:inline-flex;}
+.soloui .tchip-dot{position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:var(--alert);border:2px solid #fff;}
+.soloui .tchip-main{display:flex;flex-direction:column;min-width:0;}
+.soloui .tchip-meta{margin-left:auto;}
+.soloui .tchip-count{font-size:11px;font-weight:700;background:var(--steel-tint);color:var(--steel-deep);border-radius:100px;padding:2px 8px;font-family:'JetBrains Mono',monospace;}
+.soloui .ask-hint{font-size:11px;color:var(--muted-soft);}
+.soloui .feed-hint{font-size:12.5px;color:var(--muted);padding:22px 4px;text-align:center;line-height:1.6;}
+.soloui .thread-modal{display:flex;flex-direction:column;max-height:78vh;}
+.soloui .thread-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;background:var(--bg);}
+.soloui .th-msg{display:flex;flex-direction:column;gap:3px;max-width:86%;}
+.soloui .th-msg.them{align-self:flex-start;align-items:flex-start;}
+.soloui .th-msg.you{align-self:flex-end;align-items:flex-end;}
+.soloui .th-kick{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);padding:0 4px;}
+.soloui .th-title{font-size:12px;font-weight:700;color:var(--navy);padding:0 4px;}
+.soloui .th-bubble{font-size:13.5px;line-height:1.55;padding:10px 14px;border-radius:13px;background:#fff;border:1px solid var(--border);color:#1c2733;}
+.soloui .th-msg.you .th-bubble{background:var(--steel);color:#fff;border-color:var(--steel);border-top-right-radius:4px;}
+.soloui .th-msg.them .th-bubble{border-top-left-radius:4px;}
+.soloui .th-bubble.reveal{background:#FFF8E8;border-color:#EBD9A8;color:#3B4652;}
+.soloui .th-when{font-size:10px;color:var(--muted-soft);padding:0 4px;}
+.soloui .thread-compose{display:flex;align-items:flex-end;gap:8px;padding:12px 14px;border-top:1px solid var(--border);background:var(--surface);}
+.soloui .thread-compose textarea{flex:1;resize:none;min-height:44px;max-height:120px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--ink);padding:10px 12px;font-family:inherit;font-size:13.5px;}
+/* dictation button (speak instead of type) */
+.dictate,.soloui .dictate{flex:0 0 auto;font-size:12px;font-weight:600;padding:9px 12px;border-radius:9px;border:1px solid var(--border,#E1E4EA);background:#fff;color:var(--steel-deep,#134C84);cursor:pointer;white-space:nowrap;}
+.dictate:hover,.soloui .dictate:hover{border-color:var(--steel,#185FA5);}
+.dictate.on,.soloui .dictate.on{background:var(--alert,#c25a4a);color:#fff;border-color:var(--alert,#c25a4a);animation:dictpulse 1.2s infinite;}
+@keyframes dictpulse{0%,100%{opacity:1;}50%{opacity:.7;}}
 /* team-cast: seat identity + private-holds panel */
 .soloui .selfchip{display:flex;align-items:center;gap:9px;background:var(--steel-tint);border:1px solid var(--steel-tint-edge);border-radius:100px;padding:5px 14px 5px 6px;}
 .soloui .selfchip .sc-you{font-size:12.5px;font-weight:700;color:var(--navy);}

@@ -2,6 +2,7 @@
 import type { Contact, MessageRow } from '@/lib/types';
 import { formatTime } from '@/lib/ui';
 import { useEffect, useRef, useState } from 'react';
+import { DictateButton } from '@/components/DictateButton';
 
 // Phase 3: live send. Enter sends, Shift+Enter newlines. The un-sent draft is
 // captured as `message_draft_discarded` when the thread is abandoned with unsent
@@ -99,6 +100,7 @@ export function ThreadView({
           placeholder={canSend ? `Message ${title}…` : 'Messaging opens when the session is live.'}
           disabled={!canSend}
         />
+        {canSend ? <DictateButton onText={(t) => setDraft((v) => (v ? v + ' ' + t : t))} /> : null}
         <button className="btn primary" onClick={submit} disabled={!canSend || !draft.trim()}>
           Send
         </button>
