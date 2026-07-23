@@ -103,7 +103,7 @@ export async function createSession(params: {
 
   const { data: scenario } = await db.from('scenarios').select('id, title').eq('id', params.scenarioId).maybeSingle<any>();
   if (!scenario) return { ok: false, reason: 'scenario_not_found' };
-  const { data: meta } = await db.from('scenario_meta').select('mode_default, content_version').eq('scenario_id', params.scenarioId).maybeSingle<any>();
+  const { data: meta } = await db.from('scenario_meta').select('*').eq('scenario_id', params.scenarioId).maybeSingle<any>();
   const mode = (meta?.mode_default ?? 'team') as 'solo' | 'team';
   const contentVersion = Number(meta?.content_version ?? 1); // freeze the played-on version
   // team-cast only applies to a solo scenario (a team scenario is already all-human).
@@ -123,15 +123,13 @@ export async function createSession(params: {
 
   const run_config: Record<string, unknown> =
     mode === 'solo' ? { disposition: params.disposition ?? 'request', ...(teamCast ? { team_cast: true } : {}) } : {};
-  const { data: session, error: sessErr } = await db
-    .from('sessions')
-    .insert({ scenario_id: params.scenarioId, status: 'live', started_at: new Date().toISOString(), run_config, content_version: contentVersion })
-    .select('id')
-    .single<any>();
+  const base = { scenario_id: params.scenarioId, status: 'live', started_at: new Date().toISOString(), run_config };
+  let { data: session, error: sessErr } = await db.from('sessions').insert({ ...base, content_version: contentVersion }).select('id').single<any>();
+  if (sessErr && /content_version/i.test(sessErr.message ?? '')) {
+    // DB predates migration 0017 — create without the version stamp (apply 0017 to enable it).
+    ({ data: session, error: sessErr } = await db.from('sessions').insert(base).select('id').single<any>());
+  }
   if (sessErr || !session) {
-    // Surface the real cause (was a bare 'insert_failed'). The most common one is a live DB
-    // that's behind on migrations — the code writes columns (e.g. content_version, 0017)
-    // the DB doesn't have yet. Apply the pending migrations (0013–0017).
     return { ok: false, reason: sessErr?.message ? `insert_failed: ${sessErr.message}` : 'insert_failed' };
   }
   const sessionId: string = session.id;
@@ -915,7 +913,9 @@ export async function listScenariosFull(): Promise<ScenarioLibItem[]> {
   const ids = (scenarios ?? []).map((s: any) => s.id);
   if (!ids.length) return [];
   const [{ data: metas }, { data: seats }, { data: sessions }] = await Promise.all([
-    db.from('scenario_meta').select('scenario_id, mode_default, week_count, week_seconds, difficulty, realism').in('scenario_id', ids),
+    // select('*') so a not-yet-applied column (e.g. realism/difficulty on a lagging DB)
+    // is simply absent from the row (handled by the ?? defaults) rather than erroring the page.
+    db.from('scenario_meta').select('*').in('scenario_id', ids),
     db.from('seats').select('scenario_id').in('scenario_id', ids),
     db.from('sessions').select('scenario_id').in('scenario_id', ids),
   ]);
@@ -971,7 +971,7 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
   const { data: sc } = await db.from('scenarios').select('id, title, summary, org_id').eq('id', scenarioId).maybeSingle<any>();
   if (!sc) return null;
   const [{ data: meta }, { data: seats }, { data: contentDoc }] = await Promise.all([
-    db.from('scenario_meta').select('mode_default, week_count, week_seconds, difficulty, driver_keys, content_version, realism').eq('scenario_id', scenarioId).maybeSingle<any>(),
+    db.from('scenario_meta').select('*').eq('scenario_id', scenarioId).maybeSingle<any>(),
     db.from('seats').select('key, name, role').eq('scenario_id', scenarioId).order('key', { ascending: true }),
     db.from('documents').select('body_json').eq('scenario_id', scenarioId).eq('key', 'solo_content').maybeSingle<any>(),
   ]);
