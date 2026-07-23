@@ -2,7 +2,7 @@
 -- The Signal — one-shot bootstrap for a Supabase project.
 -- Paste into the Supabase SQL Editor and Run. It:
 --   1) RESETS the public schema (drops any prior build), then
---   2) applies migrations 0001-0017, then
+--   2) applies migrations 0001-0018, then
 --   3) seeds the "The Signal" scenario (+ a demo session for testing).
 -- Generated — do not hand-edit; regenerate with scripts/build-bootstrap.sh.
 -- =============================================================================
@@ -1180,6 +1180,21 @@ comment on column scenario_meta.content_version is
 comment on column sessions.content_version is
   'The scenario content_version this session was played on (frozen at create) — so runs '
   'stay interpretable after the scenario is edited.';
+
+-- ==== 0018_scenario_realism.sql ====
+
+-- =============================================================================
+-- TLFS — scenario realism band. A scenario is either 'realistic' (a real-world org crisis:
+-- Backlash, Shockwave, Blackout…) or 'abstract' (an allegorical survival setting: Colony,
+-- Expedition, Vault…). Authored per scenario, shown as a tag + filter in the library.
+-- Additive; existing rows default to 'realistic'. Seeds set it per scenario; a live DB can
+-- be back-filled non-destructively via supabase/scenario_realism.sql.
+-- =============================================================================
+
+alter table scenario_meta add column if not exists realism text not null default 'realistic';
+
+comment on column scenario_meta.realism is
+  'realistic | abstract — the scenario''s setting band. Authored; editable in the admin.';
 
 -- ==== seed.sql ====
 

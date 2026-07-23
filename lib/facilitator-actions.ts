@@ -901,6 +901,7 @@ export interface ScenarioLibItem {
   mode: 'solo' | 'team';
   seats: number;
   difficulty: number;
+  realism: string; // 'realistic' | 'abstract'
   weekCount: number | null;
   weekSeconds: number | null;
   teamCastable: boolean; // a solo scenario can be cast as a team room
@@ -914,7 +915,7 @@ export async function listScenariosFull(): Promise<ScenarioLibItem[]> {
   const ids = (scenarios ?? []).map((s: any) => s.id);
   if (!ids.length) return [];
   const [{ data: metas }, { data: seats }, { data: sessions }] = await Promise.all([
-    db.from('scenario_meta').select('scenario_id, mode_default, week_count, week_seconds, difficulty').in('scenario_id', ids),
+    db.from('scenario_meta').select('scenario_id, mode_default, week_count, week_seconds, difficulty, realism').in('scenario_id', ids),
     db.from('seats').select('scenario_id').in('scenario_id', ids),
     db.from('sessions').select('scenario_id').in('scenario_id', ids),
   ]);
@@ -936,6 +937,7 @@ export async function listScenariosFull(): Promise<ScenarioLibItem[]> {
       mode,
       seats: seatCount.get(s.id) ?? 0,
       difficulty: Number(m.difficulty ?? 1),
+      realism: (m.realism ?? 'realistic') as string,
       weekCount: m.week_count ?? null,
       weekSeconds: m.week_seconds ?? null,
       teamCastable: mode === 'solo',
@@ -953,6 +955,7 @@ export interface ScenarioDetail {
   orgId: string | null;
   mode: 'solo' | 'team';
   difficulty: number;
+  realism: string;
   contentVersion: number;
   weekCount: number | null;
   weekSeconds: number | null;
@@ -968,7 +971,7 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
   const { data: sc } = await db.from('scenarios').select('id, title, summary, org_id').eq('id', scenarioId).maybeSingle<any>();
   if (!sc) return null;
   const [{ data: meta }, { data: seats }, { data: contentDoc }] = await Promise.all([
-    db.from('scenario_meta').select('mode_default, week_count, week_seconds, difficulty, driver_keys, content_version').eq('scenario_id', scenarioId).maybeSingle<any>(),
+    db.from('scenario_meta').select('mode_default, week_count, week_seconds, difficulty, driver_keys, content_version, realism').eq('scenario_id', scenarioId).maybeSingle<any>(),
     db.from('seats').select('key, name, role').eq('scenario_id', scenarioId).order('key', { ascending: true }),
     db.from('documents').select('body_json').eq('scenario_id', scenarioId).eq('key', 'solo_content').maybeSingle<any>(),
   ]);
@@ -986,6 +989,7 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
     orgId: sc.org_id ?? null,
     mode: (meta?.mode_default ?? 'team') as 'solo' | 'team',
     difficulty: Number(meta?.difficulty ?? 1),
+    realism: (meta?.realism ?? 'realistic') as string,
     contentVersion: Number(meta?.content_version ?? 1),
     weekCount: meta?.week_count ?? null,
     weekSeconds: meta?.week_seconds ?? null,
@@ -997,7 +1001,7 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
 }
 
 /** Edit the safe, non-content scenario metadata (title, summary, difficulty coefficient). */
-export async function updateScenario(params: { scenarioId: string; title?: string; summary?: string; difficulty?: number }): Promise<{ ok: boolean; reason?: string }> {
+export async function updateScenario(params: { scenarioId: string; title?: string; summary?: string; difficulty?: number; realism?: string }): Promise<{ ok: boolean; reason?: string }> {
   const db = await guard();
   const scPatch: Record<string, unknown> = {};
   if (typeof params.title === 'string' && params.title.trim()) scPatch.title = params.title.trim().slice(0, 200);
@@ -1006,9 +1010,11 @@ export async function updateScenario(params: { scenarioId: string; title?: strin
     const { error } = await db.from('scenarios').update(scPatch).eq('id', params.scenarioId);
     if (error) return { ok: false, reason: error.message };
   }
-  if (typeof params.difficulty === 'number' && isFinite(params.difficulty)) {
-    const d = Math.max(0.5, Math.min(2, params.difficulty));
-    const { error } = await db.from('scenario_meta').update({ difficulty: d }).eq('scenario_id', params.scenarioId);
+  const metaPatch: Record<string, unknown> = {};
+  if (typeof params.difficulty === 'number' && isFinite(params.difficulty)) metaPatch.difficulty = Math.max(0.5, Math.min(2, params.difficulty));
+  if (params.realism === 'realistic' || params.realism === 'abstract') metaPatch.realism = params.realism;
+  if (Object.keys(metaPatch).length) {
+    const { error } = await db.from('scenario_meta').update(metaPatch).eq('scenario_id', params.scenarioId);
     if (error) return { ok: false, reason: error.message };
   }
   return { ok: true };

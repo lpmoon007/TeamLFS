@@ -105,6 +105,11 @@ function difficultyOf(C) {
 }
 const DIFF = difficultyOf(C);
 
+// realism band (Scenario Design Playbook): abstract = allegorical survival settings;
+// everything else is a real-world org crisis. Authored per scenario, editable in the admin.
+const ABSTRACT = new Set(['colony', 'expedition', 'vault', 'ridgeline', 'salvage']);
+const REALISM = ABSTRACT.has(slug) ? 'abstract' : 'realistic';
+
 // The authoritative content blob = the ENTIRE SCENARIO object, with EVERY function
 // (at any depth) preserved as source — nothing is silently dropped. This captures
 // DRIVERS.*.fmt, COACH.* (per-dimension coaching), branchKey/ending/survived/
@@ -140,8 +145,8 @@ out.push(
     ` (info ${DIFF.infoLoad.toFixed(2)} · consult ${DIFF.consultLoad.toFixed(2)} · time ${DIFF.timePressure.toFixed(2)} · fragility ${DIFF.fragility.toFixed(2)})`,
 );
 out.push(
-  `insert into scenario_meta (scenario_id, mode_default, driver_keys, week_count, week_seconds, difficulty) values (` +
-    `${q(SCEN_ID)}, 'solo', ${j(drivers)}, ${C.WEEKS.length}, ${C.CONFIG?.weekSeconds ?? 'null'}, ${DIFF.difficulty});`,
+  `insert into scenario_meta (scenario_id, mode_default, driver_keys, week_count, week_seconds, difficulty, realism) values (` +
+    `${q(SCEN_ID)}, 'solo', ${j(drivers)}, ${C.WEEKS.length}, ${C.CONFIG?.weekSeconds ?? 'null'}, ${DIFF.difficulty}, ${q(REALISM)});`,
 );
 
 out.push(`\n-- full authored content (whole SCENARIO object; all ${capturedFns} functions preserved as source) the runtime loads`);
