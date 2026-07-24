@@ -318,6 +318,75 @@
 .soloui .tl-badge .tl-note{font-weight:500;opacity:.85;}
 .soloui .tl-item.good::before{background:var(--good);}
 .soloui .tl-item.bad::before{background:var(--alert);box-shadow:0 0 0 3px var(--alert-bg);}
+/* game-film — ask the Director about one exact beat */
+.soloui .tl-ask{margin-top:7px;}
+.soloui .tl-ask-open{font-size:11px;font-weight:600;color:var(--steel-deep);background:none;border:none;padding:0;cursor:pointer;opacity:.75;transition:opacity .12s;}
+.soloui .tl-ask-open:hover{opacity:1;text-decoration:underline;}
+.soloui .tl-item.bad .tl-ask-open,.soloui .tl-item.miss .tl-ask-open{color:var(--alert);opacity:.9;}
+.soloui .tl-ask-body{margin-top:6px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
+.soloui .tl-ask-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.soloui .tl-ask-chip{font-size:11.5px;font-weight:600;color:var(--steel-deep);background:var(--steel-tint);border:1px solid var(--steel-tint-edge);border-radius:100px;padding:5px 11px;cursor:pointer;transition:.12s;}
+.soloui .tl-ask-chip:hover:not(:disabled){background:var(--steel);color:#fff;border-color:var(--steel);}
+.soloui .tl-ask-chip:disabled{opacity:.5;cursor:default;}
+.soloui .tl-ask-close{margin-left:auto;font-size:16px;line-height:1;color:var(--muted-soft);background:none;border:none;cursor:pointer;padding:0 2px;}
+.soloui .tl-ask-turn{margin-top:9px;}
+.soloui .tl-ask-q{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:5px;}
+.soloui .tl-ask-a{font-size:12.5px;line-height:1.6;color:#2B3742;}
+/* where to next — the fork out of the debrief */
+.soloui .next{margin-top:2px;}
+.soloui .next-lead{font-size:13px;line-height:1.6;color:#3B4652;margin-bottom:14px;}
+.soloui .next-doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:11px;}
+.soloui .door{display:block;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:15px 16px;cursor:pointer;transition:.14s;text-decoration:none;color:inherit;}
+.soloui .door:hover{border-color:var(--steel);box-shadow:0 4px 16px rgba(12,35,64,.08);transform:translateY(-1px);}
+.soloui .door.primary{background:var(--steel-tint);border-color:var(--steel-tint-edge);}
+.soloui .door.primary:hover{border-color:var(--steel);}
+.soloui .door.ghost{background:transparent;border-style:dashed;}
+.soloui .door:disabled{opacity:.55;cursor:default;transform:none;box-shadow:none;}
+.soloui .door-k{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-soft);}
+.soloui .door.primary .door-k{color:var(--steel-deep);}
+.soloui .door-h{font-size:15px;font-weight:700;color:var(--navy);margin:3px 0 5px;}
+.soloui .door-t{font-size:12px;line-height:1.5;color:var(--muted);}
+.soloui .next-closed{font-size:13px;line-height:1.6;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+.soloui .lnk{color:var(--steel-deep);font-weight:600;background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;font-size:inherit;}
+/* 30-day challenge — commit form */
+.soloui .cform{background:var(--steel-tint);border:1px solid var(--steel-tint-edge);border-radius:14px;padding:18px 20px;}
+.soloui .cform-h{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:12px;}
+.soloui .cform-focus{color:var(--steel-deep);}
+.soloui .cform-lab{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-soft);margin:12px 0 6px;}
+.soloui .cform-row{display:flex;align-items:flex-end;gap:8px;}
+.soloui .cform-ta{flex:1;resize:none;min-height:56px;background:#fff;border:1px solid var(--border);border-radius:10px;color:var(--ink);padding:10px 12px;font-family:inherit;font-size:13.5px;line-height:1.5;}
+.soloui .cform-ta:focus{outline:none;border-color:var(--steel);}
+.soloui .cform-in{flex:1;background:#fff;border:1px solid var(--border);border-radius:10px;color:var(--ink);padding:10px 12px;font-family:inherit;font-size:13.5px;}
+.soloui .cform-in:focus{outline:none;border-color:var(--steel);}
+.soloui .cform-err{margin-top:10px;font-size:12px;color:#9A342A;background:var(--alert-bg);border-radius:8px;padding:8px 11px;}
+.soloui .cform-actions{display:flex;gap:9px;margin-top:15px;}
+.soloui .cform-commit{background:var(--steel);color:#fff;border:none;border-radius:11px;padding:12px 22px;font-size:14px;font-weight:700;cursor:pointer;transition:.14s;}
+.soloui .cform-commit:hover:not(:disabled){background:var(--steel-deep);}
+.soloui .cform-commit:disabled{opacity:.5;cursor:default;}
+.soloui .cform-cancel{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;padding:0 6px;}
+/* 30-day challenge — active panel */
+.soloui .chal{background:var(--surface);border:1px solid var(--steel-tint-edge);border-radius:14px;padding:18px 20px;box-shadow:0 4px 18px rgba(12,35,64,.06);}
+.soloui .chal-top{display:flex;gap:15px;align-items:flex-start;}
+.soloui .chal-badge{flex:0 0 auto;background:var(--navy);color:#fff;border-radius:11px;padding:11px 13px;font-size:20px;font-weight:800;line-height:1;font-family:'JetBrains Mono',monospace;text-align:center;}
+.soloui .chal-badge span{display:block;font-size:10px;font-weight:600;opacity:.7;margin-top:3px;}
+.soloui .chal-k{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--steel-deep);}
+.soloui .chal-behavior{font-size:15px;font-weight:600;color:var(--navy);line-height:1.45;margin-top:5px;}
+.soloui .chal-cue{font-size:12.5px;color:var(--muted);margin-top:4px;font-style:italic;}
+.soloui .chal-bar{height:7px;border-radius:100px;background:var(--border);overflow:hidden;margin:15px 0 7px;}
+.soloui .chal-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--steel),var(--navy));transition:width .4s ease;}
+.soloui .chal-meta{font-size:12px;color:var(--muted);margin-bottom:14px;}
+.soloui .chal-log{border-top:1px solid var(--border-soft);padding-top:14px;}
+.soloui .chal-actions{display:flex;gap:9px;margin-top:10px;}
+.soloui .chal-did{background:var(--good);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:.14s;}
+.soloui .chal-did:hover:not(:disabled){filter:brightness(.94);}
+.soloui .chal-miss{background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+.soloui .chal-did:disabled,.soloui .chal-miss:disabled{opacity:.5;cursor:default;}
+.soloui .chal-history{margin-top:15px;display:flex;flex-direction:column;gap:7px;}
+.soloui .chal-entry{display:flex;align-items:baseline;gap:9px;font-size:12.5px;line-height:1.5;color:#38424E;}
+.soloui .chal-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;background:var(--good);transform:translateY(1px);}
+.soloui .chal-entry.miss .chal-dot{background:var(--muted-soft);}
+.soloui .chal-entry.miss .chal-entry-txt{color:var(--muted);}
+.soloui .chal-foot{margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);font-size:12.5px;color:var(--muted);}
 /* coaching */
 .soloui .coach-intro{font-size:12.5px;line-height:1.6;color:var(--muted);margin-bottom:14px;}
 .soloui .coach{background:var(--steel-tint);border:1px solid var(--steel-tint-edge);border-radius:13px;padding:16px 18px;margin-bottom:12px;}

@@ -1,5 +1,9 @@
 import type { SoloDebrief } from '@/lib/solo-debrief';
 import { DirectorChat } from '@/components/solo/DirectorChat';
+import { GameFilm } from '@/components/solo/GameFilm';
+import { NextSteps } from '@/components/solo/NextSteps';
+
+const stripHtml = (s: string) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 
 // Solo game-film debrief — re-skinned to the prototype debrief layer (soloengine.css:
 // .result / .res-top / .dim / .tl / .coach / .ending / .cf / .vh). Authored prose carries
@@ -229,21 +233,6 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
           </div>
         )}
 
-        <div className="res-h">The game-film — your crisis, moment by moment</div>
-        <div className="tl">
-          {d.gameFilm.map((m, i) => (
-            <div className={`tl-item ${m.type} ${m.cls}`} key={i}>
-              <div className="tl-when">Wk {m.week}{m.day ? ` · Day ${m.day}` : ''}</div>
-              <div className="tl-txt">{m.text}</div>
-              {m.tag ? (
-                <div className={`tl-badge ${m.cls || 'key'}`}>
-                  {m.tag}{m.note ? <span className="tl-note"> · {m.note}</span> : null}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-
         <div className="res-h">Where to grow — what would have changed the outcome</div>
         <div className="coach-intro">Your two lowest reads, and the concrete moves that would have moved them. This is the part worth taking into the next crisis.</div>
         {d.coaching.map((c) => (
@@ -258,6 +247,20 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
             </ol>
           </div>
         ))}
+
+        <div className="res-h">Ask the Director</div>
+        <div className="coach-intro">The Director watched every move you made. Ask it anything about your read — why a score landed where it did, where exactly you lost ground, what a stronger move would have looked like. It has the whole game film in front of it.</div>
+        <DirectorChat sessionId={d.sessionId} token={token} weakLabels={d.coaching.map((c) => c.label)} />
+
+        <div className="res-h">Where to next</div>
+        <NextSteps
+          sessionId={d.sessionId}
+          token={token}
+          focusKey={d.coaching[0]?.key}
+          focusLabel={d.coaching[0]?.label}
+          suggestedBehavior={d.coaching[0]?.lines?.[0] ? stripHtml(d.coaching[0].lines[0]) : undefined}
+          libraryHref="/facilitator/library"
+        />
 
         <div className="res-h">Villain or hero?</div>
         <div className="vh">
@@ -281,9 +284,9 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
           <div className="vh-close">Every crisis makes you one or the other in someone’s story. The leader who survives with their people’s trust intact did something harder than survive: <b>they stayed the same person under pressure that they were before it.</b></div>
         </div>
 
-        <div className="res-h">Ask the Director</div>
-        <div className="coach-intro">The Director watched every move you made. Ask it anything about your read — why a score landed where it did, where exactly you lost ground, what a stronger move would have looked like. It has the whole game film in front of it.</div>
-        <DirectorChat sessionId={d.sessionId} token={token} weakLabels={d.coaching.map((c) => c.label)} />
+        <div className="res-h">The game-film — your crisis, moment by moment</div>
+        <div className="coach-intro">The play-by-play, if you want it — you already know most of what you did. Tap any moment to ask the Director about that exact beat.</div>
+        <GameFilm moments={d.gameFilm} sessionId={d.sessionId} token={token} />
       </div>
     </div>
   );
