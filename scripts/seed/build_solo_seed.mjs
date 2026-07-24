@@ -124,36 +124,31 @@ out.push(`-- ===================================================================
 -- Solo scenario seed: ${C.INTRO?.title ?? slug} (${slug})
 -- GENERATED from ${basename(contentPath)} — do not hand-edit.
 --   node scripts/seed/build_solo_seed.mjs ${process.argv[2] ?? ''}
--- Requires migrations 0001-0009. Additive; safe to re-run (idempotent delete first).
+-- Requires migrations 0001-0018. Additive and NON-DESTRUCTIVE: pure upserts, no deletes.
+-- Safe to re-run and safe on a scenario that has already been PLAYED — it never touches
+-- sessions/events (the append-only capture log), only the authored content.
 -- =============================================================================
 begin;
-delete from sessions      where scenario_id = ${q(SCEN_ID)};  -- cascades participants/threads/events
-delete from injects       where scenario_id = ${q(SCEN_ID)};
-delete from holds         where scenario_id = ${q(SCEN_ID)};
-delete from documents     where scenario_id = ${q(SCEN_ID)};
-delete from contacts      where scenario_id = ${q(SCEN_ID)};
-delete from scenario_meta where scenario_id = ${q(SCEN_ID)};
-delete from seats         where scenario_id = ${q(SCEN_ID)};
-delete from scenarios     where id = ${q(SCEN_ID)};
 insert into organizations (id, name) values (${q(ORG_ID)}, 'TLFS Library') on conflict (id) do nothing;
 `);
 
 out.push(`-- scenario + real-time meta`);
-out.push(`insert into scenarios (id, org_id, title, summary) values (${q(SCEN_ID)}, ${q(ORG_ID)}, ${q(C.INTRO?.title ?? slug)}, ${q(C.INTRO?.setup ?? null)});`);
+out.push(`insert into scenarios (id, org_id, title, summary) values (${q(SCEN_ID)}, ${q(ORG_ID)}, ${q(C.INTRO?.title ?? slug)}, ${q(C.INTRO?.setup ?? null)}) on conflict (id) do update set org_id = excluded.org_id, title = excluded.title, summary = excluded.summary;`);
 out.push(
   `-- difficulty ${DIFF.difficulty} — ${DIFF.critical} critical holds / ${DIFF.weeks} wks, ${DIFF.teamSize} advisors, ${DIFF.weekSeconds}s/wk` +
     ` (info ${DIFF.infoLoad.toFixed(2)} · consult ${DIFF.consultLoad.toFixed(2)} · time ${DIFF.timePressure.toFixed(2)} · fragility ${DIFF.fragility.toFixed(2)})`,
 );
 out.push(
   `insert into scenario_meta (scenario_id, mode_default, driver_keys, week_count, week_seconds, difficulty, realism) values (` +
-    `${q(SCEN_ID)}, 'solo', ${j(drivers)}, ${C.WEEKS.length}, ${C.CONFIG?.weekSeconds ?? 'null'}, ${DIFF.difficulty}, ${q(REALISM)});`,
+    `${q(SCEN_ID)}, 'solo', ${j(drivers)}, ${C.WEEKS.length}, ${C.CONFIG?.weekSeconds ?? 'null'}, ${DIFF.difficulty}, ${q(REALISM)}) ` +
+    `on conflict (scenario_id) do update set mode_default = excluded.mode_default, driver_keys = excluded.driver_keys, week_count = excluded.week_count, week_seconds = excluded.week_seconds, difficulty = excluded.difficulty, realism = excluded.realism;`,
 );
 
 out.push(`\n-- full authored content (whole SCENARIO object; all ${capturedFns} functions preserved as source) the runtime loads`);
-out.push(`insert into documents (id, scenario_id, key, title, meta, body_json) values (${q(uuid(`doc:solo:${slug}`))}, ${q(SCEN_ID)}, 'solo_content', ${q(`${C.INTRO?.title ?? slug} — engine content`)}, ${j({ type: 'solo_content', slug, captured_fns: capturedFns })}, '${soloContentJson.replace(/'/g, "''")}'::jsonb);`);
+out.push(`insert into documents (id, scenario_id, key, title, meta, body_json) values (${q(uuid(`doc:solo:${slug}`))}, ${q(SCEN_ID)}, 'solo_content', ${q(`${C.INTRO?.title ?? slug} — engine content`)}, ${j({ type: 'solo_content', slug, captured_fns: capturedFns })}, '${soloContentJson.replace(/'/g, "''")}'::jsonb) on conflict (id) do update set key = excluded.key, title = excluded.title, meta = excluded.meta, body_json = excluded.body_json;`);
 
 out.push(`\n-- seats: human hot seat + advisor seats (AI-castable)`);
-out.push(`insert into seats (id, scenario_id, key, name, role, meta) values (${q(seatId('ceo'))}, ${q(SCEN_ID)}, 'ceo', 'CEO', ${q(C.INTRO?.role ?? 'Chief Executive Officer')}, ${j({ hot_seat: true, cast_default: 'human' })});`);
+out.push(`insert into seats (id, scenario_id, key, name, role, meta) values (${q(seatId('ceo'))}, ${q(SCEN_ID)}, 'ceo', 'CEO', ${q(C.INTRO?.role ?? 'Chief Executive Officer')}, ${j({ hot_seat: true, cast_default: 'human' })}) on conflict (id) do update set key = excluded.key, name = excluded.name, role = excluded.role, meta = excluded.meta;`);
 for (const t of C.TEAM) {
   const persona = `You are ${t.name}, ${t.role} — an advisor to the CEO. Priority: ${t.priority}. Voice: ${t.voice}. Stay fully in character; answer straight.`;
   // NOTE: disposition is NOT a seat attribute. It's a run-level dial (scenario
@@ -172,7 +167,7 @@ for (const t of C.TEAM) {
     fallbackReply: t.fallbackReply,
     fallbackReact: t.fallbackReact,
   };
-  out.push(`insert into seats (id, scenario_id, key, name, role, meta) values (${q(seatId(t.id))}, ${q(SCEN_ID)}, ${q(t.id)}, ${q(t.name)}, ${q(t.role)}, ${j(meta)});`);
+  out.push(`insert into seats (id, scenario_id, key, name, role, meta) values (${q(seatId(t.id))}, ${q(SCEN_ID)}, ${q(t.id)}, ${q(t.name)}, ${q(t.role)}, ${j(meta)}) on conflict (id) do update set key = excluded.key, name = excluded.name, role = excluded.role, meta = excluded.meta;`);
 }
 
 // ---- holds (linear weeks) + injects (timed beats) ----
@@ -226,7 +221,8 @@ out.push(`\n-- holds (${holdRows.length}) — the held-info landmines`);
 for (const h of holdRows) {
   out.push(
     `insert into holds (id, scenario_id, week_idx, holder_seat_id, topic, trigger_hints, hedge_text, reveal_text, critical, counterfactual_text) values (` +
-      `${q(h.id)}, ${q(SCEN_ID)}, ${h.week_idx}, ${q(seatId(h.holder))}, ${q(h.topic)}, ${j(h.trigger_hints)}, ${q(h.hedge)}, ${q(h.reveal)}, ${bool(h.critical)}, ${q(h.counterfactual)});`,
+      `${q(h.id)}, ${q(SCEN_ID)}, ${h.week_idx}, ${q(seatId(h.holder))}, ${q(h.topic)}, ${j(h.trigger_hints)}, ${q(h.hedge)}, ${q(h.reveal)}, ${bool(h.critical)}, ${q(h.counterfactual)}) ` +
+      `on conflict (id) do update set week_idx = excluded.week_idx, holder_seat_id = excluded.holder_seat_id, topic = excluded.topic, trigger_hints = excluded.trigger_hints, hedge_text = excluded.hedge_text, reveal_text = excluded.reveal_text, critical = excluded.critical, counterfactual_text = excluded.counterfactual_text;`,
   );
 }
 
@@ -234,25 +230,15 @@ out.push(`\n-- injects (${injectRows.length}) — per-week timed beats (seat=ceo
 for (const i of injectRows) {
   out.push(
     `insert into injects (id, scenario_id, seat_id, kind, payload_json, order_idx, trigger_json) values (` +
-      `${q(i.id)}, ${q(SCEN_ID)}, ${q(seatId('ceo'))}, ${q(i.kind)}, ${j({ body: i.body, from: i.trigger.from })}, ${i.order_idx}, ${j(i.trigger)});`,
+      `${q(i.id)}, ${q(SCEN_ID)}, ${q(seatId('ceo'))}, ${q(i.kind)}, ${j({ body: i.body, from: i.trigger.from })}, ${i.order_idx}, ${j(i.trigger)}) ` +
+      `on conflict (id) do update set seat_id = excluded.seat_id, kind = excluded.kind, payload_json = excluded.payload_json, order_idx = excluded.order_idx, trigger_json = excluded.trigger_json;`,
   );
 }
 
-// ---- demo solo session (Phase 2 read-path): CEO cast human, advisors cast AI ----
-const SESSION_ID = uuid(`session:solo:${slug}:demo`);
-out.push(`\n-- demo solo session (CEO human + advisors AI)`);
-out.push(`insert into sessions (id, scenario_id, status, started_at, run_config) values (${q(SESSION_ID)}, ${q(SCEN_ID)}, 'live', now(), ${j({ disposition: 'request' })});`);
-out.push(
-  `insert into participants (id, session_id, seat_id, token, name, cast_kind) values (` +
-    `${q(uuid(`participant:solo:${slug}:ceo`))}, ${q(SESSION_ID)}, ${q(seatId('ceo'))}, ${q(`demo-${slug}-ceo-REPLACE`)}, 'CEO (demo)', 'human');`,
-);
-for (const t of C.TEAM) {
-  const persona = `You are ${t.name}, ${t.role} — an advisor to the CEO. Priority: ${t.priority}. Voice: ${t.voice}.`;
-  out.push(
-    `insert into participants (id, session_id, seat_id, cast_kind, agent_json) values (` +
-      `${q(uuid(`participant:solo:${slug}:${t.id}`))}, ${q(SESSION_ID)}, ${q(seatId(t.id))}, 'ai', ${j({ persona, voice: t.voice, model: 'default' })});`,
-  );
-}
+// NOTE: no demo session is seeded. Sessions/events are the append-only capture log and
+// belong to real runs; a content seed must never create or delete them (deleting a played
+// scenario's sessions would cascade into events and trip the append-only guard). Real runs
+// are created by the facilitator via createSession.
 
 out.push(`\ncommit;`);
 
