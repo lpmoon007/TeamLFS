@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
-import { askDirector, type ChatTurn } from '@/lib/director-chat';
+import { askDirector, type ChatTurn, type Followup } from '@/lib/director-chat';
 import { DictateButton } from '@/components/DictateButton';
 
 // The Director Chat panel in the solo game-film debrief — an AI head-coach Q&A grounded
@@ -16,17 +16,17 @@ export function DirectorChat({ sessionId, token, weakLabels }: { sessionId: stri
   const logRef = useRef<HTMLDivElement>(null);
   const askedRef = useRef<Set<string>>(new Set());
 
-  // Opening chips — seeded from the weakest reads. After each answer the coach hands back
-  // fresh follow-ups keyed off what was just discussed, so the suggestions go deeper
-  // instead of looping the same four.
-  const [chips, setChips] = useState<string[]>(() =>
-    [
-      weakLabels[0] ? `Where did I lose points on ${weakLabels[0].toLowerCase()}?` : null,
-      weakLabels[1] ? `What would a stronger move on ${weakLabels[1].toLowerCase()} have looked like?` : null,
-      'What was my single biggest miss?',
-      'What did I do well?',
-    ].filter((c): c is string => !!c),
-  );
+  // Opening chips — seeded from the weakest reads. After each answer the coach hands back a
+  // MIX of follow-ups: two that go deeper on the current thread, one lateral, one that resets
+  // to a different high-level area — so the participant can mine one vein, then switch veins.
+  const [chips, setChips] = useState<Followup[]>(() => {
+    const seed: Followup[] = [];
+    if (weakLabels[0]) seed.push({ kind: 'deeper', text: `Where did I lose points on ${weakLabels[0].toLowerCase()}?` });
+    if (weakLabels[1]) seed.push({ kind: 'deeper', text: `What would a stronger move on ${weakLabels[1].toLowerCase()} have looked like?` });
+    seed.push({ kind: 'reset', text: 'What was my single biggest miss?' });
+    seed.push({ kind: 'reset', text: 'What did I do well?' });
+    return seed;
+  });
 
   const ask = async (text: string) => {
     const q = text.trim();
@@ -34,14 +34,14 @@ export function DirectorChat({ sessionId, token, weakLabels }: { sessionId: stri
     setBusy(true);
     setBox('');
     askedRef.current.add(q.toLowerCase());
-    setChips((cur) => cur.filter((c) => c.toLowerCase() !== q.toLowerCase()));
+    setChips((cur) => cur.filter((c) => c.text.toLowerCase() !== q.toLowerCase()));
     const history = turns;
     setTurns((t) => [...t, { role: 'user', content: q }]);
     setTimeout(() => logRef.current?.scrollTo({ top: logRef.current.scrollHeight }), 0);
     try {
       const res = await askDirector({ sessionId, token, history, question: q });
       setTurns((t) => [...t, { role: 'assistant', content: res.ok && res.reply ? res.reply : 'I couldn’t reach the film just now — ask me again in a moment.' }]);
-      const fresh = (res.followups ?? []).filter((c) => !askedRef.current.has(c.toLowerCase()));
+      const fresh = (res.followups ?? []).filter((c) => !askedRef.current.has(c.text.toLowerCase()));
       if (fresh.length) setChips(fresh.slice(0, 4));
     } catch {
       setTurns((t) => [...t, { role: 'assistant', content: 'I couldn’t reach the film just now — ask me again in a moment.' }]);
@@ -74,8 +74,8 @@ export function DirectorChat({ sessionId, token, weakLabels }: { sessionId: stri
       {chips.length ? (
         <div className="chat-quick">
           {chips.map((c) => (
-            <button className="chat-chip" key={c} disabled={busy} onClick={() => ask(c)}>
-              {c}
+            <button className={`chat-chip${c.kind !== 'deeper' ? ' pivot' : ''}`} key={c.text} disabled={busy} onClick={() => ask(c.text)} title={c.kind === 'reset' ? 'Switch to a different area' : c.kind === 'wider' ? 'A different angle on this' : 'Go deeper'}>
+              {c.kind === 'reset' ? '↺ ' : c.kind === 'wider' ? '↔ ' : ''}{c.text}
             </button>
           ))}
         </div>

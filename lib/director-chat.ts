@@ -16,25 +16,38 @@ export interface ChatTurn {
   role: 'user' | 'assistant';
   content: string;
 }
+// A suggested next question, tagged by direction so the UI can offer a mix: go deeper on
+// the current thread, step sideways to a related angle, or reset to a fresh high-level area.
+export type FollowupKind = 'deeper' | 'wider' | 'reset';
+export interface Followup {
+  text: string;
+  kind: FollowupKind;
+}
 export interface DirectorReply {
   ok: boolean;
   reply?: string;
-  followups?: string[]; // fresh, conversation-aware next questions the coach suggests
+  followups?: Followup[]; // fresh, conversation-aware next questions the coach suggests
 }
 
 const strip = (s: string | null | undefined) => String(s ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 
-// The coach ends each answer with a machine-readable line of 3 deeper follow-ups, keyed
-// off what was just discussed (so the suggested questions evolve instead of repeating).
-// Pull them out of the reply and hand them back separately.
-function splitFollowups(raw: string): { reply: string; followups: string[] } {
+// The coach ends each answer with a machine-readable line of tagged follow-ups — two that go
+// deeper on what was just discussed, one lateral, one that resets to a different high-level
+// area — so the suggestions evolve AND let the participant switch tracks. Pull them out.
+function splitFollowups(raw: string): { reply: string; followups: Followup[] } {
   // tolerate a missing closing tag: grab from <followups> to the close tag or end
   const m = raw.match(/<followups>([\s\S]*?)(?:<\/followups>|$)/i);
   if (!m) return { reply: raw.trim(), followups: [] };
-  const followups = m[1]
+  const followups: Followup[] = m[1]
     .split('|')
-    .map((s) => s.replace(/<\/?followups>/gi, '').replace(/^\s*[-•\d.]+\s*/, '').trim())
-    .filter((s) => s.length > 3)
+    .map((s) => {
+      const cleaned = s.replace(/<\/?followups>/gi, '').trim();
+      const km = cleaned.match(/^(deeper|wider|reset)\s*[:\-]\s*(.+)$/i);
+      const kind = (km ? km[1].toLowerCase() : 'deeper') as FollowupKind;
+      const text = (km ? km[2] : cleaned).replace(/^\s*[-•\d.]+\s*/, '').trim();
+      return { kind, text };
+    })
+    .filter((f) => f.text.length > 3)
     .slice(0, 4);
   // strip the whole block (and any dangling tag) out of the visible reply
   const reply = raw
@@ -44,14 +57,19 @@ function splitFollowups(raw: string): { reply: string; followups: string[] } {
   return { reply, followups };
 }
 
-// Appended to both coaches' system prompts: keep the suggested questions moving forward.
+// Appended to both coaches' system prompts: keep the suggested questions moving — and give
+// the participant a way to change lanes, not just descend.
 const FOLLOWUP_INSTRUCTION =
   `\n\n=== AFTER YOUR ANSWER (required) ===\n` +
-  `On the very last line, suggest exactly three follow-up questions that go DEEPER on what you just ` +
-  `discussed — each a specific, natural next step from THIS answer, not a generic restart. Never repeat a ` +
-  `question already asked in this conversation; build on it. Keep each under ~12 words. Output them on one ` +
-  `line, pipe-separated, wrapped exactly like this and with nothing after it:\n` +
-  `<followups>First question?|Second question?|Third question?</followups>`;
+  `On the very last line, suggest four follow-up questions as a labeled, pipe-separated list, so the ` +
+  `participant can either go deeper OR switch tracks. Use exactly this composition and order:\n` +
+  `  • two labeled "deeper:" — go further into what you JUST discussed (a specific next step, not a restart)\n` +
+  `  • one labeled "wider:" — a related but different angle on the SAME area\n` +
+  `  • one labeled "reset:" — jump to a DIFFERENT high-level part of the run not yet explored (another of the ` +
+  `six reads, what they did well, the panel, or a specific game-film moment)\n` +
+  `Never repeat a question already asked in this conversation. Keep each under ~12 words. Output on one line, ` +
+  `nothing after it:\n` +
+  `<followups>deeper:First question?|deeper:Second question?|wider:Third question?|reset:Fourth question?</followups>`;
 
 // The persona + the complete run record — the coach never invents anything outside this.
 function buildContext(d: SoloDebrief): string {

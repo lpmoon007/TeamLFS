@@ -495,6 +495,9 @@
 .soloui .chat-quick{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px 4px;}
 .soloui .chat-chip{font:inherit;font-size:12px;color:var(--steel-deep);background:var(--steel-tint);border:1px solid var(--steel-tint-edge);border-radius:999px;padding:6px 13px;cursor:pointer;transition:background .15s;}
 .soloui .chat-chip:hover{background:#d9e7f5;} .soloui .chat-chip:disabled{opacity:.5;cursor:default;}
+/* pivot chips — a lateral angle or a jump to a different area (change lanes, don't just descend) */
+.soloui .chat-chip.pivot{background:transparent;border-style:dashed;border-color:var(--muted-soft);color:var(--muted);}
+.soloui .chat-chip.pivot:hover{background:var(--steel-tint);border-color:var(--steel);color:var(--steel-deep);}
 .soloui .chat-input{display:flex;gap:9px;padding:14px 18px;border-top:1px solid var(--border-soft);}
 .soloui .chat-input input{flex:1;font:inherit;font-size:14px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;color:#1c2733;outline:none;}
 .soloui .chat-input input:focus{border-color:var(--steel);}

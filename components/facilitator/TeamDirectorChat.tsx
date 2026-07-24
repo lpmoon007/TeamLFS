@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
-import { askTeamDirector, type ChatTurn } from '@/lib/director-chat';
+import { askTeamDirector, type ChatTurn, type Followup } from '@/lib/director-chat';
 import { DictateButton } from '@/components/DictateButton';
 
 // The Team Director chat on the facilitator team debrief — an AI head-coach Q&A grounded
@@ -18,10 +18,15 @@ export function TeamDirectorChat({ sessionId, chips }: { sessionId: string; chip
   const logRef = useRef<HTMLDivElement>(null);
   const askedRef = useRef<Set<string>>(new Set());
 
-  // Opening chips; replaced after each answer by the coach's fresh, conversation-aware
-  // follow-ups so the suggestions deepen instead of repeating.
-  const [quick, setQuick] = useState<string[]>(() =>
-    [...chips, 'Who carried the room, and who went quiet?', 'What was the team’s single biggest miss?'].slice(0, 4),
+  // Opening chips; after each answer the coach hands back a MIX — two deeper on the thread,
+  // one lateral, one that resets to a different high-level read of the room — so the
+  // facilitator can go deep, then switch tracks.
+  const [quick, setQuick] = useState<Followup[]>(() =>
+    [
+      ...chips.map((c) => ({ kind: 'deeper' as const, text: c })),
+      { kind: 'reset' as const, text: 'Who carried the room, and who went quiet?' },
+      { kind: 'reset' as const, text: 'What was the team’s single biggest miss?' },
+    ].slice(0, 4),
   );
 
   const ask = async (text: string) => {
@@ -30,14 +35,14 @@ export function TeamDirectorChat({ sessionId, chips }: { sessionId: string; chip
     setBusy(true);
     setBox('');
     askedRef.current.add(q.toLowerCase());
-    setQuick((cur) => cur.filter((c) => c.toLowerCase() !== q.toLowerCase()));
+    setQuick((cur) => cur.filter((c) => c.text.toLowerCase() !== q.toLowerCase()));
     const history = turns;
     setTurns((t) => [...t, { role: 'user', content: q }]);
     setTimeout(() => logRef.current?.scrollTo({ top: logRef.current.scrollHeight }), 0);
     try {
       const res = await askTeamDirector({ sessionId, history, question: q });
       setTurns((t) => [...t, { role: 'assistant', content: res.ok && res.reply ? res.reply : 'I couldn’t reach the film just now — ask me again in a moment.' }]);
-      const fresh = (res.followups ?? []).filter((c) => !askedRef.current.has(c.toLowerCase()));
+      const fresh = (res.followups ?? []).filter((c) => !askedRef.current.has(c.text.toLowerCase()));
       if (fresh.length) setQuick(fresh.slice(0, 4));
     } catch {
       setTurns((t) => [...t, { role: 'assistant', content: 'I couldn’t reach the film just now — ask me again in a moment.' }]);
@@ -70,8 +75,8 @@ export function TeamDirectorChat({ sessionId, chips }: { sessionId: string; chip
       {quick.length ? (
         <div className="chat-quick">
           {quick.map((c) => (
-            <button className="chat-chip" key={c} disabled={busy} onClick={() => ask(c)}>
-              {c}
+            <button className={`chat-chip${c.kind !== 'deeper' ? ' pivot' : ''}`} key={c.text} disabled={busy} onClick={() => ask(c.text)} title={c.kind === 'reset' ? 'Switch to a different area' : c.kind === 'wider' ? 'A different angle on this' : 'Go deeper'}>
+              {c.kind === 'reset' ? '↺ ' : c.kind === 'wider' ? '↔ ' : ''}{c.text}
             </button>
           ))}
         </div>
