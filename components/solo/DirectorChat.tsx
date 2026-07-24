@@ -14,25 +14,35 @@ export function DirectorChat({ sessionId, token, weakLabels }: { sessionId: stri
   const [box, setBox] = useState('');
   const [busy, setBusy] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
+  const askedRef = useRef<Set<string>>(new Set());
 
-  const chips = [
-    weakLabels[0] ? `Where did I lose points on ${weakLabels[0].toLowerCase()}?` : null,
-    weakLabels[1] ? `What would a stronger move on ${weakLabels[1].toLowerCase()} have looked like?` : null,
-    'What was my single biggest miss?',
-    'What did I do well?',
-  ].filter((c): c is string => !!c);
+  // Opening chips — seeded from the weakest reads. After each answer the coach hands back
+  // fresh follow-ups keyed off what was just discussed, so the suggestions go deeper
+  // instead of looping the same four.
+  const [chips, setChips] = useState<string[]>(() =>
+    [
+      weakLabels[0] ? `Where did I lose points on ${weakLabels[0].toLowerCase()}?` : null,
+      weakLabels[1] ? `What would a stronger move on ${weakLabels[1].toLowerCase()} have looked like?` : null,
+      'What was my single biggest miss?',
+      'What did I do well?',
+    ].filter((c): c is string => !!c),
+  );
 
   const ask = async (text: string) => {
     const q = text.trim();
     if (!q || busy) return;
     setBusy(true);
     setBox('');
+    askedRef.current.add(q.toLowerCase());
+    setChips((cur) => cur.filter((c) => c.toLowerCase() !== q.toLowerCase()));
     const history = turns;
     setTurns((t) => [...t, { role: 'user', content: q }]);
     setTimeout(() => logRef.current?.scrollTo({ top: logRef.current.scrollHeight }), 0);
     try {
       const res = await askDirector({ sessionId, token, history, question: q });
       setTurns((t) => [...t, { role: 'assistant', content: res.ok && res.reply ? res.reply : 'I couldn’t reach the film just now — ask me again in a moment.' }]);
+      const fresh = (res.followups ?? []).filter((c) => !askedRef.current.has(c.toLowerCase()));
+      if (fresh.length) setChips(fresh.slice(0, 4));
     } catch {
       setTurns((t) => [...t, { role: 'assistant', content: 'I couldn’t reach the film just now — ask me again in a moment.' }]);
     } finally {
@@ -61,13 +71,15 @@ export function DirectorChat({ sessionId, token, weakLabels }: { sessionId: stri
           </div>
         ) : null}
       </div>
-      <div className="chat-quick">
-        {chips.map((c) => (
-          <button className="chat-chip" key={c} disabled={busy} onClick={() => ask(c)}>
-            {c}
-          </button>
-        ))}
-      </div>
+      {chips.length ? (
+        <div className="chat-quick">
+          {chips.map((c) => (
+            <button className="chat-chip" key={c} disabled={busy} onClick={() => ask(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="chat-input">
         <input
           value={box}

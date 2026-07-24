@@ -19,9 +19,39 @@ export interface ChatTurn {
 export interface DirectorReply {
   ok: boolean;
   reply?: string;
+  followups?: string[]; // fresh, conversation-aware next questions the coach suggests
 }
 
 const strip = (s: string | null | undefined) => String(s ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+
+// The coach ends each answer with a machine-readable line of 3 deeper follow-ups, keyed
+// off what was just discussed (so the suggested questions evolve instead of repeating).
+// Pull them out of the reply and hand them back separately.
+function splitFollowups(raw: string): { reply: string; followups: string[] } {
+  // tolerate a missing closing tag: grab from <followups> to the close tag or end
+  const m = raw.match(/<followups>([\s\S]*?)(?:<\/followups>|$)/i);
+  if (!m) return { reply: raw.trim(), followups: [] };
+  const followups = m[1]
+    .split('|')
+    .map((s) => s.replace(/<\/?followups>/gi, '').replace(/^\s*[-•\d.]+\s*/, '').trim())
+    .filter((s) => s.length > 3)
+    .slice(0, 4);
+  // strip the whole block (and any dangling tag) out of the visible reply
+  const reply = raw
+    .slice(0, m.index)
+    .replace(/<\/?followups>/gi, '')
+    .trim();
+  return { reply, followups };
+}
+
+// Appended to both coaches' system prompts: keep the suggested questions moving forward.
+const FOLLOWUP_INSTRUCTION =
+  `\n\n=== AFTER YOUR ANSWER (required) ===\n` +
+  `On the very last line, suggest exactly three follow-up questions that go DEEPER on what you just ` +
+  `discussed — each a specific, natural next step from THIS answer, not a generic restart. Never repeat a ` +
+  `question already asked in this conversation; build on it. Keep each under ~12 words. Output them on one ` +
+  `line, pipe-separated, wrapped exactly like this and with nothing after it:\n` +
+  `<followups>First question?|Second question?|Third question?</followups>`;
 
 // The persona + the complete run record — the coach never invents anything outside this.
 function buildContext(d: SoloDebrief): string {
@@ -92,23 +122,27 @@ export async function askDirector(params: {
   else return { ok: false };
   if (!res.ok) return { ok: false };
 
-  const system = buildContext(res.debrief);
+  const system =
+    buildContext(res.debrief) +
+    FOLLOWUP_INSTRUCTION +
+    ` Phrase each follow-up as the participant would ask about their own run (first person: "Where did I…", "What would a stronger…").`;
   const history = (params.history ?? []).slice(-12).map((t) => ({ role: t.role, content: t.content }));
 
   try {
     const client = new Anthropic({ apiKey: anthropicApiKey() });
     const msg = await client.messages.create({
       model: VOICE_MODEL, // thoughtful, not latency-bound — the coach reasons over the record
-      max_tokens: 700,
+      max_tokens: 760,
       system,
       messages: [...history, { role: 'user' as const, content: q }],
     });
-    const reply = msg.content
+    const raw = msg.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('')
       .trim();
-    return { ok: true, reply: reply || 'I couldn’t reach the film just now — ask me again in a moment.' };
+    const { reply, followups } = splitFollowups(raw);
+    return { ok: true, reply: reply || 'I couldn’t reach the film just now — ask me again in a moment.', followups };
   } catch {
     return { ok: true, reply: 'I couldn’t reach the film just now — ask me again in a moment.' };
   }
@@ -177,13 +211,17 @@ export async function askTeamDirector(params: { sessionId: string; history: Chat
   if (!d) return { ok: false };
   const panel = await buildTeamPanel(params.sessionId);
 
-  const system = buildTeamContext(d, panel);
+  const system =
+    buildTeamContext(d, panel) +
+    FOLLOWUP_INSTRUCTION +
+    ` Phrase each follow-up as the facilitator would ask about the room ("Why did…", "Who…", "What would have…").`;
   const history = (params.history ?? []).slice(-12).map((t) => ({ role: t.role, content: t.content }));
   try {
     const client = new Anthropic({ apiKey: anthropicApiKey() });
-    const msg = await client.messages.create({ model: VOICE_MODEL, max_tokens: 700, system, messages: [...history, { role: 'user' as const, content: q }] });
-    const reply = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('').trim();
-    return { ok: true, reply: reply || 'I couldn’t reach the film just now — ask me again in a moment.' };
+    const msg = await client.messages.create({ model: VOICE_MODEL, max_tokens: 760, system, messages: [...history, { role: 'user' as const, content: q }] });
+    const raw = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('').trim();
+    const { reply, followups } = splitFollowups(raw);
+    return { ok: true, reply: reply || 'I couldn’t reach the film just now — ask me again in a moment.', followups };
   } catch {
     return { ok: true, reply: 'I couldn’t reach the film just now — ask me again in a moment.' };
   }

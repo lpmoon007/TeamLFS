@@ -16,20 +16,29 @@ export function TeamDirectorChat({ sessionId, chips }: { sessionId: string; chip
   const [box, setBox] = useState('');
   const [busy, setBusy] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
+  const askedRef = useRef<Set<string>>(new Set());
 
-  const quick = [...chips, 'Who carried the room, and who went quiet?', 'What was the team’s single biggest miss?'].slice(0, 4);
+  // Opening chips; replaced after each answer by the coach's fresh, conversation-aware
+  // follow-ups so the suggestions deepen instead of repeating.
+  const [quick, setQuick] = useState<string[]>(() =>
+    [...chips, 'Who carried the room, and who went quiet?', 'What was the team’s single biggest miss?'].slice(0, 4),
+  );
 
   const ask = async (text: string) => {
     const q = text.trim();
     if (!q || busy) return;
     setBusy(true);
     setBox('');
+    askedRef.current.add(q.toLowerCase());
+    setQuick((cur) => cur.filter((c) => c.toLowerCase() !== q.toLowerCase()));
     const history = turns;
     setTurns((t) => [...t, { role: 'user', content: q }]);
     setTimeout(() => logRef.current?.scrollTo({ top: logRef.current.scrollHeight }), 0);
     try {
       const res = await askTeamDirector({ sessionId, history, question: q });
       setTurns((t) => [...t, { role: 'assistant', content: res.ok && res.reply ? res.reply : 'I couldn’t reach the film just now — ask me again in a moment.' }]);
+      const fresh = (res.followups ?? []).filter((c) => !askedRef.current.has(c.toLowerCase()));
+      if (fresh.length) setQuick(fresh.slice(0, 4));
     } catch {
       setTurns((t) => [...t, { role: 'assistant', content: 'I couldn’t reach the film just now — ask me again in a moment.' }]);
     } finally {
@@ -58,13 +67,15 @@ export function TeamDirectorChat({ sessionId, chips }: { sessionId: string; chip
           </div>
         ) : null}
       </div>
-      <div className="chat-quick">
-        {quick.map((c) => (
-          <button className="chat-chip" key={c} disabled={busy} onClick={() => ask(c)}>
-            {c}
-          </button>
-        ))}
-      </div>
+      {quick.length ? (
+        <div className="chat-quick">
+          {quick.map((c) => (
+            <button className="chat-chip" key={c} disabled={busy} onClick={() => ask(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="chat-input">
         <input
           value={box}
