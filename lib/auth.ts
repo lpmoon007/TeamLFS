@@ -201,11 +201,40 @@ export interface FacilitatorListItem extends Facilitator {
   active: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+  runs: number; // runs this account has played (via its email-keyed play profile)
+  subjectId: string | null; // their play profile, if they've played — links Accounts → People
 }
 export async function listFacilitators(): Promise<FacilitatorListItem[]> {
   const db: Db = createAdminClient();
   const { data } = await db.from('facilitators').select('id, email, display_name, role, org_id, active, created_at, last_login_at').order('created_at', { ascending: true });
-  return (data ?? []).map((r: any) => ({ ...rowToFacilitator(r), active: !!r.active, createdAt: r.created_at, lastLoginAt: r.last_login_at ?? null }));
+  const rows = (data ?? []) as any[];
+
+  // cross-link to the People side: match each account's email to its play profile (subject)
+  // by handle, then count that profile's runs — so Accounts can show play activity + a link.
+  const emails = rows.map((r) => String(r.email).toLowerCase());
+  const subjByEmail = new Map<string, string>();
+  if (emails.length) {
+    const { data: subs } = await db.from('subjects').select('id, handle').in('handle', emails);
+    for (const s of subs ?? []) subjByEmail.set(String((s as any).handle).toLowerCase(), (s as any).id);
+  }
+  const subjectIds = [...subjByEmail.values()];
+  const runsBySubject = new Map<string, number>();
+  if (subjectIds.length) {
+    const { data: parts } = await db.from('participants').select('subject_id').in('subject_id', subjectIds);
+    for (const p of parts ?? []) runsBySubject.set((p as any).subject_id, (runsBySubject.get((p as any).subject_id) ?? 0) + 1);
+  }
+
+  return rows.map((r: any) => {
+    const subjectId = subjByEmail.get(String(r.email).toLowerCase()) ?? null;
+    return {
+      ...rowToFacilitator(r),
+      active: !!r.active,
+      createdAt: r.created_at,
+      lastLoginAt: r.last_login_at ?? null,
+      subjectId,
+      runs: subjectId ? runsBySubject.get(subjectId) ?? 0 : 0,
+    };
+  });
 }
 export async function setFacilitatorActive(id: string, active: boolean): Promise<void> {
   const db = createAdminClient();

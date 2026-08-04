@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createAccount, setAccountActive } from '@/lib/auth-actions';
 import type { FacilitatorListItem } from '@/lib/auth';
@@ -63,16 +64,18 @@ export function AccountsAdmin({ accounts }: { accounts: FacilitatorListItem[] })
         ) : (
           <div className="db-table-wrap">
             <table className="db-table">
-              <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Last login</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Runs</th><th>Last login</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {accounts.map((a) => (
                   <tr key={a.id} style={a.active ? undefined : { opacity: 0.55 }}>
                     <td>{a.email}</td>
                     <td>{a.displayName ?? '—'}</td>
                     <td><span className={`cast-badge ${a.role === 'admin' ? 'human' : 'ai'}`}>{a.role}</span></td>
+                    <td>{a.runs > 0 ? <span className="pill live">{a.runs} run{a.runs === 1 ? '' : 's'}</span> : <span className="pill">never played</span>}</td>
                     <td className="db-dim">{a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleDateString() : 'never'}</td>
                     <td><span className={`pill ${a.active ? 'live' : 'ended'}`}>{a.active ? 'active' : 'disabled'}</span></td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {a.subjectId ? <><Link className="btn ghost" href={`/facilitator/subject/${a.subjectId}`}>Profile →</Link>{' '}</> : null}
                       <button className="btn ghost" onClick={() => toggle(a.id, !a.active)}>{a.active ? 'Deactivate' : 'Reactivate'}</button>
                     </td>
                   </tr>

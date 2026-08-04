@@ -953,6 +953,7 @@ export interface PersonItem {
   name: string;
   email: string | null;
   runs: number;
+  role: string | null; // their account role if they have a login (leader/facilitator/admin), else null — links People → Accounts
 }
 
 /** List people (subjects) — optionally scoped to an org. */
@@ -969,11 +970,19 @@ export async function listPeople(orgId?: string | null): Promise<PersonItem[]> {
     const { data: parts } = await db.from('participants').select('subject_id').in('subject_id', ids);
     for (const p of parts ?? []) runs.set((p as any).subject_id, (runs.get((p as any).subject_id) ?? 0) + 1);
   }
+  // cross-link to the Accounts side: match each person's email to a login account's role
+  const emails = rows.map((s) => String(s.handle).toLowerCase()).filter((h) => /@/.test(h));
+  const roleByEmail = new Map<string, string>();
+  if (emails.length) {
+    const { data: accts } = await db.from('facilitators').select('email, role').in('email', emails);
+    for (const a of accts ?? []) roleByEmail.set(String((a as any).email).toLowerCase(), (a as any).role);
+  }
   return rows.map((s) => ({
     id: s.id,
     name: s.display_name || s.handle,
     email: /@/.test(s.handle) ? s.handle : null,
     runs: runs.get(s.id) ?? 0,
+    role: roleByEmail.get(String(s.handle).toLowerCase()) ?? null,
   }));
 }
 

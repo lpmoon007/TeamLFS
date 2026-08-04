@@ -42,12 +42,13 @@ export function PeopleRoster({ people, keyParam }: { people: PersonItem[]; keyPa
         ) : (
           <div className="db-table-wrap">
             <table className="db-table">
-              <thead><tr><th>Name</th><th>Email</th><th>Runs</th><th></th></tr></thead>
+              <thead><tr><th>Name</th><th>Email</th><th>Account</th><th>Runs</th><th></th></tr></thead>
               <tbody>
                 {people.map((p) => (
                   <tr key={p.id}>
                     <td><strong>{p.name}</strong></td>
                     <td className="db-dim">{p.email ?? '—'}</td>
+                    <td>{p.role ? <span className={`cast-badge ${p.role === 'admin' ? 'human' : 'ai'}`}>{p.role}</span> : <span className="db-dim">no login</span>}</td>
                     <td>{p.runs > 0 ? <span className="pill live">{p.runs} run{p.runs === 1 ? '' : 's'}</span> : <span className="pill">never played</span>}</td>
                     <td style={{ textAlign: 'right' }}>
                       <Link className="btn ghost" href={`/facilitator/subject/${p.id}${keyParam}`}>Profile →</Link>
