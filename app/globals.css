@@ -364,6 +364,8 @@ button { font-family: inherit; cursor: pointer; }
 /* play surface — the leader (play-only) landing */
 .play-wrap { max-width: 1000px; margin: 0 auto; padding: 0 20px 60px; }
 .play-head { display: flex; align-items: center; justify-content: space-between; padding: 22px 0 18px; border-bottom: 1px solid var(--line-soft); margin-bottom: 24px; }
+.play-head .wm { font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; font-size: 12px; }
+.play-head .wm span { color: var(--accent); }
 .play-head-r { display: flex; align-items: center; gap: 14px; }
 .play-who { font-size: 13px; color: var(--text-dim); font-weight: 600; }
 .play-hi { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 22px; }
