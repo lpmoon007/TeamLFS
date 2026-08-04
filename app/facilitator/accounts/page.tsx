@@ -1,4 +1,4 @@
-import { isFacilitatorSession, facilitator, isAdmin } from '@/lib/facilitator-session';
+import { requireStaffPage, facilitator, isAdmin } from '@/lib/facilitator-session';
 import { listFacilitators } from '@/lib/auth';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
@@ -7,7 +7,7 @@ import { Notice } from '@/components/Notice';
 
 // Admin — account management. Admin-only (the master key counts as admin).
 export default async function AccountsPage() {
-  if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
+  if ((await requireStaffPage()) === 'login') return <FacilitatorLogin />;
   const me = await facilitator();
   if (!(await isAdmin())) {
     return (

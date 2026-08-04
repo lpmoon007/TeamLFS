@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { isFacilitatorSession } from '@/lib/facilitator-session';
+import { requireStaffPage } from '@/lib/facilitator-session';
 import { loadControl, listInjects, loadSoloControl, sessionMode, loadDirectorConfig } from '@/lib/facilitator-actions';
 import { Notice } from '@/components/Notice';
 import { SessionControl } from '@/components/facilitator/SessionControl';
@@ -9,7 +9,7 @@ import { SoloControl } from '@/components/facilitator/SoloControl';
 // (disposition dial + advisor casting + ruling trail); team runs get the team console.
 export default async function SessionControlPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
-  if (!(await isFacilitatorSession())) redirect('/facilitator');
+  if ((await requireStaffPage()) === 'login') redirect('/facilitator');
 
   const mode = await sessionMode(sessionId);
   if (mode === null) return <Notice title="Session not found" message="No session with that id." />;

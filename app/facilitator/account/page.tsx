@@ -1,4 +1,4 @@
-import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
+import { requireStaffPage, facilitator } from '@/lib/facilitator-session';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
 import { ChangePassword } from '@/components/facilitator/ChangePassword';
@@ -6,7 +6,7 @@ import { Notice } from '@/components/Notice';
 
 // Self-service account settings — every signed-in facilitator can change their own password.
 export default async function AccountPage() {
-  if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
+  if ((await requireStaffPage()) === 'login') return <FacilitatorLogin />;
   const me = await facilitator();
 
   return (

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { facilitatorAllowed, isFacilitatorSession } from '@/lib/facilitator-session';
+import { facilitatorAllowed, isStaff } from '@/lib/facilitator-session';
 import { loadSubjectDashboard } from '@/lib/subject-dashboard';
 import { listScenarios } from '@/lib/facilitator-actions';
 import { StartSessionForPerson } from '@/components/facilitator/StartSessionForPerson';
@@ -33,7 +33,7 @@ export default async function SubjectDashboardPage({
   const kp = key ? `?key=${encodeURIComponent(key)}` : '';
   const div = d.divergence;
   // starting a session needs a real facilitator login (not just a shared ?key= debrief link)
-  const canStart = await isFacilitatorSession();
+  const canStart = await isStaff();
   const scenarios = canStart ? await listScenarios() : [];
 
   return (

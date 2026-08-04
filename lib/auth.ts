@@ -13,7 +13,10 @@ const SESSION_COOKIE = 'signal_fac_sess'; // account session token
 const SECRET_COOKIE = 'signal_fac'; // legacy shared-secret cookie (bootstrap master)
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 
-export type Role = 'admin' | 'facilitator';
+// 'leader' is a play-only account — no console access; it exists purely to anchor a person's
+// runs to a persistent behavioral-memory profile (a spine `subject`) so their history
+// accumulates across sessions.
+export type Role = 'admin' | 'facilitator' | 'leader';
 export interface Facilitator {
   id: string;
   email: string;
@@ -22,6 +25,9 @@ export interface Facilitator {
   orgId: string | null;
   isMaster?: boolean; // true for the legacy secret identity (no DB row)
 }
+
+const ROLES: Role[] = ['admin', 'facilitator', 'leader'];
+const cleanRole = (r?: string): Role => (ROLES.includes(r as Role) ? (r as Role) : 'facilitator');
 
 // ---- password hashing (scrypt, built-in) --------------------------------------
 export function hashPassword(pw: string): string {
@@ -59,13 +65,41 @@ export async function createFacilitator(params: { email: string; password: strin
   const db = createAdminClient();
   const { data: existing } = await db.from('facilitators').select('id').eq('email', email).maybeSingle<any>();
   if (existing) return { ok: false, reason: 'email_taken' };
+  const role = cleanRole(params.role);
   const { data, error } = await db
     .from('facilitators')
-    .insert({ email, password_hash: hashPassword(params.password), display_name: params.displayName?.trim() || null, role: params.role === 'admin' ? 'admin' : 'facilitator', org_id: params.orgId ?? null })
+    .insert({ email, password_hash: hashPassword(params.password), display_name: params.displayName?.trim() || null, role, org_id: params.orgId ?? null })
     .select('id')
     .single<any>();
   if (error || !data) return { ok: false, reason: error?.message ?? 'insert_failed' };
+  // a leader is a player — give them a behavioral-memory profile up front so their runs
+  // attribute across sessions and they show up in the People roster immediately.
+  if (role === 'leader') await ensureSubjectByEmail(email, params.displayName?.trim() || null);
   return { ok: true, id: data.id };
+}
+
+/** Resolve (or create) the spine `subject` for a person's email — the behavioral-memory
+ *  identity a player's runs attribute to. Lives in the library org so it lines up with the
+ *  scenarios and the People roster. Idempotent. */
+export async function ensureSubjectByEmail(email: string, displayName?: string | null): Promise<string | null> {
+  const db = createAdminClient();
+  const handle = normEmail(email);
+  // the library org owns the scenarios + roster; fall back to the first org if unnamed
+  let orgId: string | null = null;
+  const { data: named } = await db.from('organizations').select('id').ilike('name', 'TLFS Library').maybeSingle<any>();
+  orgId = named?.id ?? null;
+  if (!orgId) {
+    const { data: first } = await db.from('organizations').select('id').order('created_at', { ascending: true }).limit(1).maybeSingle<any>();
+    orgId = first?.id ?? null;
+  }
+  const { data: existing } = await db.from('subjects').select('id').eq('org_id', orgId).eq('handle', handle).maybeSingle<any>();
+  if (existing) {
+    if (displayName) await db.from('subjects').update({ display_name: displayName }).eq('id', existing.id);
+    return existing.id;
+  }
+  const { data, error } = await db.from('subjects').insert({ org_id: orgId, handle, display_name: displayName ?? null }).select('id').single<any>();
+  if (error || !data) return null;
+  return data.id;
 }
 
 /** Self-service password change. Verifies the current password, then rotates the hash and

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
+import { requireStaffPage, facilitator } from '@/lib/facilitator-session';
 import { listSessions, listScenarios } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
@@ -8,7 +8,7 @@ import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
 
 // Facilitator home: sign-in gate → live session list.
 export default async function FacilitatorHome() {
-  if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
+  if ((await requireStaffPage()) === 'login') return <FacilitatorLogin />;
 
   const [sessions, scenarios, me] = await Promise.all([listSessions(), listScenarios(), facilitator()]);
   return (

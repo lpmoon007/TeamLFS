@@ -20,7 +20,9 @@ export function FacilitatorLogin() {
     const res = useKey ? await facilitatorLogin(key) : await accountLogin(email, password);
     setBusy(false);
     if (res.ok) {
-      router.push('/facilitator/library'); // drop into the scenario library on sign-in
+      // leaders can only play → their play surface; staff → the scenario library
+      const dest = 'role' in res && res.role === 'leader' ? '/play' : '/facilitator/library';
+      router.push(dest);
       router.refresh();
     } else setErr(useKey ? 'Invalid key.' : 'Wrong email or password.');
   };

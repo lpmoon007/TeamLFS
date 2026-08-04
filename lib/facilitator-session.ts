@@ -1,5 +1,6 @@
 import 'server-only';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { facilitatorSecret } from '@/lib/env';
 import { currentFacilitator, endAccountSession, type Facilitator } from '@/lib/auth';
 
@@ -25,6 +26,28 @@ export async function isAdmin(): Promise<boolean> {
   return f?.role === 'admin';
 }
 
+/** A play-only leader account (no console access). */
+export async function isLeader(): Promise<boolean> {
+  const f = await currentFacilitator();
+  return f?.role === 'leader';
+}
+
+/** Console staff — admin or facilitator (NOT a play-only leader). This is the real gate for
+ *  every facilitator surface and data action. */
+export async function isStaff(): Promise<boolean> {
+  const f = await currentFacilitator();
+  return f?.role === 'admin' || f?.role === 'facilitator';
+}
+
+/** Page gate for console routes: returns 'ok' for staff, redirects leaders to their play
+ *  surface, and returns 'login' for anonymous (the caller renders the sign-in screen). */
+export async function requireStaffPage(): Promise<'ok' | 'login'> {
+  const f = await currentFacilitator();
+  if (!f) return 'login';
+  if (f.role === 'leader') redirect('/play');
+  return 'ok';
+}
+
 /** Legacy: set the shared-secret cookie (the master-key login path). */
 export async function setFacilitatorSession(): Promise<void> {
   (await cookies()).set(COOKIE, facilitatorSecret(), {
@@ -42,7 +65,7 @@ export async function clearFacilitatorSession(): Promise<void> {
 // Allow either the facilitator cookie OR a ?key= that matches the secret (so debrief
 // links are shareable with a coach who isn't signed in).
 export async function facilitatorAllowed(key?: string): Promise<boolean> {
-  if (await isFacilitatorSession()) return true;
+  if (await isStaff()) return true; // staff only — a play-only leader can't reach console views
   if (!key) return false;
   try {
     return key === facilitatorSecret();

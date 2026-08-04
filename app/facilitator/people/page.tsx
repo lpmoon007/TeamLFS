@@ -1,4 +1,4 @@
-import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
+import { requireStaffPage, facilitator } from '@/lib/facilitator-session';
 import { listPeople } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
@@ -7,7 +7,7 @@ import { PeopleRoster } from '@/components/facilitator/PeopleRoster';
 // Admin — the people roster (players). Add people, see their run counts, drill into their
 // cross-session profile.
 export default async function PeoplePage() {
-  if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
+  if ((await requireStaffPage()) === 'login') return <FacilitatorLogin />;
   const [me, people] = await Promise.all([facilitator(), listPeople()]);
 
   return (

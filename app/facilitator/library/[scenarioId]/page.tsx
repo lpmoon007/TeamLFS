@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { isFacilitatorSession, facilitator, isAdmin } from '@/lib/facilitator-session';
+import { requireStaffPage, facilitator, isAdmin } from '@/lib/facilitator-session';
 import { getScenarioDetail, listPeople } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
@@ -12,7 +12,7 @@ import { Notice } from '@/components/Notice';
 // authored structure (read model). Session Setup and Scenario Editor, connected under
 // the scenario they act on.
 export default async function ScenarioDetailPage({ params }: { params: Promise<{ scenarioId: string }> }) {
-  if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
+  if ((await requireStaffPage()) === 'login') return <FacilitatorLogin />;
   const { scenarioId } = await params;
   const [d, me, admin] = await Promise.all([getScenarioDetail(scenarioId), facilitator(), isAdmin()]);
   // All people are assignable — a subject's org has no bearing on which scenario they can

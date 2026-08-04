@@ -10,7 +10,7 @@ export function AccountsAdmin({ accounts }: { accounts: FacilitatorListItem[] })
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'facilitator' | 'admin'>('facilitator');
+  const [role, setRole] = useState<'facilitator' | 'admin' | 'leader'>('facilitator');
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
 
@@ -20,8 +20,9 @@ export function AccountsAdmin({ accounts }: { accounts: FacilitatorListItem[] })
     const res = await createAccount({ email, password, displayName, role });
     setBusy(false);
     if (res.ok) {
+      const created = role === 'leader' ? 'Leader account created' : 'Account created';
       setEmail(''); setDisplayName(''); setPassword(''); setRole('facilitator');
-      setFlash('Account created');
+      setFlash(created);
       router.refresh();
     } else {
       setFlash(`Couldn’t create: ${res.reason ?? 'error'}`);
@@ -42,8 +43,9 @@ export function AccountsAdmin({ accounts }: { accounts: FacilitatorListItem[] })
           <label className="ed-field"><span>Display name</span><input value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
           <label className="ed-field"><span>Temporary password <span className="db-dim">(≥ 8 chars)</span></span><input type="text" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="off" /></label>
           <label className="ed-field ed-narrow"><span>Role</span>
-            <select value={role} onChange={(e) => setRole(e.target.value as 'facilitator' | 'admin')}>
-              <option value="facilitator">Facilitator</option>
+            <select value={role} onChange={(e) => setRole(e.target.value as 'facilitator' | 'admin' | 'leader')}>
+              <option value="leader">Leader (play only)</option>
+              <option value="facilitator">Facilitator (runs the console)</option>
               <option value="admin">Admin (can manage accounts)</option>
             </select>
           </label>

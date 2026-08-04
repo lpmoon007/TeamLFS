@@ -361,6 +361,31 @@ button { font-family: inherit; cursor: pointer; }
 .assign-add input { background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--text); padding: 6px 9px; font-size: 12.5px; width: 150px; }
 @media (max-width: 720px) { .fac-shell { grid-template-columns: 1fr; } .facnav { position: static; height: auto; display: flex; align-items: center; gap: 10px; } .facnav-items { flex-direction: row; margin-top: 0; } }
 
+/* play surface — the leader (play-only) landing */
+.play-wrap { max-width: 1000px; margin: 0 auto; padding: 0 20px 60px; }
+.play-head { display: flex; align-items: center; justify-content: space-between; padding: 22px 0 18px; border-bottom: 1px solid var(--line-soft); margin-bottom: 24px; }
+.play-head-r { display: flex; align-items: center; gap: 14px; }
+.play-who { font-size: 13px; color: var(--text-dim); font-weight: 600; }
+.play-hi { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 22px; }
+.play-sec { margin-bottom: 30px; }
+.play-sec-h { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 12px; }
+.play-scn { }
+.play-btn { margin-top: 12px; align-self: flex-start; }
+.play-err { margin-top: 12px; font-size: 12.5px; color: var(--danger, #c25a4a); }
+.play-runs { display: flex; flex-direction: column; gap: 8px; }
+.play-run { display: flex; align-items: center; gap: 12px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 12px 15px; text-decoration: none; color: inherit; }
+.play-run:hover { border-color: var(--accent); }
+.play-run.live { border-color: var(--accent); }
+.play-run-t { font-weight: 600; font-size: 14px; }
+.play-run-when { font-size: 11.5px; color: var(--text-faint); }
+.play-run-badge { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--accent); }
+.play-run-badge.ghost { color: var(--text-dim); }
+.play-acct { margin-top: 8px; border-top: 1px solid var(--line-soft); padding-top: 16px; }
+.play-acct > summary { font-size: 13px; font-weight: 600; color: var(--text-dim); cursor: pointer; list-style: none; }
+.play-acct > summary::-webkit-details-marker { display: none; }
+.play-acct > summary::before { content: '⚙ '; opacity: .6; }
+.play-acct[open] > summary { margin-bottom: 12px; }
+
 /* scenario library */
 .lib-section-h { font-size: 13px; font-weight: 700; margin: 0 0 10px; }
 .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }

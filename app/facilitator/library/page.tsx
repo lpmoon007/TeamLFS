@@ -1,4 +1,4 @@
-import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
+import { requireStaffPage, facilitator } from '@/lib/facilitator-session';
 import { listScenariosFull } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
@@ -9,7 +9,7 @@ import { ScenarioLibraryView } from '@/components/facilitator/ScenarioLibraryVie
 // realism, pacing, whether it's team-castable, and how many sessions have run it. Filter by
 // realism; drill into one to set up a session or edit it.
 export default async function ScenarioLibraryPage() {
-  if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
+  if ((await requireStaffPage()) === 'login') return <FacilitatorLogin />;
   const [scenarios, me] = await Promise.all([listScenariosFull(), facilitator()]);
 
   return (
