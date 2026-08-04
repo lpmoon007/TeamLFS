@@ -369,6 +369,21 @@ button { font-family: inherit; cursor: pointer; }
 .play-head-r { display: flex; align-items: center; gap: 14px; }
 .play-who { font-size: 13px; color: var(--text-dim); font-weight: 600; }
 .play-hi { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 22px; }
+/* aggregate leadership stats strip */
+.play-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.stat { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.stat-k { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+.stat-v { font-size: 26px; font-weight: 800; font-family: var(--mono); font-variant-numeric: tabular-nums; line-height: 1; color: var(--text); display: flex; align-items: baseline; gap: 6px; }
+.stat-u { font-size: 12px; font-weight: 600; color: var(--text-faint); font-family: var(--sans); }
+.stat-v-sm { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.25; }
+.stat-sub { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-sub.good { color: var(--online); }
+.stat-sub.warn { color: var(--warn); }
+.stat-trend { font-size: 12px; font-weight: 700; font-family: var(--sans); color: var(--text-faint); }
+.stat-trend.up { color: var(--online); }
+.stat-trend.dn { color: var(--warn); }
+.stat-spark { justify-content: flex-start; }
+.play-spark { margin-top: 4px; }
 .play-sec { margin-bottom: 30px; }
 .play-sec-h { font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 12px; }
 .play-scn { }

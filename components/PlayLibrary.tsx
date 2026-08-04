@@ -1,10 +1,33 @@
 'use client';
 import { useState } from 'react';
-import { startLeaderRun, type PlayableScenario, type LeaderRun } from '@/lib/leader-actions';
+import { startLeaderRun, type PlayableScenario, type LeaderRun, type LeaderStats } from '@/lib/leader-actions';
+
+// A hand-drawn sparkline of finished-run scores (0–100), oldest → newest. No library — a
+// short polyline with an emphasized endpoint, sized to sit inside a stat tile.
+function Spark({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
+  const w = 96;
+  const h = 30;
+  const max = Math.max(...points, 100);
+  const min = Math.min(...points, 0);
+  const span = max - min || 1;
+  const xs = (i: number) => (i / (points.length - 1)) * (w - 4) + 2;
+  const ys = (v: number) => h - 2 - ((v - min) / span) * (h - 4);
+  const d = points.map((v, i) => `${i === 0 ? 'M' : 'L'}${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(' ');
+  const lx = xs(points.length - 1);
+  const ly = ys(points[points.length - 1]);
+  return (
+    <svg className="play-spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <path d={d} fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r="2.6" fill="var(--accent)" />
+    </svg>
+  );
+}
 
 // Leader play surface: pick a scenario → start a run (pre-linked to your memory profile) →
-// drop straight in. Plus your own past runs, to resume a live one or revisit a debrief.
-export function PlayLibrary({ scenarios, runs, name }: { scenarios: PlayableScenario[]; runs: LeaderRun[]; name: string }) {
+// drop straight in. A stats strip of your leadership across finished runs, plus your own
+// run history (resume a live one, or revisit a scored debrief).
+export function PlayLibrary({ scenarios, runs, stats, name }: { scenarios: PlayableScenario[]; runs: LeaderRun[]; stats: LeaderStats | null; name: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -32,6 +55,47 @@ export function PlayLibrary({ scenarios, runs, name }: { scenarios: PlayableScen
   return (
     <>
       <div className="play-hi">Welcome{name ? `, ${name}` : ''}. Pick a crisis and lead your way through it.</div>
+
+      {stats ? (
+        <section className="play-sec">
+          <div className="play-sec-h">Your leadership across {stats.completed} run{stats.completed === 1 ? '' : 's'}</div>
+          <div className="play-stats">
+            <div className="stat">
+              <div className="stat-k">Average read</div>
+              <div className="stat-v">{stats.avgScore}<span className="stat-u">/100</span></div>
+            </div>
+            <div className="stat">
+              <div className="stat-k">Latest</div>
+              <div className="stat-v">
+                {stats.latestScore}<span className="stat-u">/100</span>
+                {stats.trend !== null ? (
+                  <span className={`stat-trend ${stats.trend > 0 ? 'up' : stats.trend < 0 ? 'dn' : ''}`}>
+                    {stats.trend > 0 ? `▲ ${stats.trend}` : stats.trend < 0 ? `▼ ${Math.abs(stats.trend)}` : '—'}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <div className="stat stat-spark">
+              <div className="stat-k">Trajectory</div>
+              {stats.spark.length >= 2 ? <Spark points={stats.spark} /> : <div className="stat-v-sm">One run so far</div>}
+            </div>
+            {stats.strongest ? (
+              <div className="stat">
+                <div className="stat-k">Strongest</div>
+                <div className="stat-v-sm">{stats.strongest.label}</div>
+                <div className="stat-sub good">{stats.strongest.score}/100 avg</div>
+              </div>
+            ) : null}
+            {stats.weakest ? (
+              <div className="stat">
+                <div className="stat-k">To work on</div>
+                <div className="stat-v-sm">{stats.weakest.label}</div>
+                <div className="stat-sub warn">{stats.weakest.score}/100 avg</div>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {inProgress.length ? (
         <section className="play-sec">

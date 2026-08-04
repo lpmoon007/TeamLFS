@@ -28,6 +28,19 @@ export interface LeaderRun {
   grade: string | null;
   complete: boolean; // reached the final weekly call
 }
+export interface LeaderStats {
+  completed: number; // finished, scored runs
+  avgScore: number; // mean leadership read across finished runs
+  latestScore: number; // most recent finished run
+  trend: number | null; // latest − previous finished run (null with <2 runs)
+  strongest: { label: string; score: number } | null; // best leadership dimension on average
+  weakest: { label: string; score: number } | null; // the dimension to work on
+  spark: number[]; // finished-run scores, oldest → newest (for a sparkline)
+}
+export interface LeaderHome {
+  runs: LeaderRun[];
+  stats: LeaderStats | null; // null until the leader has a finished run
+}
 
 /** The solo scenarios a leader can play (they're always the CEO). */
 export async function listPlayableScenarios(): Promise<PlayableScenario[]> {
@@ -79,13 +92,14 @@ export async function startLeaderRun(scenarioId: string): Promise<{ ok: boolean;
   return { ok: true, url: ceo.path };
 }
 
-/** The signed-in leader's own past runs (for their history / behavioral-memory view). */
-export async function listLeaderRuns(): Promise<LeaderRun[]> {
+/** The signed-in leader's own runs + their aggregate leadership stats across finished runs
+ *  (their behavioral-memory view). Each debrief is built once and reused for both. */
+export async function getLeaderHome(): Promise<LeaderHome> {
   const me = await currentFacilitator();
-  if (!me || me.isMaster || !/@/.test(me.email)) return [];
+  if (!me || me.isMaster || !/@/.test(me.email)) return { runs: [], stats: null };
   const db = createAdminClient();
   const { data: subject } = await db.from('subjects').select('id').eq('handle', me.email.toLowerCase()).maybeSingle<any>();
-  if (!subject) return [];
+  if (!subject) return { runs: [], stats: null };
 
   const { data: parts } = await db
     .from('participants')
@@ -102,8 +116,9 @@ export async function listLeaderRuns(): Promise<LeaderRun[]> {
     for (const m of metas ?? []) if ((m as any).week_count) weekBy.set((m as any).scenario_id, (m as any).week_count);
   }
 
-  // each run's leadership score comes from its own debrief (token-scoped), computed in parallel
-  const runs: LeaderRun[] = await Promise.all(
+  // build each debrief once (token-scoped); keep the dims of finished runs for aggregation
+  const dimTotals = new Map<string, { label: string; sum: number; n: number }>();
+  const built = await Promise.all(
     rows.map(async (p: any) => {
       const s = p.session;
       const t = `?t=${p.token}`;
@@ -118,11 +133,19 @@ export async function listLeaderRuns(): Promise<LeaderRun[]> {
           const decisions = d.debrief.gameFilm.filter((m) => m.type === 'decision').length;
           const wc = weekBy.get(s.scenario_id) ?? null;
           complete = wc ? decisions >= wc : score !== null;
+          if (complete) {
+            for (const dim of d.debrief.dims) {
+              const cur = dimTotals.get(dim.key) ?? { label: dim.label, sum: 0, n: 0 };
+              cur.sum += dim.score;
+              cur.n += 1;
+              dimTotals.set(dim.key, cur);
+            }
+          }
         }
       } catch {
         /* a run that can't be scored yet just shows no score */
       }
-      return {
+      const run: LeaderRun = {
         sessionId: s.id,
         scenario: s.scenario?.title ?? '—',
         status: s.status,
@@ -132,8 +155,29 @@ export async function listLeaderRuns(): Promise<LeaderRun[]> {
         score,
         grade,
         complete,
-      } as LeaderRun;
+      };
+      return run;
     }),
   );
-  return runs.sort((a, b) => (b.startedAt ?? '').localeCompare(a.startedAt ?? ''));
+
+  const runs = built.sort((a, b) => (b.startedAt ?? '').localeCompare(a.startedAt ?? ''));
+
+  // aggregate over finished, scored runs (oldest → newest for the trend line)
+  const finished = built
+    .filter((r) => r.complete && r.score !== null)
+    .sort((a, b) => (a.startedAt ?? '').localeCompare(b.startedAt ?? ''));
+  let stats: LeaderStats | null = null;
+  if (finished.length) {
+    const spark = finished.map((r) => r.score as number);
+    const avgScore = Math.round(spark.reduce((a, b) => a + b, 0) / spark.length);
+    const latestScore = spark[spark.length - 1];
+    const trend = spark.length >= 2 ? latestScore - spark[spark.length - 2] : null;
+    const dims = [...dimTotals.values()].map((d) => ({ label: d.label, score: Math.round(d.sum / d.n) }));
+    dims.sort((a, b) => b.score - a.score);
+    const strongest = dims.length ? dims[0] : null;
+    const weakest = dims.length ? dims[dims.length - 1] : null;
+    stats = { completed: finished.length, avgScore, latestScore, trend, strongest, weakest, spark };
+  }
+
+  return { runs, stats };
 }
