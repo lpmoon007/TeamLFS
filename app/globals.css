@@ -364,11 +364,11 @@ button { font-family: inherit; cursor: pointer; }
 /* scenario library */
 .lib-section-h { font-size: 13px; font-weight: 700; margin: 0 0 10px; }
 .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-.lib-card { display: block; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; text-decoration: none; color: inherit; }
+.lib-card { display: flex; flex-direction: column; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; text-decoration: none; color: inherit; }
 .lib-card:hover { border-color: var(--accent); }
 .lib-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .lib-card-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 5px; line-height: 1.5; }
-.lib-card-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text-faint); margin-top: 9px; }
+.lib-card-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text-faint); margin-top: auto; padding-top: 10px; }
 .lib-tc { color: var(--accent); font-weight: 600; }
 .lib-filter { display: flex; gap: 8px; margin-bottom: 18px; }
 .lib-chip { font-size: 12px; padding: 6px 12px; border-radius: 100px; border: 1px solid var(--line); background: var(--bg-elev); color: var(--text-dim); cursor: pointer; }

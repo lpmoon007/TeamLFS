@@ -24,7 +24,7 @@ export function ScenarioLibraryView({ scenarios }: { scenarios: ScenarioLibItem[
         <strong>{s.title}</strong>
         <span className={`cast-badge ${s.mode === 'solo' ? 'ai' : 'human'}`}>{s.mode}</span>
       </div>
-      {s.summary ? <div className="lib-card-sub">{s.summary.slice(0, 120)}</div> : null}
+      {s.summary ? <div className="lib-card-sub" dangerouslySetInnerHTML={{ __html: s.summary }} /> : null}
       <div className="lib-card-meta">
         <span className={`realism-tag ${s.realism}`}>{s.realism}</span>
         <span>·</span>
