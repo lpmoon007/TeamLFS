@@ -30,7 +30,10 @@ const DISPOSITIONS: { key: string; label: string; tag: string; cap: string }[] =
 export function SoloApp({ bundle }: { bundle: SoloBundle }) {
   const { config, week } = bundle;
   const auth = { sessionId: bundle.sessionId, participantId: bundle.participantId, token: bundle.token };
-  const weekSeconds = week.seconds || config.weekSeconds;
+  // Give players 25% more real-time on the clock (beta tuning) — applied at the single point
+  // the timer resolves, so every derived value (day length, week duration, reprieves) scales.
+  const SESSION_TIME_MULTIPLIER = 1.25;
+  const weekSeconds = (week.seconds || config.weekSeconds) * SESSION_TIME_MULTIPLIER;
   const dayMs = (weekSeconds * 1000) / config.days;
   // solo is single-player — no cross-seat concern; keep the (self-only) subscription.
   useParticipantChannel({ sessionId: bundle.sessionId, channelKey: bundle.seatKey, enabled: true });

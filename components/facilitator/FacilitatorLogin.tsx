@@ -19,8 +19,10 @@ export function FacilitatorLogin() {
     setErr('');
     const res = useKey ? await facilitatorLogin(key) : await accountLogin(email, password);
     setBusy(false);
-    if (res.ok) router.refresh();
-    else setErr(useKey ? 'Invalid key.' : 'Wrong email or password.');
+    if (res.ok) {
+      router.push('/facilitator/library'); // drop into the scenario library on sign-in
+      router.refresh();
+    } else setErr(useKey ? 'Invalid key.' : 'Wrong email or password.');
   };
 
   return (
