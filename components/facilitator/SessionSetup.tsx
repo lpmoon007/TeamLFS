@@ -51,7 +51,7 @@ export function SessionSetup({
     if (!newName.trim() && !newEmail.trim()) return;
     const res = await createPerson({ name: newName || newEmail, email: newEmail || undefined, orgId });
     if (res.ok && res.id) {
-      const p: PersonItem = { id: res.id, name: newName || newEmail, email: newEmail || null, runs: 0 };
+      const p: PersonItem = { id: res.id, name: newName || newEmail, email: newEmail || null, runs: 0, role: null };
       setPeople((ps) => (ps.some((x) => x.id === p.id) ? ps : [...ps, p]));
       setAssign((a) => ({ ...a, [seatKey]: res.id! }));
       setAddingFor(null);
