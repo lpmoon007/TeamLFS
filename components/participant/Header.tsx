@@ -17,7 +17,7 @@ export function Header({
   return (
     <header className="header">
       <div className="wordmark">
-        IN<span>COMMAND</span>
+        Leadership Failure <span>Simulations</span>
       </div>
       <div className="scenario">{scenarioTitle}</div>
       <div className="spacer" />

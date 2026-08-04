@@ -15,7 +15,7 @@ export default async function PeoplePage() {
       <FacilitatorNav user={me} />
       <div className="fac">
         <header className="fac-head">
-          <div className="wm">IN<span>COMMAND</span> · PEOPLE</div>
+          <div className="wm">Leadership Failure <span>Simulations</span> · PEOPLE</div>
           <div className="spacer" />
         </header>
         <div className="fac-body">

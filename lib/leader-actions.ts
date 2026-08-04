@@ -73,7 +73,9 @@ export async function listPlayableScenarios(): Promise<PlayableScenario[]> {
  *  Returns the play URL to drop straight into the run. */
 export async function startLeaderRun(scenarioId: string): Promise<{ ok: boolean; url?: string; reason?: string }> {
   const me = await currentFacilitator();
-  if (!me || me.isMaster || !/@/.test(me.email)) return { ok: false, reason: 'not_signed_in' };
+  // any signed-in account with an email can play (facilitators/admins too, not just leaders);
+  // runs attribute to their email-keyed memory subject so their scores show up on /play.
+  if (!me || !/@/.test(me.email)) return { ok: false, reason: 'not_signed_in' };
 
   const db = createAdminClient();
   const { data: meta } = await db.from('scenario_meta').select('mode_default').eq('scenario_id', scenarioId).maybeSingle<any>();
@@ -96,7 +98,7 @@ export async function startLeaderRun(scenarioId: string): Promise<{ ok: boolean;
  *  (their behavioral-memory view). Each debrief is built once and reused for both. */
 export async function getLeaderHome(): Promise<LeaderHome> {
   const me = await currentFacilitator();
-  if (!me || me.isMaster || !/@/.test(me.email)) return { runs: [], stats: null };
+  if (!me || !/@/.test(me.email)) return { runs: [], stats: null }; // any signed-in account with an email
   const db = createAdminClient();
   const { data: subject } = await db.from('subjects').select('id').eq('handle', me.email.toLowerCase()).maybeSingle<any>();
   if (!subject) return { runs: [], stats: null };

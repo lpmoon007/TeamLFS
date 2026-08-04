@@ -27,7 +27,7 @@ export default async function OneWallPage({
     <div className="wall">
       <div className="wall-head">
         <div className="wm">
-          IN<span>COMMAND</span> · {d.scenario?.title ?? 'Session'}
+          Leadership Failure <span>Simulations</span> · {d.scenario?.title ?? 'Session'}
         </div>
         <Link className="btn ghost" href={`/facilitator/debrief/${sessionId}${kp}`}>
           ← Team debrief

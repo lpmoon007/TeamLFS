@@ -30,7 +30,7 @@ export function FacilitatorLogin() {
   return (
     <div className="notice-wrap">
       <div className="notice">
-        <div className="wm">IN<span>COMMAND</span> · ADMIN</div>
+        <div className="wm">Leadership Failure <span>Simulations</span> · ADMIN</div>
         <h1>Sign in</h1>
         <form className="fac-login" onSubmit={submit}>
           {useKey ? (

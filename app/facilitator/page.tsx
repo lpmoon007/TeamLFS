@@ -17,7 +17,7 @@ export default async function FacilitatorHome() {
       <div className="fac">
       <header className="fac-head">
         <div className="wm">
-          IN<span>COMMAND</span> · FACILITATOR
+          Leadership Failure <span>Simulations</span> · FACILITATOR
         </div>
         <div className="spacer" />
         <LogoutButton />

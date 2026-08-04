@@ -4,7 +4,7 @@ export default function Home() {
     <div className="notice-wrap">
       <div className="notice">
         <div className="wm">
-          IN<span>COMMAND</span> · THE SIGNAL
+          Leadership Failure <span>Simulations</span> · THE SIGNAL
         </div>
         <h1>This is a closed simulation.</h1>
         <p className="nm">

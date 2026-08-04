@@ -19,7 +19,7 @@ export function FacilitatorNav({ user }: { user?: { displayName: string | null; 
   return (
     <nav className="facnav">
       <div className="facnav-brand">
-        IN<span>COMMAND</span>
+        Leadership Failure <span>Simulations</span>
         <div className="facnav-sub">Admin</div>
       </div>
       <div className="facnav-items">

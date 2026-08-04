@@ -47,7 +47,7 @@ export function SoloControl({ data }: { data: SoloControlData }) {
     <div className="fac">
       <header className="fac-head">
         <div className="wm">
-          IN<span>COMMAND</span> · SOLO
+          Leadership Failure <span>Simulations</span> · SOLO
         </div>
         <span className="fac-scn">{session.scenario}</span>
         <span className={`pill ${session.status}`}>{session.status}</span>

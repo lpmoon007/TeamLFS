@@ -15,7 +15,7 @@ export default async function PlayPage() {
   return (
     <div className="play-wrap">
       <header className="play-head">
-        <div className="wm">IN<span>COMMAND</span></div>
+        <div className="wm">Leadership Failure <span>Simulations</span></div>
         <div className="play-head-r">
           <span className="play-who">{me.displayName || me.email}</span>
           <LogoutButton />

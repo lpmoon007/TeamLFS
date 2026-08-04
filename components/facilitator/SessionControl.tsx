@@ -81,7 +81,7 @@ export function SessionControl({
     <div className="fac">
       <header className="fac-head">
         <div className="wm">
-          IN<span>COMMAND</span> · CONTROL
+          Leadership Failure <span>Simulations</span> · CONTROL
         </div>
         <span className="fac-scn">{session.scenario}</span>
         <span className={`pill ${status}`}>{status}</span>

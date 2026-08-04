@@ -17,7 +17,7 @@ export default async function ScenarioLibraryPage() {
       <FacilitatorNav user={me} />
       <div className="fac">
         <header className="fac-head">
-          <div className="wm">IN<span>COMMAND</span> · SCENARIO LIBRARY</div>
+          <div className="wm">Leadership Failure <span>Simulations</span> · SCENARIO LIBRARY</div>
           <div className="spacer" />
           <LogoutButton />
         </header>

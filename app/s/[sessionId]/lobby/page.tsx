@@ -20,7 +20,7 @@ export default async function LobbyPage({ params }: { params: Promise<{ sessionI
     <div className="notice-wrap">
       <div className="notice">
         <div className="wm">
-          IN<span>COMMAND</span> · THE SIGNAL
+          Leadership Failure <span>Simulations</span> · THE SIGNAL
         </div>
         <h1>Take your seat</h1>
         <p className="nm">

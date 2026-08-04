@@ -14,7 +14,7 @@ export default async function AccountPage() {
       <FacilitatorNav user={me} />
       <div className="fac">
         <header className="fac-head">
-          <div className="wm">IN<span>COMMAND</span> · ACCOUNT</div>
+          <div className="wm">Leadership Failure <span>Simulations</span> · ACCOUNT</div>
           <div className="spacer" />
         </header>
         <div className="fac-body">

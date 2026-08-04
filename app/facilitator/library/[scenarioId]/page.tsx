@@ -33,7 +33,7 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
       <FacilitatorNav user={me} />
       <div className="fac">
         <header className="fac-head">
-          <div className="wm">IN<span>COMMAND</span> · SCENARIO</div>
+          <div className="wm">Leadership Failure <span>Simulations</span> · SCENARIO</div>
           <div className="spacer" />
           <LogoutButton />
         </header>
