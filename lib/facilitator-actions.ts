@@ -958,7 +958,8 @@ export interface PersonItem {
 /** List people (subjects) — optionally scoped to an org. */
 export async function listPeople(orgId?: string | null): Promise<PersonItem[]> {
   const db = await guard();
-  let q = db.from('subjects').select('id, handle, display_name, org_id');
+  // master@local is the synthetic identity behind the master key — not a real person
+  let q = db.from('subjects').select('id, handle, display_name, org_id').neq('handle', 'master@local');
   if (orgId) q = q.eq('org_id', orgId);
   const { data } = await q.order('display_name', { ascending: true });
   const rows = (data ?? []) as any[];

@@ -48,7 +48,7 @@ export function PeopleRoster({ people, keyParam }: { people: PersonItem[]; keyPa
                   <tr key={p.id}>
                     <td><strong>{p.name}</strong></td>
                     <td className="db-dim">{p.email ?? '—'}</td>
-                    <td>{p.runs}</td>
+                    <td>{p.runs > 0 ? <span className="pill live">{p.runs} run{p.runs === 1 ? '' : 's'}</span> : <span className="pill">never played</span>}</td>
                     <td style={{ textAlign: 'right' }}>
                       <Link className="btn ghost" href={`/facilitator/subject/${p.id}${keyParam}`}>Profile →</Link>
                     </td>
