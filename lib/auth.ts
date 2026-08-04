@@ -72,9 +72,10 @@ export async function createFacilitator(params: { email: string; password: strin
     .select('id')
     .single<any>();
   if (error || !data) return { ok: false, reason: error?.message ?? 'insert_failed' };
-  // a leader is a player — give them a behavioral-memory profile up front so their runs
-  // attribute across sessions and they show up in the People roster immediately.
-  if (role === 'leader') await ensureSubjectByEmail(email, params.displayName?.trim() || null);
+  // EVERY account gets a behavioral-memory profile up front — leaders and facilitators/admins
+  // all play (especially in beta), so their runs must be recorded from the first play. This
+  // also puts them in the People roster immediately and makes them assignable in Session Setup.
+  await ensureSubjectByEmail(email, params.displayName?.trim() || null);
   return { ok: true, id: data.id };
 }
 
@@ -216,6 +217,15 @@ export async function listFacilitators(): Promise<FacilitatorListItem[]> {
   if (emails.length) {
     const { data: subs } = await db.from('subjects').select('id, handle').in('handle', emails);
     for (const s of subs ?? []) subjByEmail.set(String((s as any).handle).toLowerCase(), (s as any).id);
+  }
+  // self-heal: back-fill a play profile for any account created before profiles were
+  // provisioned at creation, so every facilitator is on the books and recorded-ready.
+  for (const r of rows) {
+    const key = String(r.email).toLowerCase();
+    if (!subjByEmail.has(key)) {
+      const id = await ensureSubjectByEmail(r.email, r.display_name ?? null);
+      if (id) subjByEmail.set(key, id);
+    }
   }
   const subjectIds = [...subjByEmail.values()];
   const runsBySubject = new Map<string, number>();
