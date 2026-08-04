@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { isFacilitatorSession, facilitator } from '@/lib/facilitator-session';
+import { isFacilitatorSession, facilitator, isAdmin } from '@/lib/facilitator-session';
 import { getScenarioDetail, listPeople } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
@@ -14,7 +14,7 @@ import { Notice } from '@/components/Notice';
 export default async function ScenarioDetailPage({ params }: { params: Promise<{ scenarioId: string }> }) {
   if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
   const { scenarioId } = await params;
-  const [d, me] = await Promise.all([getScenarioDetail(scenarioId), facilitator()]);
+  const [d, me, admin] = await Promise.all([getScenarioDetail(scenarioId), facilitator(), isAdmin()]);
   const people = d ? await listPeople(d.orgId) : [];
   if (!d) {
     return (
@@ -52,11 +52,13 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
               <SessionSetup scenarioId={d.id} mode={d.mode} seats={d.seatsList} people={people} orgId={d.orgId} />
             </section>
 
-            <section className="db-panel">
-              <h2>Edit</h2>
-              <p className="db-sub">Title, summary, and difficulty. Authored content is regenerated from the seed pipeline.</p>
-              <ScenarioEditor scenarioId={d.id} title={d.title} summary={d.summary} difficulty={d.difficulty} realism={d.realism} />
-            </section>
+            {admin ? (
+              <section className="db-panel">
+                <h2>Edit</h2>
+                <p className="db-sub">Title, summary, and difficulty. Authored content is regenerated from the seed pipeline.</p>
+                <ScenarioEditor scenarioId={d.id} title={d.title} summary={d.summary} difficulty={d.difficulty} realism={d.realism} />
+              </section>
+            ) : null}
           </div>
 
           <section className="db-panel">

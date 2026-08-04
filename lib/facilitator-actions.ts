@@ -1,7 +1,7 @@
 'use server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { facilitatorSecret } from '@/lib/env';
-import { isFacilitatorSession, setFacilitatorSession, clearFacilitatorSession } from '@/lib/facilitator-session';
+import { isFacilitatorSession, isAdmin, setFacilitatorSession, clearFacilitatorSession } from '@/lib/facilitator-session';
 import { fireInject } from '@/lib/inject';
 import { finalizeSession } from '@/lib/finalize';
 import { subjectForParticipant, subjectPosture, resolveDispositionFromHistory } from '@/lib/spine';
@@ -1003,6 +1003,9 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
 /** Edit the safe, non-content scenario metadata (title, summary, difficulty coefficient). */
 export async function updateScenario(params: { scenarioId: string; title?: string; summary?: string; difficulty?: number; realism?: string }): Promise<{ ok: boolean; reason?: string }> {
   const db = await guard();
+  // Editing scenario metadata (esp. the difficulty coefficient, which normalizes scoring)
+  // is an admin-only lever — a facilitator changing it would silently skew everyone's reads.
+  if (!(await isAdmin())) return { ok: false, reason: 'forbidden' };
   const scPatch: Record<string, unknown> = {};
   if (typeof params.title === 'string' && params.title.trim()) scPatch.title = params.title.trim().slice(0, 200);
   if (typeof params.summary === 'string') scPatch.summary = params.summary.trim().slice(0, 2000);
