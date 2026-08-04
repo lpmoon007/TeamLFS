@@ -1,6 +1,6 @@
 'use server';
-import { authenticate, startAccountSession, createFacilitator, listFacilitators, setFacilitatorActive, type FacilitatorListItem, type Role } from '@/lib/auth';
-import { isAdmin } from '@/lib/facilitator-session';
+import { authenticate, startAccountSession, createFacilitator, listFacilitators, setFacilitatorActive, changePassword, currentSessionToken, type FacilitatorListItem, type Role } from '@/lib/auth';
+import { isAdmin, facilitator } from '@/lib/facilitator-session';
 
 // Account auth actions (email + password). The legacy master-secret login stays in
 // facilitator-actions (facilitatorLogin/Logout); these are the real-account paths.
@@ -11,6 +11,15 @@ export async function accountLogin(email: string, password: string): Promise<{ o
   if (!f) return { ok: false };
   await startAccountSession(f.id);
   return { ok: true };
+}
+
+/** Self-service: change your own password (real accounts only — the master key has none). */
+export async function changeOwnPassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean; reason?: string }> {
+  const me = await facilitator();
+  if (!me) return { ok: false, reason: 'not_signed_in' };
+  if (me.isMaster) return { ok: false, reason: 'master_no_password' };
+  const keep = await currentSessionToken();
+  return changePassword(me.id, currentPassword, newPassword, keep);
 }
 
 /** Admin-only: create a facilitator/admin account. */

@@ -68,6 +68,29 @@ export async function createFacilitator(params: { email: string; password: strin
   return { ok: true, id: data.id };
 }
 
+/** Self-service password change. Verifies the current password, then rotates the hash and
+ *  revokes every OTHER live session for the account (keeps the caller's). */
+export async function changePassword(
+  facilitatorId: string,
+  currentPassword: string,
+  newPassword: string,
+  keepToken?: string,
+): Promise<{ ok: boolean; reason?: string }> {
+  if (!newPassword || newPassword.length < 8) return { ok: false, reason: 'weak_password' };
+  if (currentPassword === newPassword) return { ok: false, reason: 'same_password' };
+  const db = createAdminClient();
+  const { data } = await db.from('facilitators').select('id, password_hash, active').eq('id', facilitatorId).maybeSingle<any>();
+  if (!data || !data.active) return { ok: false, reason: 'not_found' };
+  if (!verifyPassword(currentPassword, data.password_hash)) return { ok: false, reason: 'wrong_current' };
+  const { error } = await db.from('facilitators').update({ password_hash: hashPassword(newPassword) }).eq('id', facilitatorId);
+  if (error) return { ok: false, reason: error.message };
+  // security: a password change invalidates other sessions (a compromised session can't linger)
+  let revoke = db.from('facilitator_sessions').delete().eq('facilitator_id', facilitatorId);
+  if (keepToken) revoke = revoke.neq('token', keepToken);
+  await revoke;
+  return { ok: true };
+}
+
 /** Verify credentials; returns the account or null. */
 export async function authenticate(email: string, password: string): Promise<Facilitator | null> {
   const db = createAdminClient();
@@ -116,6 +139,11 @@ export async function currentFacilitator(): Promise<Facilitator | null> {
     }
   }
   return null;
+}
+
+/** The current account-session token (opaque cookie value), if any. */
+export async function currentSessionToken(): Promise<string | undefined> {
+  return (await cookies()).get(SESSION_COOKIE)?.value;
 }
 
 /** Sign out — revoke the DB session + clear both cookies. */
