@@ -22,13 +22,13 @@ export default async function PlayPage() {
         </div>
       </header>
       <div className="play-body">
-        <PlayLibrary scenarios={scenarios} runs={home.runs} stats={home.stats} name={(me.displayName || me.email || '').split(' ')[0]} />
         {me.isMaster ? null : (
           <details className="play-acct">
             <summary>Account &amp; password</summary>
             <ChangePassword />
           </details>
         )}
+        <PlayLibrary scenarios={scenarios} runs={home.runs} stats={home.stats} name={(me.displayName || me.email || '').split(' ')[0]} />
       </div>
     </div>
   );

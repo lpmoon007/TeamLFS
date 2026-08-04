@@ -399,7 +399,7 @@ button { font-family: inherit; cursor: pointer; }
 .play-run-badge.ghost { color: var(--text-dim); }
 .play-score { flex: 0 0 auto; min-width: 40px; text-align: center; font-family: var(--mono, ui-monospace, monospace); font-weight: 800; font-size: 17px; color: var(--accent); background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: 9px; padding: 5px 8px; line-height: 1; }
 .play-run-grade { font-size: 11.5px; font-weight: 600; color: var(--text-dim); }
-.play-acct { margin-top: 8px; border-top: 1px solid var(--line-soft); padding-top: 16px; }
+.play-acct { margin: 0 0 22px; }
 .play-acct > summary { font-size: 13px; font-weight: 600; color: var(--text-dim); cursor: pointer; list-style: none; }
 .play-acct > summary::-webkit-details-marker { display: none; }
 .play-acct > summary::before { content: '⚙ '; opacity: .6; }
