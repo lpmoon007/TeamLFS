@@ -15,7 +15,10 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
   if (!(await isFacilitatorSession())) return <FacilitatorLogin />;
   const { scenarioId } = await params;
   const [d, me, admin] = await Promise.all([getScenarioDetail(scenarioId), facilitator(), isAdmin()]);
-  const people = d ? await listPeople(d.orgId) : [];
+  // All people are assignable — a subject's org has no bearing on which scenario they can
+  // play, and the People roster is global, so scoping this to the scenario's org just hid
+  // valid people (e.g. a facilitator whose profile lives under a different org).
+  const people = d ? await listPeople() : [];
   if (!d) {
     return (
       <div className="fac-shell">
