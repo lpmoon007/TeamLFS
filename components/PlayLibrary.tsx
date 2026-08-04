@@ -25,20 +25,22 @@ export function PlayLibrary({ scenarios, runs, name }: { scenarios: PlayableScen
     setBusy(null);
   };
 
-  const live = runs.filter((r) => r.status === 'live');
-  const past = runs.filter((r) => r.status !== 'live');
+  // a run is "in progress" until every weekly call is made; finished runs carry a score
+  const inProgress = runs.filter((r) => !r.complete);
+  const done = runs.filter((r) => r.complete);
 
   return (
     <>
       <div className="play-hi">Welcome{name ? `, ${name}` : ''}. Pick a crisis and lead your way through it.</div>
 
-      {live.length ? (
+      {inProgress.length ? (
         <section className="play-sec">
           <div className="play-sec-h">Pick up where you left off</div>
           <div className="play-runs">
-            {live.map((r) => (
+            {inProgress.map((r) => (
               <a key={r.sessionId} className="play-run live" href={r.playUrl}>
                 <span className="play-run-t">{r.scenario}</span>
+                <span className="play-run-when">in progress</span>
                 <span className="play-run-badge">Resume →</span>
               </a>
             ))}
@@ -70,13 +72,17 @@ export function PlayLibrary({ scenarios, runs, name }: { scenarios: PlayableScen
         {err ? <p className="play-err">{err}</p> : null}
       </section>
 
-      {past.length ? (
+      {done.length ? (
         <section className="play-sec">
           <div className="play-sec-h">Your past runs</div>
           <div className="play-runs">
-            {past.map((r) => (
+            {done.map((r) => (
               <a key={r.sessionId} className="play-run" href={r.debriefUrl}>
+                {r.score !== null ? (
+                  <span className="play-score" title={r.grade ?? undefined}>{r.score}</span>
+                ) : null}
                 <span className="play-run-t">{r.scenario}</span>
+                {r.grade ? <span className="play-run-grade">{r.grade}</span> : null}
                 <span className="play-run-when">{r.startedAt ? new Date(r.startedAt).toLocaleDateString() : ''}</span>
                 <span className="play-run-badge ghost">Debrief →</span>
               </a>
