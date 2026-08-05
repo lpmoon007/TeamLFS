@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { facilitatorAllowed, isStaff, isAdmin } from '@/lib/facilitator-session';
+import { facilitatorAllowed, isStaff, isAdmin, facilitator } from '@/lib/facilitator-session';
 import { inspectSubject } from '@/lib/admin-actions';
 import { SubjectRepair } from '@/components/facilitator/SubjectRepair';
 import { loadSubjectDashboard } from '@/lib/subject-dashboard';
@@ -41,6 +41,8 @@ export default async function SubjectDashboardPage({
   const canStart = await isStaff();
   const scenarios = canStart ? await listScenarios() : [];
   const admin = await isAdmin();
+  const me = await facilitator();
+  const self = !!me && !me.isMaster && me.email.toLowerCase() === d.handle.toLowerCase();
   const [diag, ledger, nextScenario] = admin
     ? await Promise.all([inspectSubject(subjectId), getLedger(subjectId), buildNextScenarioForSubject(subjectId)])
     : [null, null, null];
@@ -63,17 +65,19 @@ export default async function SubjectDashboardPage({
             {nextScenario.replay
               ? 'a re-test to see whether the read holds a second time'
               : nextScenario.openFindings > 0
-                ? `to test ${d.displayName.split(' ')[0]}’s ${nextScenario.openFindings} still-directional finding${nextScenario.openFindings === 1 ? '' : 's'} under a new condition`
-                : 'to make their markers comparable across conditions'}
+                ? `to test ${self ? 'your' : `${d.displayName.split(' ')[0]}’s`} ${nextScenario.openFindings} still-directional finding${nextScenario.openFindings === 1 ? '' : 's'} under a new condition`
+                : `to make ${self ? 'your' : 'their'} markers comparable across conditions`}
           </span>
         </div>
       ) : null}
 
       {canStart ? (
         <section className="db-panel">
-          <h2>Start a session with {d.displayName.split(' ')[0]}</h2>
-          <p className="db-sub">Pick a scenario — they’ll be pre-assigned to the lead seat, and their runs attribute to this profile.</p>
-          <StartSessionForPerson subjectId={subjectId} name={d.displayName} scenarios={scenarios} />
+          <h2>{self ? 'Start your next session' : `Start a session with ${d.displayName.split(' ')[0]}`}</h2>
+          <p className="db-sub">{self
+            ? 'Pick a scenario — you’ll be in the lead seat, and the run attributes to your profile.'
+            : 'Pick a scenario — they’ll be pre-assigned to the lead seat, and their runs attribute to this profile.'}</p>
+          <StartSessionForPerson subjectId={subjectId} name={d.displayName} scenarios={scenarios} self={self} />
         </section>
       ) : null}
 

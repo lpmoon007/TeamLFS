@@ -6,7 +6,7 @@ import { SessionSetup } from '@/components/facilitator/SessionSetup';
 // Start a session from a person's profile — the natural "I want Colin to test this" flow.
 // Pick a scenario; the person is pre-assigned to the lead seat (CEO, else the first seat),
 // then the full Session Setup takes over (cast-as-team, other seats, links).
-export function StartSessionForPerson({ subjectId, name, scenarios }: { subjectId: string; name: string; scenarios: ScenarioOption[] }) {
+export function StartSessionForPerson({ subjectId, name, scenarios, self = false }: { subjectId: string; name: string; scenarios: ScenarioOption[]; self?: boolean }) {
   const [open, setOpen] = useState(false);
   const [scenarioId, setScenarioId] = useState(scenarios[0]?.id ?? '');
   const [info, setInfo] = useState<SessionSetupInfo | null>(null);
@@ -30,7 +30,7 @@ export function StartSessionForPerson({ subjectId, name, scenarios }: { subjectI
     <div>
       {!open ? (
         <button className="btn primary" onClick={() => { setOpen(true); if (scenarioId) pick(scenarioId); }}>
-          Start a session with {name.split(' ')[0]}
+          {self ? 'Start your next session' : `Start a session with ${name.split(' ')[0]}`}
         </button>
       ) : (
         <>
@@ -40,7 +40,7 @@ export function StartSessionForPerson({ subjectId, name, scenarios }: { subjectI
               {scenarios.map((s) => <option key={s.id} value={s.id}>{s.title} · {s.mode} · {s.seats} seats</option>)}
             </select>
           </label>
-          <p className="db-sub">{name} is pre-assigned to the lead seat. Adjust below, then create.</p>
+          <p className="db-sub">{self ? 'You’re' : `${name} is`} pre-assigned to the lead seat. Adjust below, then create.</p>
           {busy ? <p className="db-sub">Loading seats…</p> : info ? (
             <SessionSetup key={scenarioId} scenarioId={scenarioId} mode={info.mode} seats={info.seats} people={info.people} orgId={info.orgId} initialAssign={initialAssign} />
           ) : null}
