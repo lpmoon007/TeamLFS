@@ -152,7 +152,7 @@ export default async function SubjectDashboardPage({
                       <tr><td colSpan={7} className="db-dim">No participants linked to this subject.</td></tr>
                     ) : diag.participants.map((r) => (
                       <tr key={r.participantId}>
-                        <td>{r.scenario} <span className="db-dim">({r.status})</span></td>
+                        <td>{r.scenario} <span className="db-dim">({r.status})</span>{!r.scenarioExists ? <span style={{ color: 'var(--danger)' }}> · scenario_id {r.scenarioId ?? 'null'} not found</span> : null}</td>
                         <td>{r.hasToken ? 'yes' : 'NO'}</td>
                         <td>{r.castKind ?? '—'}</td>
                         <td>{r.debriefOk ? 'ok' : <span style={{ color: 'var(--danger)' }}>{r.debriefReason ?? 'fail'}</span>}</td>

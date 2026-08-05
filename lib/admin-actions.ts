@@ -131,7 +131,9 @@ export interface SubjectInspectRow {
   participantId: string;
   hasToken: boolean;
   castKind: string | null;
-  sessionId: string;
+  sessionId: string | null;
+  scenarioId: string | null;
+  scenarioExists: boolean; // false = dangling scenario ref (the inner-join killer)
   status: string;
   scenario: string;
   weekCount: number | null;
@@ -161,34 +163,39 @@ export async function inspectSubject(subjectId: string): Promise<SubjectInspect 
   const { data: subject } = await db.from('subjects').select('id, handle, display_name').eq('id', subjectId).maybeSingle<any>();
   if (!subject) return null;
 
-  const { data: parts } = await db
-    .from('participants')
-    .select('id, token, cast_kind, session:sessions!inner(id, status, scenario_id, scenario:scenarios!inner(title))')
-    .eq('subject_id', subjectId);
-
-  const scnIds = [...new Set((parts ?? []).map((p: any) => p.session?.scenario_id).filter(Boolean))];
-  const weekBy = new Map<string, number>();
-  if (scnIds.length) {
-    const { data: metas } = await db.from('scenario_meta').select('scenario_id, week_count').in('scenario_id', scnIds);
-    for (const m of metas ?? []) weekBy.set((m as any).scenario_id, (m as any).week_count ?? null as any);
-  }
+  // LEFT joins only — an inner join through a dangling scenario ref silently hides the run
+  // (which is exactly the bug), so fetch raw and resolve each reference ourselves.
+  const { data: parts } = await db.from('participants').select('id, token, cast_kind, session_id').eq('subject_id', subjectId);
 
   const rows: SubjectInspectRow[] = [];
   for (const p of parts ?? []) {
-    const s = (p as any).session;
+    const sessionId: string | null = (p as any).session_id ?? null;
+    let status = '—', scenarioId: string | null = null, scenario = '—', scenarioExists = false, weekCount: number | null = null;
+    if (sessionId) {
+      const { data: sess } = await db.from('sessions').select('id, status, scenario_id').eq('id', sessionId).maybeSingle<any>();
+      status = sess?.status ?? '(session missing)';
+      scenarioId = sess?.scenario_id ?? null;
+      if (scenarioId) {
+        const { data: sc } = await db.from('scenarios').select('title').eq('id', scenarioId).maybeSingle<any>();
+        scenarioExists = !!sc;
+        scenario = sc?.title ?? '(scenario MISSING)';
+        const { data: meta } = await db.from('scenario_meta').select('week_count').eq('scenario_id', scenarioId).maybeSingle<any>();
+        weekCount = meta?.week_count ?? null;
+      } else scenario = '(no scenario_id on session)';
+    } else status = '(no session_id)';
+
     let debriefOk = false, debriefReason: string | null = null, overall: number | null = null, decisions: number | null = null;
-    if ((p as any).token) {
+    if ((p as any).token && sessionId) {
       try {
-        const d = await buildSoloDebrief(s.id, (p as any).token);
+        const d = await buildSoloDebrief(sessionId, (p as any).token);
         if (d.ok) { debriefOk = true; overall = d.debrief.overall; decisions = d.debrief.gameFilm.filter((m) => m.type === 'decision').length; }
         else debriefReason = d.reason;
       } catch (e: any) { debriefReason = 'exception: ' + (e?.message ?? 'unknown'); }
-    } else debriefReason = 'no token';
-    const wc = weekBy.get(s.scenario_id) ?? null;
-    const included = !!(p as any).token && debriefOk && (wc ? (decisions ?? 0) >= wc : overall !== null);
+    } else debriefReason = (p as any).token ? 'no session' : 'no token';
+    const included = !!(p as any).token && debriefOk && (weekCount ? (decisions ?? 0) >= weekCount : overall !== null);
     rows.push({
       participantId: (p as any).id, hasToken: !!(p as any).token, castKind: (p as any).cast_kind ?? null,
-      sessionId: s.id, status: s.status, scenario: s.scenario?.title ?? '—', weekCount: wc,
+      sessionId, scenarioId, scenarioExists, status, scenario, weekCount,
       debriefOk, debriefReason, overall, decisions, includedInFingerprint: included,
     });
   }
@@ -218,16 +225,17 @@ export async function inspectSubject(subjectId: string): Promise<SubjectInspect 
   // Claimable to any profile. Scored so the admin can identify the right one.
   const { data: orphans } = await db
     .from('participants')
-    .select('id, name, token, session:sessions!inner(id, status, scenario:scenarios!inner(title))')
+    .select('id, name, token, session:sessions(id, status, scenario:scenarios(title))')
     .is('subject_id', null)
     .not('token', 'is', null)
     .limit(40);
   const orphanRuns: SubjectInspect['orphanRuns'] = [];
   for (const p of orphans ?? []) {
     const s = (p as any).session;
+    if (!s?.id) continue;
     let overall: number | null = null;
     try { const d = await buildSoloDebrief(s.id, (p as any).token); if (d.ok) overall = d.debrief.overall; } catch { /* ignore */ }
-    orphanRuns.push({ participantId: (p as any).id, name: (p as any).name ?? null, scenario: s.scenario?.title ?? '—', status: s.status, overall });
+    orphanRuns.push({ participantId: (p as any).id, name: (p as any).name ?? null, scenario: s.scenario?.title ?? '(scenario missing)', status: s.status, overall });
   }
 
   return {
