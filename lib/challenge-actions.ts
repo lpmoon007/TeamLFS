@@ -107,12 +107,14 @@ export async function createChallenge(params: {
   if (existing.challenge && existing.challenge.status === 'active') return { ok: true, challenge: existing.challenge };
 
   const { data: session } = await db.from('sessions').select('scenario_id').eq('id', params.sessionId).maybeSingle<any>();
+  const { data: part } = await db.from('participants').select('subject_id').eq('id', participantId).maybeSingle<any>();
   const { data: row, error } = await db
     .from('challenges')
     .insert({
       session_id: params.sessionId,
       scenario_id: session?.scenario_id ?? null,
       participant_id: participantId,
+      subject_id: part?.subject_id ?? null, // attribute to the person (behavioral memory)
       focus_key: params.focusKey ?? null,
       focus_label: params.focusLabel ?? null,
       behavior,

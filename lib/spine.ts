@@ -24,12 +24,16 @@ export async function resolveSubject(
 ): Promise<{ id: string } | null> {
   const handleRaw = (p.email && p.email.trim()) || (p.name && p.name.trim()) || '';
   if (!handleRaw) return null;
-  const handle = slug(handleRaw);
+  // Use the raw lowercased email as the handle for emails (matching auth/People/profile, which
+  // key on the email), so a person resolves to ONE subject everywhere. Slugify only nameless
+  // handles. Mismatched handle formats were the cause of split subjects.
+  const handle = /@/.test(handleRaw) ? handleRaw.toLowerCase() : slug(handleRaw);
   if (!handle) return null;
 
-  const q = db.from('subjects').select('id').eq('handle', handle);
-  const { data: found } = await (p.orgId ? q.eq('org_id', p.orgId) : q.is('org_id', null)).maybeSingle<any>();
-  if (found) return { id: found.id };
+  // Reuse an existing subject by handle REGARDLESS of org — the person is the same whether the
+  // account provisioned them in the library org or a scenario resolved them elsewhere.
+  const { data: any1 } = await db.from('subjects').select('id, org_id').eq('handle', handle).order('created_at', { ascending: true }).limit(1).maybeSingle<any>();
+  if (any1) return { id: any1.id };
 
   const { data: created } = await db
     .from('subjects')
