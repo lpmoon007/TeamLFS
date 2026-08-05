@@ -4,6 +4,7 @@ import { inspectSubject } from '@/lib/admin-actions';
 import { SubjectRepair } from '@/components/facilitator/SubjectRepair';
 import { loadSubjectDashboard } from '@/lib/subject-dashboard';
 import { getLedger } from '@/lib/profile/ledger';
+import { buildNextScenarioForSubject } from '@/lib/profile/next-scenario';
 import { listScenarios } from '@/lib/facilitator-actions';
 import { StartSessionForPerson } from '@/components/facilitator/StartSessionForPerson';
 import { SubjectProfilePanel } from '@/components/facilitator/SubjectProfilePanel';
@@ -40,9 +41,9 @@ export default async function SubjectDashboardPage({
   const canStart = await isStaff();
   const scenarios = canStart ? await listScenarios() : [];
   const admin = await isAdmin();
-  const [diag, ledger] = admin
-    ? await Promise.all([inspectSubject(subjectId), getLedger(subjectId)])
-    : [null, null];
+  const [diag, ledger, nextScenario] = admin
+    ? await Promise.all([inspectSubject(subjectId), getLedger(subjectId), buildNextScenarioForSubject(subjectId)])
+    : [null, null, null];
 
   return (
     <div className="debrief">
@@ -122,7 +123,7 @@ export default async function SubjectDashboardPage({
       </section>
 
       {admin ? (
-        <SubjectProfilePanel ledger={ledger} subjectId={subjectId} name={d.displayName} hasRuns={d.allRuns.length > 0} />
+        <SubjectProfilePanel ledger={ledger} subjectId={subjectId} name={d.displayName} hasRuns={d.allRuns.length > 0} nextScenario={nextScenario} />
       ) : null}
 
       <section className="db-panel">

@@ -2,6 +2,8 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveSubjectRuns } from '@/lib/profile/subject-runs';
 import { listPlayableScenarios } from '@/lib/leader-actions';
+import { buildFingerprint } from '@/lib/profile/fingerprint';
+import { getLedger } from '@/lib/profile/ledger';
 import type { Fingerprint } from '@/lib/profile/fingerprint';
 import type { Ledger } from '@/lib/profile/ledger';
 
@@ -18,13 +20,25 @@ export interface NextScenario {
   replay: boolean; // true when they've played everything and we recommend a re-test
 }
 
+/** Leader's own profile — fp/ledger are already built by the page, so reuse them. */
 export async function buildNextScenario(email: string, fp: Fingerprint | null, ledger: Ledger | null): Promise<NextScenario | null> {
-  if (!fp || fp.runs < 1) return null; // the nudge only makes sense once they have a run to build on
+  if (!fp || fp.runs < 1) return null;
   const db = createAdminClient();
   const { data: subject } = await db.from('subjects').select('id').eq('handle', email.toLowerCase()).maybeSingle<any>();
   if (!subject) return null;
+  return coreNudge(subject.id, fp, ledger);
+}
 
-  const runs = await resolveSubjectRuns(db, subject.id);
+/** Admin/coach subject dashboard — resolve the person's fp/ledger from their subject id. */
+export async function buildNextScenarioForSubject(subjectId: string): Promise<NextScenario | null> {
+  const [fp, ledger] = await Promise.all([buildFingerprint(subjectId), getLedger(subjectId)]);
+  return coreNudge(subjectId, fp, ledger);
+}
+
+async function coreNudge(subjectId: string, fp: Fingerprint | null, ledger: Ledger | null): Promise<NextScenario | null> {
+  if (!fp || fp.runs < 1) return null; // the nudge only makes sense once they have a run to build on
+  const db = createAdminClient();
+  const runs = await resolveSubjectRuns(db, subjectId);
   const playedIds = new Set(runs.map((r) => r.session.scenario_id).filter(Boolean) as string[]);
 
   const scenarios = await listPlayableScenarios();

@@ -566,6 +566,10 @@ button { font-family: inherit; cursor: pointer; }
 .ns-realism { text-transform: capitalize; }
 .ns-card-act { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 8px; }
 @media (max-width: 640px) { .ns-card { flex-direction: column; } .ns-card-act { align-items: stretch; } }
+/* admin read-only "steering toward" line */
+.sp-next { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; margin-top: 14px; padding: 10px 13px; background: var(--bg); border: 1px solid var(--line-soft); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); font-size: 13px; color: var(--text); }
+.sp-next-k { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.sp-next-why { color: var(--text-dim); font-size: 12.5px; }
 .pf-gen-err { font-size: 12.5px; color: var(--danger); }
 /* leadership coach */
 .co { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }
