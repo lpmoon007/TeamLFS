@@ -186,13 +186,15 @@ async function buildSoloDebriefCore(
   const [{ data: scenario }, { data: contentDoc }, { data: rulings }, { data: driverRows }, { data: events }] =
     await Promise.all([
       db.from('scenarios').select('title').eq('id', session.scenario_id).maybeSingle<any>(),
-      db.from('documents').select('body_json').eq('scenario_id', session.scenario_id).eq('key', 'solo_content').maybeSingle<any>(),
+      // limit(1) not maybeSingle: a duplicate solo_content row (e.g. from a re-seed) must never
+      // break scoring by making maybeSingle error into a false "no_content".
+      db.from('documents').select('body_json').eq('scenario_id', session.scenario_id).eq('key', 'solo_content').order('created_at', { ascending: false }).limit(1),
       db.from('rulings').select('week_idx, decision_text, dimension_scores, branch_key, buzzer').eq('session_id', sessionId).eq('participant_id', participantId).order('week_idx', { ascending: true }),
       db.from('run_drivers').select('week_idx, driver_key, value').eq('session_id', sessionId).eq('participant_id', participantId).order('week_idx', { ascending: false }),
       db.from('events').select('type, target, payload_json').eq('session_id', sessionId).eq('participant_id', participantId).order('scenario_ms', { ascending: true, nullsFirst: true }).order('ts', { ascending: true }),
     ]);
 
-  const content = contentDoc?.body_json;
+  const content = (contentDoc as any[] | null)?.[0]?.body_json;
   if (!content) return { ok: false, reason: 'no_content' };
   const ruled = (rulings ?? []) as any[];
   if (!ruled.length) return { ok: false, reason: 'no_run' };
