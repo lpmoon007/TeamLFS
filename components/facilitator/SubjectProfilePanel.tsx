@@ -28,7 +28,6 @@ export function SubjectProfilePanel({ ledger, subjectId, name, hasRuns }: { ledg
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [diag, setDiag] = useState<string | null>(null);
 
   const REASONS: Record<string, string> = {
     no_api_key: 'Findings generation isn’t configured (no API key).',
@@ -40,15 +39,13 @@ export function SubjectProfilePanel({ ledger, subjectId, name, hasRuns }: { ledg
 
   const gen = async () => {
     if (busy) return;
-    setBusy(true); setErr(null); setDiag(null);
+    setBusy(true); setErr(null);
     try {
       const res = await generateForSubject(subjectId);
-      if (res.diag) setDiag(Object.entries(res.diag).map(([k, v]) => `${k}=${v}`).join(' · '));
-      // hard reload when rows actually landed — rules out RSC/router-cache staleness. Keep the
-      // diag visible in the query string so we can read it after the reload if nothing shows.
+      // hard reload when rows actually landed — rules out RSC/router-cache staleness
       if (res.ok && (res.diag?.persisted ?? 1) > 0) { window.location.reload(); return; }
-      if (res.ok) setErr('Generation reported success but nothing persisted — see diag.');
-      else setErr(REASONS[res.reason ?? ''] ?? `Couldn’t generate — try again.${res.reason ? ` (${res.reason})` : ''}`);
+      if (res.ok) setErr('Generation reported success but nothing persisted — try again.');
+      else setErr(REASONS[res.reason ?? ''] ?? 'Couldn’t generate — try again.');
     } catch (e) { setErr(`Couldn’t generate — ${e instanceof Error ? e.message : 'try again'}.`); }
     finally { setBusy(false); }
   };
@@ -83,7 +80,6 @@ export function SubjectProfilePanel({ ledger, subjectId, name, hasRuns }: { ledg
           <div className="ed-actions" style={{ marginTop: 14 }}>
             <button className="btn primary" disabled={busy} onClick={gen}>{busy ? 'Reading the record…' : hasFindings ? 'Re-grade findings' : 'Generate findings'}</button>
             {err ? <span className="ed-flash err">{err}</span> : null}
-            {diag ? <span className="db-dim" style={{ fontSize: 11.5, marginLeft: 8 }}>diag: {diag}</span> : null}
           </div>
         ) : null}
       </section>
