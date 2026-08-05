@@ -2,9 +2,11 @@ import type { Fingerprint } from '@/lib/profile/fingerprint';
 import type { Ledger, LedgerClaim } from '@/lib/profile/ledger';
 import type { LeaderChallenge } from '@/lib/challenge-actions';
 import type { DecisionRow } from '@/lib/preflight-actions';
+import type { NextScenario as Nudge } from '@/lib/profile/next-scenario';
 import { GenerateFindings } from '@/components/GenerateFindings';
 import { ChallengePanel } from '@/components/ChallengePanel';
 import { CheckBackPanel } from '@/components/CheckBackPanel';
+import { NextScenario } from '@/components/NextScenario';
 import { LeaderCoach } from '@/components/LeaderCoach';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -50,7 +52,7 @@ function Claim({ c, showFalsifier = true }: { c: LedgerClaim; showFalsifier?: bo
   );
 }
 
-export function ProfileView({ fp, ledger, name, challenges = [], decisions = [] }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; challenges?: LeaderChallenge[]; decisions?: DecisionRow[] }) {
+export function ProfileView({ fp, ledger, name, challenges = [], decisions = [], nextScenario = null }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; challenges?: LeaderChallenge[]; decisions?: DecisionRow[]; nextScenario?: Nudge | null }) {
   if (!fp) {
     return (
       <div className="pf">
@@ -89,6 +91,8 @@ export function ProfileView({ fp, ledger, name, challenges = [], decisions = [] 
           <GenerateFindings runNo={fp.runs} hasProfile={!!ledger?.open.length} />
         ) : null}
       </section>
+
+      <NextScenario nudge={nextScenario} />
 
       {fp.trajectory.length >= 2 ? (
         <section className="pf-sec">

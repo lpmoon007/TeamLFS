@@ -7,6 +7,7 @@ import { buildFingerprintForEmail } from '@/lib/profile/fingerprint';
 import { getLedgerForEmail } from '@/lib/profile/ledger';
 import { getMyChallenges } from '@/lib/challenge-actions';
 import { listDecisions } from '@/lib/preflight-actions';
+import { buildNextScenario } from '@/lib/profile/next-scenario';
 import { ProfileView } from '@/components/ProfileView';
 
 // The participant's own Leadership Profile — private to them (and their coach). Built from
@@ -21,6 +22,7 @@ export default async function ProfilePage() {
     eligible ? getMyChallenges() : null,
     eligible ? listDecisions() : null,
   ]);
+  const nextScenario = eligible ? await buildNextScenario(me.email, fp, ledger) : null;
 
   return (
     <div className="play-wrap">
@@ -35,7 +37,7 @@ export default async function ProfilePage() {
         </div>
       </header>
       <div className="play-body">
-        <ProfileView fp={fp} ledger={ledger} name={(me.displayName || me.email || '').split(' ')[0]} challenges={ch?.challenges ?? []} decisions={decisions ?? []} />
+        <ProfileView fp={fp} ledger={ledger} name={(me.displayName || me.email || '').split(' ')[0]} challenges={ch?.challenges ?? []} decisions={decisions ?? []} nextScenario={nextScenario} />
       </div>
     </div>
   );

@@ -556,6 +556,16 @@ button { font-family: inherit; cursor: pointer; }
 .cb-wait { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--text-dim); padding: 8px 12px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
 .cb-wait-t { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cb-wait-when { flex: 0 0 auto; color: var(--text-faint); font-size: 11px; }
+/* next-scenario nudge */
+.ns-card { display: flex; align-items: stretch; gap: 16px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 16px 18px; }
+.ns-card-main { flex: 1 1 auto; min-width: 0; }
+.ns-card-title { font-size: 15px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 9px; }
+.ns-replay { font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--warn); border: 1px solid rgba(245,158,11,0.4); border-radius: 999px; padding: 1px 7px; }
+.ns-card-sum { font-size: 13px; line-height: 1.55; color: var(--text-dim); margin: 6px 0 0; max-width: 60ch; }
+.ns-card-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11.5px; color: var(--text-faint); margin-top: 10px; font-variant-numeric: tabular-nums; }
+.ns-realism { text-transform: capitalize; }
+.ns-card-act { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 8px; }
+@media (max-width: 640px) { .ns-card { flex-direction: column; } .ns-card-act { align-items: stretch; } }
 .pf-gen-err { font-size: 12.5px; color: var(--danger); }
 /* leadership coach */
 .co { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }
