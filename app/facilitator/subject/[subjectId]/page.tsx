@@ -54,6 +54,21 @@ export default async function SubjectDashboardPage({
         </div>
       </header>
 
+      {admin && nextScenario ? (
+        <div className="db-next">
+          <span className="db-next-k">Recommended next run</span>
+          <span className="db-next-title">{nextScenario.scenario.title}</span>
+          <span className="db-next-why">
+            based on the Leadership Findings below —{' '}
+            {nextScenario.replay
+              ? 'a re-test to see whether the read holds a second time'
+              : nextScenario.openFindings > 0
+                ? `to test ${d.displayName.split(' ')[0]}’s ${nextScenario.openFindings} still-directional finding${nextScenario.openFindings === 1 ? '' : 's'} under a new condition`
+                : 'to make their markers comparable across conditions'}
+          </span>
+        </div>
+      ) : null}
+
       {canStart ? (
         <section className="db-panel">
           <h2>Start a session with {d.displayName.split(' ')[0]}</h2>
@@ -123,7 +138,7 @@ export default async function SubjectDashboardPage({
       </section>
 
       {admin ? (
-        <SubjectProfilePanel ledger={ledger} subjectId={subjectId} name={d.displayName} hasRuns={d.allRuns.length > 0} nextScenario={nextScenario} />
+        <SubjectProfilePanel ledger={ledger} subjectId={subjectId} name={d.displayName} hasRuns={d.allRuns.length > 0} />
       ) : null}
 
       <section className="db-panel">

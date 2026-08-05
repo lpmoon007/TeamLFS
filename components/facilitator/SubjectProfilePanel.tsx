@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { generateForSubject } from '@/lib/profile-actions';
 import { LeaderCoach } from '@/components/LeaderCoach';
 import type { Ledger, LedgerClaim } from '@/lib/profile/ledger';
-import type { NextScenario } from '@/lib/profile/next-scenario';
 
 // Facilitator/coach view of a person's Leadership Profile — read-only findings + claim ledger
 // + the grounded coach (coach-visibility per the consent model). Lets an admin review a
@@ -25,7 +24,7 @@ function Claim({ c }: { c: LedgerClaim }) {
   );
 }
 
-export function SubjectProfilePanel({ ledger, subjectId, name, hasRuns, nextScenario = null }: { ledger: Ledger | null; subjectId: string; name: string; hasRuns: boolean; nextScenario?: NextScenario | null }) {
+export function SubjectProfilePanel({ ledger, subjectId, name, hasRuns }: { ledger: Ledger | null; subjectId: string; name: string; hasRuns: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -64,19 +63,6 @@ export function SubjectProfilePanel({ ledger, subjectId, name, hasRuns, nextScen
         ) : (
           <p className="db-sub">No findings generated yet{hasRuns ? ' — generate them from the record below.' : '. A finding needs a completed run first.'}</p>
         )}
-        {nextScenario ? (
-          <p className="sp-next">
-            <span className="sp-next-k">Steering toward</span>
-            <b>{nextScenario.scenario.title}</b>
-            <span className="sp-next-why">
-              {nextScenario.replay
-                ? '— a re-test to see whether the read holds a second time'
-                : nextScenario.openFindings > 0
-                  ? `— to test ${name.split(' ')[0]}’s ${nextScenario.openFindings} still-directional finding${nextScenario.openFindings === 1 ? '' : 's'} under a new condition`
-                  : '— to make their markers comparable across conditions'}
-            </span>
-          </p>
-        ) : null}
         {ledger?.transfer ? (
           <div className="pf-transfer" style={{ marginTop: 14 }}>
             <div className="pf-transfer-tell">{ledger.transfer.tell}</div>
