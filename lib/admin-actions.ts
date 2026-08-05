@@ -11,12 +11,21 @@ import { buildSoloDebrief } from '@/lib/solo-debrief';
 
 const norm = (h: string) => String(h ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
+// The exact email a handle represents (lowercased/trimmed), or null for a name-slug handle.
+// Two DISTINCT emails are two different people — even if norm() collapses them (it strips dots
+// and @, so j.carter@x.com and jcarter@x.com would otherwise look identical). We compare on
+// this, never on norm(), when deciding what is safe to delete.
+const emailOf = (h: string): string | null => (/@/.test(h) ? String(h).trim().toLowerCase() : null);
+
 // every table that carries a subject_id, re-pointed on merge (trait_scores rides on
 // participants, so it moves for free)
 const SUBJECT_TABLES = ['participants', 'behavioral_profile', 'behavioral_panel', 'profile_claims', 'leadership_profiles', 'artifact_consents', 'preflight_decisions', 'challenges'];
 
 export interface DupSubject { id: string; handle: string; displayName: string | null; runs: number; createdAt: string; hasEmail: boolean }
-export interface DupGroup { key: string; subjects: DupSubject[] }
+// safe=false means the group collided under norm() but holds two or more DIFFERENT real emails
+// (or otherwise can't be proven one identity). Those are never auto-merged — a wrong merge
+// hard-deletes a real person's profile — they surface for manual review instead.
+export interface DupGroup { key: string; subjects: DupSubject[]; emails: string[]; safe: boolean }
 
 export async function findDuplicatePeople(): Promise<DupGroup[]> {
   if (!(await isAdmin())) return [];
@@ -44,12 +53,16 @@ export async function findDuplicatePeople(): Promise<DupGroup[]> {
     for (const p of parts ?? []) runs.set((p as any).subject_id, (runs.get((p as any).subject_id) ?? 0) + 1);
   }
 
-  return dupGroups.map(([key, arr]) => ({
-    key,
-    subjects: arr
+  return dupGroups.map(([key, arr]) => {
+    const subjects = arr
       .map((s) => ({ id: s.id, handle: s.handle, displayName: s.display_name ?? null, runs: runs.get(s.id) ?? 0, createdAt: s.created_at, hasEmail: /@/.test(s.handle) }))
-      .sort((a, b) => b.runs - a.runs),
-  }));
+      .sort((a, b) => b.runs - a.runs);
+    const emails = [...new Set(subjects.map((s) => emailOf(s.handle)).filter((e): e is string => !!e))];
+    // safe only when the group represents at most one real email: the email row plus its
+    // slug variants. Two different emails colliding under norm() are different people.
+    const safe = emails.length <= 1;
+    return { key, subjects, emails, safe };
+  });
 }
 
 /** Pick the canonical of a group: prefer the email-handle row (what the app keys on), then most
@@ -66,21 +79,28 @@ export interface MergePreview {
     keepRuns: number;
     remove: { id: string; handle: string; runs: number; moves: number }[]; // moves = rows re-pointed
   }[];
+  needsReview: { emails: string[]; subjects: { handle: string; runs: number }[] }[]; // collided but different emails — NOT merged
   byTable: Record<string, number>; // rows to re-point per table, across all groups
   totalRemoved: number;
 }
 
 /** Read-only: exactly what a merge WOULD do — which profile is kept, which are removed, and how
- *  many rows in each table get re-pointed. No mutation. */
+ *  many rows in each table get re-pointed. No mutation. Groups holding two different emails are
+ *  listed under needsReview and never merged. */
 export async function previewMerge(): Promise<MergePreview> {
-  if (!(await isAdmin())) return { groups: [], byTable: {}, totalRemoved: 0 };
+  if (!(await isAdmin())) return { groups: [], needsReview: [], byTable: {}, totalRemoved: 0 };
   const db = createAdminClient();
-  const groups = await findDuplicatePeople();
+  const all = await findDuplicatePeople();
   const byTable: Record<string, number> = {};
   let totalRemoved = 0;
   const out: MergePreview['groups'] = [];
+  const needsReview: MergePreview['needsReview'] = [];
 
-  for (const g of groups) {
+  for (const g of all) {
+    if (!g.safe) {
+      needsReview.push({ emails: g.emails, subjects: g.subjects.map((s) => ({ handle: s.handle, runs: s.runs })) });
+      continue;
+    }
     const keep = canonicalOf(g.subjects);
     const remove = g.subjects.filter((s) => s.id !== keep.id);
     const removeDetail = [];
@@ -97,33 +117,42 @@ export async function previewMerge(): Promise<MergePreview> {
     }
     out.push({ handle: keep.displayName || keep.handle, keepId: keep.id, keepHandle: keep.handle, keepRuns: keep.runs, remove: removeDetail });
   }
-  return { groups: out, byTable, totalRemoved };
+  return { groups: out, needsReview, byTable, totalRemoved };
 }
 
-export async function mergeDuplicatePeople(): Promise<{ ok: boolean; reason?: string; groups: number; removed: number; details: { handle: string; keptRuns: number; removed: number }[] }> {
-  if (!(await isAdmin())) return { ok: false, reason: 'forbidden', groups: 0, removed: 0, details: [] };
+export async function mergeDuplicatePeople(): Promise<{ ok: boolean; reason?: string; groups: number; removed: number; skipped: number; details: { handle: string; keptRuns: number; removed: number }[] }> {
+  if (!(await isAdmin())) return { ok: false, reason: 'forbidden', groups: 0, removed: 0, skipped: 0, details: [] };
   const db = createAdminClient();
-  const groups = await findDuplicatePeople();
+  const all = await findDuplicatePeople();
+  const groups = all.filter((g) => g.safe); // never auto-merge a group with two different emails
+  const skipped = all.length - groups.length;
   let removed = 0;
   const details: { handle: string; keptRuns: number; removed: number }[] = [];
 
   for (const g of groups) {
     const keep = canonicalOf(g.subjects);
+    const keepEmail = emailOf(keep.handle);
     const dupes = g.subjects.filter((s) => s.id !== keep.id);
+    let removedHere = 0;
     for (const d of dupes) {
+      // hard guard: never delete a subject that carries a DIFFERENT real email than the one
+      // we're keeping — that would be deleting a different person. (Belt to the group-level
+      // safe check's suspenders.)
+      const dEmail = emailOf(d.handle);
+      if (dEmail && keepEmail && dEmail !== keepEmail) continue;
       for (const table of SUBJECT_TABLES) {
         await db.from(table).update({ subject_id: keep.id }).eq('subject_id', d.id);
       }
       await db.from('subjects').delete().eq('id', d.id);
-      removed++;
+      removed++; removedHere++;
     }
     // belt-and-suspenders: re-link by email so no participant can be left orphaned by the
     // delete's on-delete-set-null if a subject_id re-point missed.
     await relinkRunsByEmail(keep.id);
-    details.push({ handle: keep.handle, keptRuns: keep.runs, removed: dupes.length });
+    details.push({ handle: keep.handle, keptRuns: keep.runs, removed: removedHere });
   }
 
-  return { ok: true, groups: groups.length, removed, details };
+  return { ok: true, groups: groups.length, removed, skipped, details };
 }
 
 // ---- diagnostics -------------------------------------------------------------
