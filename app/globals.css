@@ -586,6 +586,13 @@ button { font-family: inherit; cursor: pointer; }
 .db-acc-sum { margin-left: auto; font-size: 12px; color: var(--text-faint); font-weight: 500; white-space: nowrap; }
 .db-acc-h:hover .db-acc-caret, .db-acc-h:hover .db-acc-sum { color: var(--text-dim); }
 .db-acc-body { margin-top: 12px; }
+/* collapsible profile sections (play profile) */
+.pf-acc-h { display: flex; align-items: baseline; gap: 10px; width: 100%; background: none; border: none; padding: 0; cursor: pointer; text-align: left; color: inherit; }
+.pf-acc-caret { color: var(--text-faint); font-size: 11px; flex: 0 0 auto; }
+.pf-acc-title { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); }
+.pf-acc-sum { margin-left: auto; font-size: 12px; color: var(--text-faint); font-weight: 500; white-space: nowrap; text-transform: none; letter-spacing: 0; }
+.pf-acc-h:hover .pf-acc-caret, .pf-acc-h:hover .pf-acc-sum, .pf-acc-h:hover .pf-acc-title { color: var(--text); }
+.pf-acc-body { margin-top: 14px; }
 .pf-gen-err { font-size: 12.5px; color: var(--danger); }
 /* leadership coach */
 .co { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }

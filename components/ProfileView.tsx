@@ -4,6 +4,7 @@ import type { LeaderChallenge } from '@/lib/challenge-actions';
 import type { DecisionRow } from '@/lib/preflight-actions';
 import type { NextScenario as Nudge } from '@/lib/profile/next-scenario';
 import { GenerateFindings } from '@/components/GenerateFindings';
+import { PfAccordion } from '@/components/PfAccordion';
 import { ChallengePanel } from '@/components/ChallengePanel';
 import { CheckBackPanel } from '@/components/CheckBackPanel';
 import { NextScenario } from '@/components/NextScenario';
@@ -77,8 +78,10 @@ export function ProfileView({ fp, ledger, name, challenges = [], decisions = [],
         {fp.provisional ? ' One run so far — treat this as directional; it firms up at two or three.' : ' Scored on difficulty-normalised rates, so it reads the same across scenarios.'}
       </p>
 
-      <section className="pf-sec">
-        <div className="pf-sec-h">Findings — each one is a claim your next run can overturn</div>
+      <PfAccordion
+        title="Findings — each one is a claim your next run can overturn"
+        sub={ledger && ledger.open.length ? `${ledger.open.length} open finding${ledger.open.length === 1 ? '' : 's'}` : 'none yet'}
+      >
         {ledger?.narrative ? <p className="pf-narr">{ledger.narrative}</p> : null}
         {ledger && ledger.open.length ? (
           <div className="pf-claims">
@@ -90,23 +93,21 @@ export function ProfileView({ fp, ledger, name, challenges = [], decisions = [],
         {fp.runs > (ledger?.profiledRun ?? 0) || !ledger?.open.length ? (
           <GenerateFindings runNo={fp.runs} hasProfile={!!ledger?.open.length} />
         ) : null}
-      </section>
+      </PfAccordion>
 
       <NextScenario nudge={nextScenario} />
 
       {fp.trajectory.length >= 2 ? (
-        <section className="pf-sec">
-          <div className="pf-sec-h">Trajectory</div>
+        <PfAccordion title="Trajectory" sub={`${fp.trajectory[0]} → ${fp.trajectory[fp.trajectory.length - 1]}`}>
           <div className="pf-traj">
             <Spark points={fp.trajectory} />
             <div className="pf-traj-n">{fp.trajectory[0]} → {fp.trajectory[fp.trajectory.length - 1]} <span>overall, first to latest run</span></div>
           </div>
-        </section>
+        </PfAccordion>
       ) : null}
 
       {fp.strength || fp.gap ? (
-        <section className="pf-sec">
-          <div className="pf-sec-h">Signature</div>
+        <PfAccordion title="Signature" sub={[fp.strength?.label, fp.gap?.label].filter(Boolean).join(' · ')}>
           <div className="pf-sig">
             {fp.strength ? (
               <div className="pf-sig-card good">
@@ -123,11 +124,10 @@ export function ProfileView({ fp, ledger, name, challenges = [], decisions = [],
               </div>
             ) : null}
           </div>
-        </section>
+        </PfAccordion>
       ) : null}
 
-      <section className="pf-sec">
-        <div className="pf-sec-h">Your fingerprint — six universal behaviours</div>
+      <PfAccordion title="Your fingerprint — six universal behaviours" sub="six markers">
         <div className="pf-markers">
           {fp.markers.map((m) => (
             <div className="pf-marker" key={m.key}>
@@ -148,10 +148,9 @@ export function ProfileView({ fp, ledger, name, challenges = [], decisions = [],
             </div>
           ))}
         </div>
-      </section>
+      </PfAccordion>
 
-      <section className="pf-sec">
-        <div className="pf-sec-h">Run log</div>
+      <PfAccordion title="Run log" sub={`${fp.runLog.length} run${fp.runLog.length === 1 ? '' : 's'}`}>
         <div className="pf-runs">
           {fp.runLog.map((r, i) => (
             <a className="pf-run" key={i} href={r.debriefUrl}>
@@ -163,28 +162,26 @@ export function ProfileView({ fp, ledger, name, challenges = [], decisions = [],
             </a>
           ))}
         </div>
-      </section>
+      </PfAccordion>
 
       {ledger && ledger.graded.length ? (
-        <section className="pf-sec">
-          <div className="pf-sec-h">The ledger — how prior findings held up</div>
+        <PfAccordion title="The ledger — how prior findings held up" sub={`${ledger.graded.length} graded`} defaultOpen={false}>
           <p className="pf-lead" style={{ marginBottom: 14 }}>Confidence rises only when a claim survives a <b>new</b> condition — never by repetition. A claim that is never overturned or sharpened isn’t proof it’s right; it may just not have been tested.</p>
           <div className="pf-claims">
             {ledger.graded.map((c) => <Claim key={c.id} c={c} />)}
           </div>
-        </section>
+        </PfAccordion>
       ) : null}
 
       {ledger?.transfer ? (
-        <section className="pf-sec">
-          <div className="pf-sec-h">Monday — how this shows up at work</div>
+        <PfAccordion title="Monday — how this shows up at work" sub="workplace transfer">
           <div className="pf-transfer">
             <div className="pf-transfer-tell">{ledger.transfer.tell}</div>
             <div className="pf-transfer-watch"><span className="pf-transfer-k">Watch for:</span> {ledger.transfer.watch_for}</div>
             <div className="pf-transfer-label">Coaching hypothesis — not an assessment.</div>
           </div>
           <a className="pf-preflight-link" href="/play/preflight">Facing a real decision? Run a pre-flight →</a>
-        </section>
+        </PfAccordion>
       ) : (
         <p className="pf-preflight-cta">
           Facing a real decision at work? <a href="/play/preflight">Run it through Before You Decide →</a> — your record hands you the questions it says you’ll skip.
