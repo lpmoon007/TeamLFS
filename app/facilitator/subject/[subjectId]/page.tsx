@@ -42,7 +42,7 @@ export default async function SubjectDashboardPage({
         <div className="db-crumb"><strong>{d.displayName}</strong></div>
         <h1>{d.displayName}</h1>
         <div className="db-meta">
-          {d.handle} · {d.sessions} session{d.sessions === 1 ? '' : 's'} on record · {d.runs.length} scored panel{d.runs.length === 1 ? '' : 's'}
+          {d.handle} · {d.allRuns.length} run{d.allRuns.length === 1 ? '' : 's'} on record
         </div>
       </header>
 
@@ -90,21 +90,21 @@ export default async function SubjectDashboardPage({
 
       <section className="db-panel">
         <h2>Run history</h2>
-        {d.runs.length === 0 ? (
-          <p className="db-sub">No scored panels yet.</p>
+        {d.allRuns.length === 0 ? (
+          <p className="db-sub">No completed runs yet — a run shows here once they reach the final weekly call.</p>
         ) : (
           <div className="db-table-wrap">
             <table className="db-table">
               <thead>
-                <tr><th>Scenario</th><th>Mode</th><th>Judgment (A)</th><th>Teaming (B)</th><th>Debrief</th></tr>
+                <tr><th>Scenario</th><th>Mode</th><th>Leadership</th><th>When</th><th>Debrief</th></tr>
               </thead>
               <tbody>
-                {d.runs.map((r, i) => (
+                {d.allRuns.map((r, i) => (
                   <tr key={i}>
                     <td>{r.scenario}</td>
                     <td>{r.mode}</td>
-                    <td>{r.tierA ?? '—'}</td>
-                    <td>{r.tierB ?? '—'}</td>
+                    <td><b>{r.tierA ?? '—'}</b>{r.tierA !== null ? <span className="db-dim"> / 100</span> : null}</td>
+                    <td className="db-dim">{r.at ? new Date(r.at).toLocaleDateString() : '—'}</td>
                     <td><Link href={`/facilitator/debrief/${r.sessionId}${kp}`}>open →</Link></td>
                   </tr>
                 ))}

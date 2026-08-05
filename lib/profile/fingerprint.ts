@@ -22,6 +22,7 @@ export interface FingerprintMarker {
   series: number[]; // oldest → newest, for a sparkline
 }
 export interface FingerprintRun {
+  sessionId: string;
   scenario: string;
   score: number;
   grade: string;
@@ -63,7 +64,7 @@ export async function buildFingerprint(subjectId: string): Promise<Fingerprint |
   }
 
   // build each debrief once; keep only finished, scored runs, oldest → newest
-  type Built = { overall: number; grade: string; condition: string; markers: any[]; scenario: string; date: string | null; debriefUrl: string };
+  type Built = { sessionId: string; overall: number; grade: string; condition: string; markers: any[]; scenario: string; date: string | null; debriefUrl: string };
   const built: Built[] = [];
   await Promise.all(
     rows.map(async (p: any) => {
@@ -76,6 +77,7 @@ export async function buildFingerprint(subjectId: string): Promise<Fingerprint |
         const complete = wc ? decisions >= wc : true;
         if (!complete) return;
         built.push({
+          sessionId: s.id,
           overall: d.debrief.overall,
           grade: d.debrief.grade,
           condition: CONDITION[s.run_config?.disposition as string] ?? 'neutral',
@@ -127,7 +129,7 @@ export async function buildFingerprint(subjectId: string): Promise<Fingerprint |
     runLog: built
       .slice()
       .reverse()
-      .map((b) => ({ scenario: b.scenario, score: b.overall, grade: b.grade, condition: b.condition, date: b.date, debriefUrl: b.debriefUrl })),
+      .map((b) => ({ sessionId: b.sessionId, scenario: b.scenario, score: b.overall, grade: b.grade, condition: b.condition, date: b.date, debriefUrl: b.debriefUrl })),
   };
 }
 
