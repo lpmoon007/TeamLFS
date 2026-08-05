@@ -551,6 +551,11 @@ button { font-family: inherit; cursor: pointer; }
 .ch-complete { background: none; border: none; color: var(--online); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 0; }
 .ch-drop { background: none; border: none; color: var(--text-faint); font-size: 11.5px; cursor: pointer; padding: 0; margin-left: auto; }
 .ch-drop:hover { color: var(--danger); }
+/* pre-flight check-back — waiting list */
+.cb-waiting { display: flex; flex-direction: column; gap: 6px; }
+.cb-wait { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--text-dim); padding: 8px 12px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
+.cb-wait-t { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-wait-when { flex: 0 0 auto; color: var(--text-faint); font-size: 11px; }
 .pf-gen-err { font-size: 12.5px; color: var(--danger); }
 /* leadership coach */
 .co { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }

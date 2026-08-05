@@ -127,6 +127,24 @@ export async function buildEvidencePack(subjectId: string): Promise<EvidencePack
       .join('\n');
   }
 
+  // real-world pre-flight decisions with a check-back verdict — behaviour in the actual
+  // workplace, confirmed or refuted two weeks on. The strongest evidence in the record: a
+  // prediction that held is held-in-practice, not just in-sim; one that failed narrows the claim.
+  const { data: decisions } = await db
+    .from('preflight_decisions')
+    .select('text, prediction, verdict, resolved_at')
+    .eq('subject_id', subjectId)
+    .not('verdict', 'is', null)
+    .order('resolved_at', { ascending: true });
+  const decisionBlock = decisions && decisions.length
+    ? decisions
+        .map((d: any) =>
+          `  - "${strip(d.text)}" — predicted of you: "${strip(d.prediction ?? '')}" — check-back: ${d.verdict === 'yes'
+            ? 'CONFIRMED (the predicted behaviour happened in the real decision — held in practice)'
+            : 'WRONG (the predicted behaviour did NOT happen — narrow the underlying claim)'}`)
+        .join('\n')
+    : '(no real-world decisions checked back yet)';
+
   const record =
     `LEADER: ${name}. Played as self across ${runNo} completed run${runNo === 1 ? '' : 's'}.\n\n` +
     `=== SAMPLE SIZE — state n when it is under 3; one instance is an instance, never a record. Do not write "0-for-1" or "1-for-1". ===\n` +
@@ -136,6 +154,7 @@ export async function buildEvidencePack(subjectId: string): Promise<EvidencePack
     `=== THE CLAIM LEDGER — every finding is a falsifiable claim ===\n` +
     `ARCHITECTURAL RULE: a finding that predicts nothing can never be wrong, so it is not a finding. Every claim carries a FALSIFIER. If asked "what would change your mind?", you must answer with the falsifier.\n${claimBlock}\n\n` +
     `=== 30-DAY REPS (self-reported — never cite as observed in-sim behaviour) ===\n${repBlock}\n\n` +
+    `=== REAL-WORLD PRE-FLIGHT CHECK-BACKS (strongest evidence — a prediction about their behaviour, confirmed or refuted in an actual workplace decision two weeks on) ===\n${decisionBlock}\n\n` +
     `=== THE RUNS ===\n${runBlock}\n=== END OF RECORD ===`;
 
   return { record, runNo, latestSessionId: latest?.id ?? null, latestCondition, claims, hasReps };

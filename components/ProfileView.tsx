@@ -1,8 +1,10 @@
 import type { Fingerprint } from '@/lib/profile/fingerprint';
 import type { Ledger, LedgerClaim } from '@/lib/profile/ledger';
 import type { LeaderChallenge } from '@/lib/challenge-actions';
+import type { DecisionRow } from '@/lib/preflight-actions';
 import { GenerateFindings } from '@/components/GenerateFindings';
 import { ChallengePanel } from '@/components/ChallengePanel';
+import { CheckBackPanel } from '@/components/CheckBackPanel';
 import { LeaderCoach } from '@/components/LeaderCoach';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -48,7 +50,7 @@ function Claim({ c, showFalsifier = true }: { c: LedgerClaim; showFalsifier?: bo
   );
 }
 
-export function ProfileView({ fp, ledger, name, challenges = [] }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; challenges?: LeaderChallenge[] }) {
+export function ProfileView({ fp, ledger, name, challenges = [], decisions = [] }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; challenges?: LeaderChallenge[]; decisions?: DecisionRow[] }) {
   if (!fp) {
     return (
       <div className="pf">
@@ -184,6 +186,8 @@ export function ProfileView({ fp, ledger, name, challenges = [] }: { fp: Fingerp
           Facing a real decision at work? <a href="/play/preflight">Run it through Before You Decide →</a> — your record hands you the questions it says you’ll skip.
         </p>
       )}
+
+      <CheckBackPanel decisions={decisions} />
 
       <ChallengePanel challenges={challenges} />
 
