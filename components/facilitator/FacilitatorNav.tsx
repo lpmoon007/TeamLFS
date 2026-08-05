@@ -16,6 +16,9 @@ export function FacilitatorNav({ user }: { user?: { displayName: string | null; 
     ...(user?.role === 'admin' ? [{ href: '/facilitator/accounts', label: 'Accounts', match: (p: string) => p.startsWith('/facilitator/accounts') }] : []),
     { href: '/facilitator/account', label: 'Account', match: (p: string) => p.startsWith('/facilitator/account') && !p.startsWith('/facilitator/accounts') },
   ];
+  // Staff who also play have their own private Leadership Profile on the play surface — the
+  // console has no other path to it. Hidden for the synthetic master key (no real profile).
+  const canPlay = !!user && user.email !== 'master@local' && /@/.test(user.email);
 
   return (
     <nav className="facnav">
@@ -29,6 +32,9 @@ export function FacilitatorNav({ user }: { user?: { displayName: string | null; 
             {it.label}
           </Link>
         ))}
+        {canPlay ? (
+          <Link href="/play/profile" className="facnav-item facnav-play">My Profile ↗</Link>
+        ) : null}
       </div>
       {user ? (
         <div className="facnav-foot">
