@@ -5,8 +5,12 @@ import { useRouter } from 'next/navigation';
 import { createAccount, setAccountActive } from '@/lib/auth-actions';
 import type { FacilitatorListItem } from '@/lib/auth';
 
-// Admin — manage facilitator/admin accounts: list, create, deactivate/reactivate.
-export function AccountsAdmin({ accounts }: { accounts: FacilitatorListItem[] }) {
+export interface AccountlessPerson { id: string; name: string; email: string; runs: number }
+
+// Admin — manage facilitator/admin accounts: list, create, deactivate/reactivate. Also flags
+// people who have runs but no login (e.g. an account that went missing), so a profile with no
+// way to sign in is visible here instead of a surprise.
+export function AccountsAdmin({ accounts, orphans = [] }: { accounts: FacilitatorListItem[]; orphans?: AccountlessPerson[] }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -35,8 +39,39 @@ export function AccountsAdmin({ accounts }: { accounts: FacilitatorListItem[] })
     router.refresh();
   };
 
+  const prefill = (o: AccountlessPerson) => {
+    setEmail(o.email); setDisplayName(o.name); setRole('leader');
+    setFlash('Filled the form below — set a password and create to restore their login.');
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <>
+      {orphans.length ? (
+        <section className="db-panel" style={{ borderLeft: '3px solid var(--warn)' }}>
+          <h2>Runs but no login <span className="pill ended">{orphans.length}</span></h2>
+          <p className="db-sub">These people have played but have no account to sign in with — so they can’t reach their own profile. If an account should exist (or went missing), create one with their exact email and it reconnects to this profile automatically.</p>
+          <div className="db-table-wrap">
+            <table className="db-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Runs</th><th></th></tr></thead>
+              <tbody>
+                {orphans.map((o) => (
+                  <tr key={o.id}>
+                    <td><strong>{o.name}</strong></td>
+                    <td>{o.email}</td>
+                    <td><span className="pill live">{o.runs} run{o.runs === 1 ? '' : 's'}</span></td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <Link className="btn ghost" href={`/facilitator/subject/${o.id}`}>Profile →</Link>{' '}
+                      <button className="btn ghost" onClick={() => prefill(o)}>Create login</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
       <section className="db-panel">
         <h2>New account</h2>
         <div className="acct-form">

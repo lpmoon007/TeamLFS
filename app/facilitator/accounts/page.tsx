@@ -1,5 +1,6 @@
 import { requireStaffPage, facilitator, isAdmin } from '@/lib/facilitator-session';
 import { listFacilitators } from '@/lib/auth';
+import { listPeople } from '@/lib/facilitator-actions';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { FacilitatorNav } from '@/components/facilitator/FacilitatorNav';
 import { AccountsAdmin } from '@/components/facilitator/AccountsAdmin';
@@ -17,7 +18,11 @@ export default async function AccountsPage() {
       </div>
     );
   }
-  const accounts = await listFacilitators();
+  const [accounts, people] = await Promise.all([listFacilitators(), listPeople()]);
+  // people who have played but have no login account, and have an email to create one with
+  const orphans = people
+    .filter((p) => p.role === null && p.runs > 0 && !!p.email)
+    .map((p) => ({ id: p.id, name: p.name, email: p.email as string, runs: p.runs }));
 
   return (
     <div className="fac-shell">
@@ -29,7 +34,7 @@ export default async function AccountsPage() {
         </header>
         <div className="fac-body">
           <div className="fac-body-top"><h1>Accounts</h1></div>
-          <AccountsAdmin accounts={accounts} />
+          <AccountsAdmin accounts={accounts} orphans={orphans} />
         </div>
       </div>
     </div>
