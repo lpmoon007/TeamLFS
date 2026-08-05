@@ -61,12 +61,13 @@ export default async function SubjectDashboardPage({
           <span className="db-next-k">Recommended next run</span>
           <span className="db-next-title">{nextScenario.scenario.title}</span>
           <span className="db-next-why">
-            based on the Leadership Findings below —{' '}
-            {nextScenario.replay
-              ? 'a re-test to see whether the read holds a second time'
-              : nextScenario.openFindings > 0
-                ? `to test ${self ? 'your' : `${d.displayName.split(' ')[0]}’s`} ${nextScenario.openFindings} still-directional finding${nextScenario.openFindings === 1 ? '' : 's'} under a new condition`
-                : `to make ${self ? 'your' : 'their'} markers comparable across conditions`}
+            {nextScenario.matchedMarker
+              ? `presses ${nextScenario.matchedMarker.toLowerCase()} — ${self ? 'your' : `${d.displayName.split(' ')[0]}’s`} weakest read so far${nextScenario.matchedScore != null ? ` (${nextScenario.matchedScore}/100)` : ''}`
+              : nextScenario.replay
+                ? 'a re-test to see whether the read holds a second time'
+                : nextScenario.openFindings > 0
+                  ? `based on the Leadership Findings below — to test ${self ? 'your' : `${d.displayName.split(' ')[0]}’s`} ${nextScenario.openFindings} still-directional finding${nextScenario.openFindings === 1 ? '' : 's'} under a new condition`
+                  : `to make ${self ? 'your' : 'their'} markers comparable across conditions`}
           </span>
         </div>
       ) : null}

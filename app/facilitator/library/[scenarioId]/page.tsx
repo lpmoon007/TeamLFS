@@ -59,7 +59,7 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
               <section className="db-panel">
                 <h2>Edit</h2>
                 <p className="db-sub">Title, summary, and difficulty. Authored content is regenerated from the seed pipeline.</p>
-                <ScenarioEditor scenarioId={d.id} title={d.title} summary={d.summary} difficulty={d.difficulty} realism={d.realism} />
+                <ScenarioEditor scenarioId={d.id} title={d.title} summary={d.summary} difficulty={d.difficulty} realism={d.realism} stresses={d.stresses} />
               </section>
             ) : null}
           </div>

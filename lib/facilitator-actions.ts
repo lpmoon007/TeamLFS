@@ -871,6 +871,7 @@ export interface ScenarioDetail {
   mode: 'solo' | 'team';
   difficulty: number;
   realism: string;
+  stresses: string[]; // Tier-A markers this scenario presses (A1–A6)
   contentVersion: number;
   weekCount: number | null;
   weekSeconds: number | null;
@@ -905,6 +906,7 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
     mode: (meta?.mode_default ?? 'team') as 'solo' | 'team',
     difficulty: Number(meta?.difficulty ?? 1),
     realism: (meta?.realism ?? 'realistic') as string,
+    stresses: Array.isArray(meta?.stresses) ? meta.stresses : [],
     contentVersion: Number(meta?.content_version ?? 1),
     weekCount: meta?.week_count ?? null,
     weekSeconds: meta?.week_seconds ?? null,
@@ -916,7 +918,8 @@ export async function getScenarioDetail(scenarioId: string): Promise<ScenarioDet
 }
 
 /** Edit the safe, non-content scenario metadata (title, summary, difficulty coefficient). */
-export async function updateScenario(params: { scenarioId: string; title?: string; summary?: string; difficulty?: number; realism?: string }): Promise<{ ok: boolean; reason?: string }> {
+const MARKER_KEYS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'];
+export async function updateScenario(params: { scenarioId: string; title?: string; summary?: string; difficulty?: number; realism?: string; stresses?: string[] }): Promise<{ ok: boolean; reason?: string }> {
   const db = await guard();
   // Editing scenario metadata (esp. the difficulty coefficient, which normalizes scoring)
   // is an admin-only lever — a facilitator changing it would silently skew everyone's reads.
@@ -931,6 +934,7 @@ export async function updateScenario(params: { scenarioId: string; title?: strin
   const metaPatch: Record<string, unknown> = {};
   if (typeof params.difficulty === 'number' && isFinite(params.difficulty)) metaPatch.difficulty = Math.max(0.5, Math.min(2, params.difficulty));
   if (params.realism === 'realistic' || params.realism === 'abstract') metaPatch.realism = params.realism;
+  if (Array.isArray(params.stresses)) metaPatch.stresses = [...new Set(params.stresses.filter((k) => MARKER_KEYS.includes(k)))];
   if (Object.keys(metaPatch).length) {
     const { error } = await db.from('scenario_meta').update(metaPatch).eq('scenario_id', params.scenarioId);
     if (error) return { ok: false, reason: error.message };

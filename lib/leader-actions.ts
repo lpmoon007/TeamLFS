@@ -17,6 +17,7 @@ export interface PlayableScenario {
   realism: string;
   difficulty: number | null;
   weekCount: number | null;
+  stresses: string[]; // Tier-A marker keys this scenario pressures most (A1–A6)
 }
 export interface LeaderRun {
   sessionId: string;
@@ -64,6 +65,7 @@ export async function listPlayableScenarios(): Promise<PlayableScenario[]> {
         realism: m.realism ?? 'realistic',
         difficulty: m.difficulty ?? null,
         weekCount: m.week_count ?? null,
+        stresses: Array.isArray(m.stresses) ? m.stresses : [],
       } as PlayableScenario;
     })
     .filter((x): x is PlayableScenario => !!x)
