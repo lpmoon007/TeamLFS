@@ -50,6 +50,19 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+
+/* The live team crisis room stays dark regardless of the reading-theme toggle — immersion
+   matters more than reading comfort mid-simulation. Forces the dark tokens on its own root. */
+.app {
+  --bg: #141a22; --bg-elev: #1b2430; --bg-elev-2: #212c3a;
+  --line: #2c3948; --line-soft: #232e3b;
+  --text: #dfe4ea; --text-dim: #a6b4c2; --text-faint: #6b7a8a;
+  --accent: #4aa8ff; --accent-dim: #2b6fb0; --on-accent: #04121f;
+  --online: #34d399; --warn: #f59e0b; --danger: #f87171; --me: #1f6feb;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  background: var(--bg);
+}
+
 .theme-toggle { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-elev); color: var(--text-dim); font-size: 15px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 body {

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { facilitator } from '@/lib/facilitator-session';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
@@ -18,6 +19,7 @@ export default async function PlayPage() {
       <header className="play-head">
         <div className="wm">Leadership Failure <span>Simulations</span></div>
         <div className="play-head-r">
+          <Link className="btn brief" href="/play/preflight">Before You Decide →</Link>
           <span className="play-who">{me.displayName || me.email}</span>
           <ThemeToggle />
           <LogoutButton />
