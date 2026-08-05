@@ -1,4 +1,10 @@
 import type { Fingerprint } from '@/lib/profile/fingerprint';
+import type { Ledger, LedgerClaim } from '@/lib/profile/ledger';
+import { GenerateFindings } from '@/components/GenerateFindings';
+
+const STATUS_LABEL: Record<string, string> = {
+  open: 'open', held: 'held', sharpened: 'sharpened', overturned: 'overturned', withdrawn: 'withdrawn', untested: 'untested',
+};
 
 // The Leadership Profile — Phase 3: the fingerprint (six normalised markers averaged across
 // runs), trajectory, signature strength/gap, and run log. The falsifiable claim ledger, the
@@ -22,7 +28,24 @@ function Spark({ points }: { points: number[] }) {
 
 const CONF: Record<string, string> = { high: 'high confidence', moderate: 'moderate', provisional: 'provisional' };
 
-export function ProfileView({ fp, name }: { fp: Fingerprint | null; name: string }) {
+function Claim({ c, showFalsifier = true }: { c: LedgerClaim; showFalsifier?: boolean }) {
+  return (
+    <div className={`pf-claim ${c.status}`}>
+      <div className="pf-claim-top">
+        <span className="pf-claim-text">{c.text}</span>
+        <span className={`pf-claim-status ${c.status}`}>{STATUS_LABEL[c.status] ?? c.status}</span>
+      </div>
+      {showFalsifier ? (
+        <div className="pf-claim-fals"><span className="pf-claim-fk">Overturned if:</span> {c.falsifier}</div>
+      ) : null}
+      <div className="pf-claim-meta">
+        Made run {c.madeAtRun}{c.gradedAtRun ? ` · graded run ${c.gradedAtRun}` : ''}{c.superseded ? ' · superseded by a sharper claim' : ''}
+      </div>
+    </div>
+  );
+}
+
+export function ProfileView({ fp, ledger, name }: { fp: Fingerprint | null; ledger: Ledger | null; name: string }) {
   if (!fp) {
     return (
       <div className="pf">
@@ -46,6 +69,21 @@ export function ProfileView({ fp, name }: { fp: Fingerprint | null; name: string
         {fp.conditions.length ? <> under <b>{fp.conditions.join(', ')}</b> teams</> : null}.
         {fp.provisional ? ' One run so far — treat this as directional; it firms up at two or three.' : ' Scored on difficulty-normalised rates, so it reads the same across scenarios.'}
       </p>
+
+      <section className="pf-sec">
+        <div className="pf-sec-h">Findings — each one is a claim your next run can overturn</div>
+        {ledger?.narrative ? <p className="pf-narr">{ledger.narrative}</p> : null}
+        {ledger && ledger.open.length ? (
+          <div className="pf-claims">
+            {ledger.open.map((c) => <Claim key={c.id} c={c} />)}
+          </div>
+        ) : (
+          <p className="pf-empty">No findings yet — generate them from your record. A finding that cannot be overturned isn’t a finding, so each one comes with the exact observation that would prove it wrong.</p>
+        )}
+        {fp.runs > (ledger?.profiledRun ?? 0) || !ledger?.open.length ? (
+          <GenerateFindings runNo={fp.runs} hasProfile={!!ledger?.open.length} />
+        ) : null}
+      </section>
 
       {fp.trajectory.length >= 2 ? (
         <section className="pf-sec">
@@ -118,8 +156,18 @@ export function ProfileView({ fp, name }: { fp: Fingerprint | null; name: string
         </div>
       </section>
 
+      {ledger && ledger.graded.length ? (
+        <section className="pf-sec">
+          <div className="pf-sec-h">The ledger — how prior findings held up</div>
+          <p className="pf-lead" style={{ marginBottom: 14 }}>Confidence rises only when a claim survives a <b>new</b> condition — never by repetition. A claim that is never overturned or sharpened isn’t proof it’s right; it may just not have been tested.</p>
+          <div className="pf-claims">
+            {ledger.graded.map((c) => <Claim key={c.id} c={c} />)}
+          </div>
+        </section>
+      ) : null}
+
       <p className="pf-next">
-        Coming as your record deepens: your <b>falsifiable findings</b> — specific claims about how you lead that each next run is built to confirm or overturn — and the <b>Monday transfer</b>: how these patterns show up at work, so you can catch them in the moment.
+        Coming next: the <b>Monday transfer</b> — how these patterns show up at work, so you can catch them in the moment — and <b>Before You Decide</b>, a pre-flight for a real decision you’re about to make.
       </p>
     </div>
   );

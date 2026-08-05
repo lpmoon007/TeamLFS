@@ -450,6 +450,29 @@ button { font-family: inherit; cursor: pointer; }
 .pf-run-link { font-size: 12px; font-weight: 600; color: var(--text-dim); }
 .pf-next { font-size: 13px; line-height: 1.6; color: var(--text-dim); background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; margin-top: 6px; }
 .pf-next b { color: var(--text); font-weight: 600; }
+/* findings + claim ledger */
+.pf-narr { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0 0 16px; max-width: 66ch; }
+.pf-claims { display: flex; flex-direction: column; gap: 10px; }
+.pf-claim { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); border-left-width: 3px; border-left-color: var(--line); padding: 13px 15px; }
+.pf-claim.open { border-left-color: var(--accent); }
+.pf-claim.held { border-left-color: var(--online); }
+.pf-claim.sharpened { border-left-color: var(--warn); }
+.pf-claim.overturned { border-left-color: var(--danger); }
+.pf-claim.withdrawn, .pf-claim.untested { border-left-color: var(--text-faint); opacity: 0.9; }
+.pf-claim-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.pf-claim-text { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.45; }
+.pf-claim.overturned .pf-claim-text, .pf-claim.withdrawn .pf-claim-text { text-decoration: line-through; text-decoration-color: var(--text-faint); color: var(--text-dim); }
+.pf-claim-status { flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; padding: 2px 8px; border: 1px solid var(--line); color: var(--text-dim); }
+.pf-claim-status.open { color: var(--accent); border-color: var(--accent-dim); }
+.pf-claim-status.held { color: var(--online); border-color: rgba(52,211,153,0.4); }
+.pf-claim-status.sharpened { color: var(--warn); border-color: rgba(245,158,11,0.4); }
+.pf-claim-status.overturned { color: var(--danger); border-color: rgba(248,113,113,0.4); }
+.pf-claim-fals { font-size: 12.5px; line-height: 1.5; color: var(--text-dim); margin-top: 7px; }
+.pf-claim-fk { font-weight: 700; color: var(--text-faint); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.05em; }
+.pf-claim-meta { font-size: 11px; color: var(--text-faint); margin-top: 7px; font-variant-numeric: tabular-nums; }
+.pf-gen { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.pf-gen-note { font-size: 12px; color: var(--text-faint); }
+.pf-gen-err { font-size: 12.5px; color: var(--danger); }
 
 /* scenario library */
 .lib-section-h { font-size: 13px; font-weight: 700; margin: 0 0 10px; }
