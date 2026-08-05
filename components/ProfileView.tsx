@@ -1,6 +1,7 @@
 import type { Fingerprint } from '@/lib/profile/fingerprint';
 import type { Ledger, LedgerClaim } from '@/lib/profile/ledger';
 import { GenerateFindings } from '@/components/GenerateFindings';
+import { LeaderCoach } from '@/components/LeaderCoach';
 
 const STATUS_LABEL: Record<string, string> = {
   open: 'open', held: 'held', sharpened: 'sharpened', overturned: 'overturned', withdrawn: 'withdrawn', untested: 'untested',
@@ -165,6 +166,8 @@ export function ProfileView({ fp, ledger, name }: { fp: Fingerprint | null; ledg
           </div>
         </section>
       ) : null}
+
+      <LeaderCoach />
 
       <p className="pf-next">
         Coming next: the <b>Monday transfer</b> — how these patterns show up at work, so you can catch them in the moment — and <b>Before You Decide</b>, a pre-flight for a real decision you’re about to make.
