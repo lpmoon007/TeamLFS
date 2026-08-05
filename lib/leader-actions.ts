@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFacilitator, ensureSubjectByEmail } from '@/lib/auth';
 import { createSessionCore } from '@/lib/session-core';
 import { buildSoloDebrief } from '@/lib/solo-debrief';
+import { resolveSubjectRuns } from '@/lib/profile/subject-runs';
 
 // Self-serve play for a signed-in account (built for the play-only 'leader' role). A leader
 // never touches the console — they sign in, pick a solo scenario, and play as the CEO. Every
@@ -103,15 +104,10 @@ export async function getLeaderHome(): Promise<LeaderHome> {
   const { data: subject } = await db.from('subjects').select('id').eq('handle', me.email.toLowerCase()).maybeSingle<any>();
   if (!subject) return { runs: [], stats: null };
 
-  const { data: parts } = await db
-    .from('participants')
-    .select('token, session:sessions!inner(id, status, started_at, scenario_id, scenario:scenarios!inner(title))')
-    .eq('subject_id', subject.id)
-    .not('token', 'is', null);
-  const rows = (parts ?? []).filter((p: any) => p.session);
+  const rows = await resolveSubjectRuns(db, subject.id);
 
   // week counts, to tell a finished run (all weekly calls made) from one still in progress
-  const scnIds = [...new Set(rows.map((p: any) => p.session.scenario_id))];
+  const scnIds = [...new Set(rows.map((p) => p.session.scenario_id).filter(Boolean))] as string[];
   const weekBy = new Map<string, number>();
   if (scnIds.length) {
     const { data: metas } = await db.from('scenario_meta').select('scenario_id, week_count').in('scenario_id', scnIds);

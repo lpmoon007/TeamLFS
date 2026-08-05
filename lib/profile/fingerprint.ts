@@ -1,6 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildSoloDebrief } from '@/lib/solo-debrief';
+import { resolveSubjectRuns } from '@/lib/profile/subject-runs';
 
 // The leadership fingerprint — the longitudinal read that IS comparable across scenarios.
 // Built from the Tier-A behavioral panel (the six normalised markers, scored as difficulty-
@@ -47,16 +48,11 @@ const confidenceOf = (n: number, conditions: number): FingerprintMarker['confide
 /** Build the fingerprint for a subject (the person). Returns null if they have no scored run. */
 export async function buildFingerprint(subjectId: string): Promise<Fingerprint | null> {
   const db = createAdminClient();
-  const { data: parts } = await db
-    .from('participants')
-    .select('token, session:sessions!inner(id, run_config, started_at, scenario_id, scenario:scenarios!inner(title))')
-    .eq('subject_id', subjectId)
-    .not('token', 'is', null);
-  const rows = (parts ?? []).filter((p: any) => p.session);
+  const rows = await resolveSubjectRuns(db, subjectId);
   if (!rows.length) return null;
 
   // week counts, to tell a finished run from one in progress
-  const scnIds = [...new Set(rows.map((p: any) => p.session.scenario_id))];
+  const scnIds = [...new Set(rows.map((p) => p.session.scenario_id).filter(Boolean))] as string[];
   const weekBy = new Map<string, number>();
   if (scnIds.length) {
     const { data: metas } = await db.from('scenario_meta').select('scenario_id, week_count').in('scenario_id', scnIds);

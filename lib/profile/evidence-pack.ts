@@ -1,6 +1,7 @@
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildSoloDebrief } from '@/lib/solo-debrief';
+import { resolveSubjectRuns } from '@/lib/profile/subject-runs';
 
 // The evidence pack — the grounding source, assembled per person from the event log. Nothing
 // outside this pack is available to the audit or generation model; that is what makes the
@@ -36,15 +37,10 @@ export async function buildEvidencePack(subjectId: string): Promise<EvidencePack
   const { data: subject } = await db.from('subjects').select('display_name, handle').eq('id', subjectId).maybeSingle<any>();
   const name = subject?.display_name || subject?.handle || 'this leader';
 
-  const { data: parts } = await db
-    .from('participants')
-    .select('token, session:sessions!inner(id, run_config, started_at, scenario_id, scenario:scenarios!inner(title))')
-    .eq('subject_id', subjectId)
-    .not('token', 'is', null);
-  const rows = (parts ?? []).filter((p: any) => p.session);
+  const rows = await resolveSubjectRuns(db, subjectId);
   if (!rows.length) return null;
 
-  const scnIds = [...new Set(rows.map((p: any) => p.session.scenario_id))];
+  const scnIds = [...new Set(rows.map((p) => p.session.scenario_id).filter(Boolean))] as string[];
   const weekBy = new Map<string, number>();
   if (scnIds.length) {
     const { data: metas } = await db.from('scenario_meta').select('scenario_id, week_count').in('scenario_id', scnIds);
