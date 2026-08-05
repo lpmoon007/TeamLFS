@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { facilitatorAllowed, isStaff } from '@/lib/facilitator-session';
+import { facilitatorAllowed, isStaff, isAdmin } from '@/lib/facilitator-session';
+import { inspectSubject } from '@/lib/admin-actions';
 import { loadSubjectDashboard } from '@/lib/subject-dashboard';
 import { listScenarios } from '@/lib/facilitator-actions';
 import { StartSessionForPerson } from '@/components/facilitator/StartSessionForPerson';
@@ -35,6 +36,8 @@ export default async function SubjectDashboardPage({
   // starting a session needs a real facilitator login (not just a shared ?key= debrief link)
   const canStart = await isStaff();
   const scenarios = canStart ? await listScenarios() : [];
+  const admin = await isAdmin();
+  const diag = admin ? await inspectSubject(subjectId) : null;
 
   return (
     <div className="debrief">
@@ -130,6 +133,40 @@ export default async function SubjectDashboardPage({
           </div>
         )}
       </section>
+
+      {diag ? (
+        <section className="db-panel">
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--text-dim)' }}>▸ Diagnostics (admin)</summary>
+            <div style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.7 }}>
+              <p className="db-sub">subject <code>{diag.subjectId}</code> · handle <code>{diag.handle}</code> · behavioral_panel rows: <b>{diag.panelRows}</b></p>
+              {diag.otherSubjectsSameEmail.length ? (
+                <p style={{ color: 'var(--warn)' }}>⚠ {diag.otherSubjectsSameEmail.length} other subject(s) still share this email — merge didn’t fully consolidate: {diag.otherSubjectsSameEmail.map((s) => `${s.handle} (${s.runs} runs, ${s.id})`).join(' · ')}</p>
+              ) : <p className="db-sub">No other subjects share this email. ✓</p>}
+              <div className="db-table-wrap" style={{ marginTop: 8 }}>
+                <table className="db-table">
+                  <thead><tr><th>Scenario</th><th>Token?</th><th>Cast</th><th>Debrief</th><th>Overall</th><th>Decisions/Weeks</th><th>In fingerprint?</th></tr></thead>
+                  <tbody>
+                    {diag.participants.length === 0 ? (
+                      <tr><td colSpan={7} className="db-dim">No participants linked to this subject.</td></tr>
+                    ) : diag.participants.map((r) => (
+                      <tr key={r.participantId}>
+                        <td>{r.scenario} <span className="db-dim">({r.status})</span></td>
+                        <td>{r.hasToken ? 'yes' : 'NO'}</td>
+                        <td>{r.castKind ?? '—'}</td>
+                        <td>{r.debriefOk ? 'ok' : <span style={{ color: 'var(--danger)' }}>{r.debriefReason ?? 'fail'}</span>}</td>
+                        <td>{r.overall ?? '—'}</td>
+                        <td>{r.decisions ?? '—'} / {r.weekCount ?? '?'}</td>
+                        <td>{r.includedInFingerprint ? 'yes' : <span style={{ color: 'var(--warn)' }}>no</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        </section>
+      ) : null}
     </div>
   );
 }

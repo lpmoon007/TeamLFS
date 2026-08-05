@@ -1,6 +1,7 @@
 'use server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin } from '@/lib/facilitator-session';
+import { buildSoloDebrief } from '@/lib/solo-debrief';
 
 // Admin data hygiene — find and consolidate DUPLICATE subjects (the same person split across
 // more than one behavioral-memory profile). Splits happened when the spine keyed a subject on
@@ -120,4 +121,90 @@ export async function mergeDuplicatePeople(): Promise<{ ok: boolean; reason?: st
   }
 
   return { ok: true, groups: groups.length, removed, details };
+}
+
+// ---- diagnostics -------------------------------------------------------------
+export interface SubjectInspectRow {
+  participantId: string;
+  hasToken: boolean;
+  castKind: string | null;
+  sessionId: string;
+  status: string;
+  scenario: string;
+  weekCount: number | null;
+  debriefOk: boolean;
+  debriefReason: string | null;
+  overall: number | null;
+  decisions: number | null; // weekly calls found — buildFingerprint needs decisions >= weekCount
+  includedInFingerprint: boolean;
+}
+export interface SubjectInspect {
+  subjectId: string;
+  handle: string;
+  displayName: string | null;
+  otherSubjectsSameEmail: { id: string; handle: string; runs: number }[]; // should be empty after a clean merge
+  panelRows: number;
+  participants: SubjectInspectRow[];
+}
+
+/** Admin: dump the raw run picture for a subject — every participant, whether its token exists,
+ *  whether the debrief builds, and how many weekly calls it has. Shows why a scored run may or
+ *  may not appear in the fingerprint. Read-only. */
+export async function inspectSubject(subjectId: string): Promise<SubjectInspect | null> {
+  if (!(await isAdmin())) return null;
+  const db = createAdminClient();
+  const { data: subject } = await db.from('subjects').select('id, handle, display_name').eq('id', subjectId).maybeSingle<any>();
+  if (!subject) return null;
+
+  const { data: parts } = await db
+    .from('participants')
+    .select('id, token, cast_kind, session:sessions!inner(id, status, scenario_id, scenario:scenarios!inner(title))')
+    .eq('subject_id', subjectId);
+
+  const scnIds = [...new Set((parts ?? []).map((p: any) => p.session?.scenario_id).filter(Boolean))];
+  const weekBy = new Map<string, number>();
+  if (scnIds.length) {
+    const { data: metas } = await db.from('scenario_meta').select('scenario_id, week_count').in('scenario_id', scnIds);
+    for (const m of metas ?? []) weekBy.set((m as any).scenario_id, (m as any).week_count ?? null as any);
+  }
+
+  const rows: SubjectInspectRow[] = [];
+  for (const p of parts ?? []) {
+    const s = (p as any).session;
+    let debriefOk = false, debriefReason: string | null = null, overall: number | null = null, decisions: number | null = null;
+    if ((p as any).token) {
+      try {
+        const d = await buildSoloDebrief(s.id, (p as any).token);
+        if (d.ok) { debriefOk = true; overall = d.debrief.overall; decisions = d.debrief.gameFilm.filter((m) => m.type === 'decision').length; }
+        else debriefReason = d.reason;
+      } catch (e: any) { debriefReason = 'exception: ' + (e?.message ?? 'unknown'); }
+    } else debriefReason = 'no token';
+    const wc = weekBy.get(s.scenario_id) ?? null;
+    const included = !!(p as any).token && debriefOk && (wc ? (decisions ?? 0) >= wc : overall !== null);
+    rows.push({
+      participantId: (p as any).id, hasToken: !!(p as any).token, castKind: (p as any).cast_kind ?? null,
+      sessionId: s.id, status: s.status, scenario: s.scenario?.title ?? '—', weekCount: wc,
+      debriefOk, debriefReason, overall, decisions, includedInFingerprint: included,
+    });
+  }
+
+  const { count: panelRows } = await db.from('behavioral_panel').select('id', { count: 'exact', head: true }).eq('subject_id', subjectId);
+
+  // any other subject still sharing the normalised email (a merge should have removed these)
+  const { data: allSubs } = await db.from('subjects').select('id, handle');
+  const key = norm(subject.handle);
+  const others = (allSubs ?? []).filter((s: any) => s.id !== subjectId && norm(s.handle) === key);
+  const otherIds = others.map((s: any) => s.id);
+  const otherRuns = new Map<string, number>();
+  if (otherIds.length) {
+    const { data: op } = await db.from('participants').select('subject_id').in('subject_id', otherIds);
+    for (const p of op ?? []) otherRuns.set((p as any).subject_id, (otherRuns.get((p as any).subject_id) ?? 0) + 1);
+  }
+
+  return {
+    subjectId, handle: subject.handle, displayName: subject.display_name ?? null,
+    otherSubjectsSameEmail: others.map((s: any) => ({ id: s.id, handle: s.handle, runs: otherRuns.get(s.id) ?? 0 })),
+    panelRows: panelRows ?? 0,
+    participants: rows,
+  };
 }
