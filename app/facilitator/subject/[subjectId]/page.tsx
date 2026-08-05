@@ -47,7 +47,6 @@ export default async function SubjectDashboardPage({
   return (
     <div className="debrief">
       <header className="db-head">
-        <div className="db-crumb"><strong>{d.displayName}</strong></div>
         <h1>{d.displayName}</h1>
         <div className="db-meta">
           {d.handle} · {d.allRuns.length} run{d.allRuns.length === 1 ? '' : 's'} on record
