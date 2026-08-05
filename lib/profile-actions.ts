@@ -18,7 +18,7 @@ export async function generateMyProfile(): Promise<{ ok: boolean; reason?: strin
 }
 
 /** Admin/coach: generate (or re-grade) the profile for a specific person (subject). */
-export async function generateForSubject(subjectId: string): Promise<{ ok: boolean; reason?: string; runNo?: number }> {
+export async function generateForSubject(subjectId: string): Promise<{ ok: boolean; reason?: string; runNo?: number; diag?: Record<string, any> }> {
   if (!(await isAdmin())) return { ok: false, reason: 'forbidden' };
   return generateProfile(subjectId);
 }

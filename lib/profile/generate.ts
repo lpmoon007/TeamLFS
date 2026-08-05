@@ -27,7 +27,7 @@ interface Grade { id: string; grade: 'held' | 'sharpened' | 'overturned' | 'unte
 interface Finding { text: string; falsifier: string; marker?: string | null }
 
 /** Generate (or return the cached) Leadership Profile for a subject's latest completed run. */
-export async function generateProfile(subjectId: string): Promise<{ ok: boolean; runNo?: number; reason?: string }> {
+export async function generateProfile(subjectId: string): Promise<{ ok: boolean; runNo?: number; reason?: string; diag?: Record<string, any> }> {
   let key: string;
   try { key = anthropicApiKey(); } catch { return { ok: false, reason: 'no_api_key' }; }
 
@@ -35,9 +35,15 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
   if (!pack) return { ok: false, reason: 'no_runs' };
   const db = createAdminClient();
 
-  // idempotent — one profile per completed-run count
+  // idempotent — one profile per completed-run count. But only treat it as cached when the
+  // snapshot actually left LIVE findings behind: a merge (subject consolidation) can move the
+  // leadership_profiles row while its profile_claims don't follow, which used to leave this
+  // permanently returning "already done" with nothing to show. If the snapshot exists but no
+  // claims do, self-heal: clear the empty snapshot and regenerate.
   const { data: existing } = await db.from('leadership_profiles').select('id').eq('subject_id', subjectId).eq('run_no', pack.runNo).maybeSingle<any>();
-  if (existing) return { ok: true, runNo: pack.runNo };
+  const { count: claimCount } = await db.from('profile_claims').select('id', { count: 'exact', head: true }).eq('subject_id', subjectId);
+  if (existing && (claimCount ?? 0) > 0) return { ok: true, runNo: pack.runNo, diag: { cached: true, runNo: pack.runNo, claims: claimCount } };
+  if (existing) await db.from('leadership_profiles').delete().eq('id', existing.id); // empty snapshot — regenerate
 
   const client = new Anthropic({ apiKey: key });
   const condition = pack.latestCondition ?? 'this run';
@@ -111,10 +117,11 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
   } catch { return { ok: false, reason: 'generation_failed' }; }
 
   // ---- 5. grounding gate — every generated string must trace to the record ----------------
+  const rawFindings = findings.length;
   findings = findings.filter((f) => f?.text && f?.falsifier && ground(`${f.text} ${f.falsifier}`, pack.record).hard.length === 0);
   if (narrative && ground(narrative, pack.record).hard.length > 0) narrative = ''; // drop ungrounded narrative rather than show it
   if (transfer && ground(`${transfer.tell} ${transfer.watch_for}`, pack.record).hard.length > 0) transfer = null; // drop if it invented specifics
-  if (!findings.length) return { ok: false, reason: 'nothing_grounded' };
+  if (!findings.length) return { ok: false, reason: 'nothing_grounded', diag: { runNo: pack.runNo, rawFindings, groundedFindings: 0, priorClaims: pack.claims.length } };
 
   // ---- 6. persist grades + new claims + the profile snapshot -------------------------------
   for (const [id, g] of gradeById) {
@@ -167,5 +174,5 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
     model: VOICE_MODEL,
   });
 
-  return { ok: true, runNo: pack.runNo };
+  return { ok: true, runNo: pack.runNo, diag: { runNo: pack.runNo, generated: findings.length, rawFindings, priorClaims: pack.claims.length } };
 }
