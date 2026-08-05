@@ -21,6 +21,7 @@ export interface Ledger {
   open: LedgerClaim[]; // current live findings + what the next run tests
   graded: LedgerClaim[]; // history: held/sharpened/overturned/withdrawn
   narrative: string | null;
+  transfer: { tell: string; watch_for: string } | null; // Monday workplace transfer (coaching hypothesis)
   profiledRun: number; // highest run a profile was generated for (0 if none)
 }
 
@@ -57,6 +58,7 @@ export async function getLedger(subjectId: string): Promise<Ledger> {
     open: claims.filter((c) => c.status === 'open'),
     graded: claims.filter((c) => c.status !== 'open'),
     narrative: prof?.body_json?.narrative || null,
+    transfer: prof?.body_json?.transfer?.tell ? prof.body_json.transfer : null,
     profiledRun: prof?.run_no ?? 0,
   };
 }

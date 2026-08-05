@@ -167,11 +167,23 @@ export function ProfileView({ fp, ledger, name }: { fp: Fingerprint | null; ledg
         </section>
       ) : null}
 
-      <LeaderCoach />
+      {ledger?.transfer ? (
+        <section className="pf-sec">
+          <div className="pf-sec-h">Monday — how this shows up at work</div>
+          <div className="pf-transfer">
+            <div className="pf-transfer-tell">{ledger.transfer.tell}</div>
+            <div className="pf-transfer-watch"><span className="pf-transfer-k">Watch for:</span> {ledger.transfer.watch_for}</div>
+            <div className="pf-transfer-label">Coaching hypothesis — not an assessment.</div>
+          </div>
+          <a className="pf-preflight-link" href="/play/preflight">Facing a real decision? Run a pre-flight →</a>
+        </section>
+      ) : (
+        <p className="pf-preflight-cta">
+          Facing a real decision at work? <a href="/play/preflight">Run it through Before You Decide →</a> — your record hands you the questions it says you’ll skip.
+        </p>
+      )}
 
-      <p className="pf-next">
-        Coming next: the <b>Monday transfer</b> — how these patterns show up at work, so you can catch them in the moment — and <b>Before You Decide</b>, a pre-flight for a real decision you’re about to make.
-      </p>
+      <LeaderCoach />
     </div>
   );
 }

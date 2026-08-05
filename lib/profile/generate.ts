@@ -86,13 +86,16 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
     `A finding that predicts nothing ("you are conflict-avoidant") is banned; a finding that predicts a great deal ("you soften bad news to anyone carrying a cost from a decision you made, and are blunt with everyone else") is the target. ` +
     `Ground everything in the RECORD: never invent a number, a quote, or a name. When evidence is thin (few runs), say so and stay directional; one instance is an instance, never a record. ` +
     `Do not restate claims already overturned; if this run overturned a prior claim, you may write its replacement. ` +
-    `Also write a short 2-3 sentence "narrative" tying the findings together. Output ONLY JSON: {"findings":[{"text":"<second-person claim>","falsifier":"<what would overturn it>","marker":"<one of the six marker keys or null>"}],"narrative":"..."}`;
+    `Also write a short 2-3 sentence "narrative" tying the findings together. ` +
+    `And a "transfer" object — how their biggest gap shows up at WORK: {"tell":"the real-world behaviour and the moment it happens","watch_for":"the specific everyday work moment to catch it in"}. Reason about their PATTERN generalised to work; NEVER invent a company, colleague, or number. This is a coaching hypothesis, not an assessment. ` +
+    `Output ONLY JSON: {"findings":[{"text":"<second-person claim>","falsifier":"<what would overturn it>","marker":"<one of the six marker keys or null>"}],"narrative":"...","transfer":{"tell":"...","watch_for":"..."}}`;
   const auditForGen = grades.length
     ? `\n\nAUDIT of prior claims this run:\n${[...gradeById.values()].map((g) => `- ${g.id}: ${g.grade}${g.narrower ? ` → narrower: "${g.narrower.text}"` : ''}`).join('\n')}`
     : '';
 
   let findings: Finding[] = [];
   let narrative = '';
+  let transfer: { tell: string; watch_for: string } | null = null;
   try {
     const msg = await client.messages.create({
       model: VOICE_MODEL,
@@ -104,11 +107,13 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
     const parsed = parseJson(txt);
     if (parsed?.findings && Array.isArray(parsed.findings)) findings = parsed.findings;
     if (typeof parsed?.narrative === 'string') narrative = parsed.narrative;
+    if (parsed?.transfer?.tell && parsed?.transfer?.watch_for) transfer = { tell: String(parsed.transfer.tell), watch_for: String(parsed.transfer.watch_for) };
   } catch { return { ok: false, reason: 'generation_failed' }; }
 
   // ---- 5. grounding gate — every generated string must trace to the record ----------------
   findings = findings.filter((f) => f?.text && f?.falsifier && ground(`${f.text} ${f.falsifier}`, pack.record).hard.length === 0);
   if (narrative && ground(narrative, pack.record).hard.length > 0) narrative = ''; // drop ungrounded narrative rather than show it
+  if (transfer && ground(`${transfer.tell} ${transfer.watch_for}`, pack.record).hard.length > 0) transfer = null; // drop if it invented specifics
   if (!findings.length) return { ok: false, reason: 'nothing_grounded' };
 
   // ---- 6. persist grades + new claims + the profile snapshot -------------------------------
@@ -153,6 +158,7 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
     session_id: pack.latestSessionId,
     body_json: {
       narrative,
+      transfer,
       findingsCount: findings.length,
       audit: [...gradeById.values()].map((g) => ({ id: g.id, grade: (g as any).grade })),
       condition,
