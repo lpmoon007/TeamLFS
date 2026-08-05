@@ -117,6 +117,9 @@ export async function mergeDuplicatePeople(): Promise<{ ok: boolean; reason?: st
       await db.from('subjects').delete().eq('id', d.id);
       removed++;
     }
+    // belt-and-suspenders: re-link by email so no participant can be left orphaned by the
+    // delete's on-delete-set-null if a subject_id re-point missed.
+    await relinkRunsByEmail(keep.id);
     details.push({ handle: keep.handle, keptRuns: keep.runs, removed: dupes.length });
   }
 
@@ -145,6 +148,7 @@ export interface SubjectInspect {
   otherSubjectsSameEmail: { id: string; handle: string; runs: number }[]; // should be empty after a clean merge
   panelRows: number;
   participants: SubjectInspectRow[];
+  emailMatches: { id: string; subjectId: string | null; scenario: string; email: string | null; hasToken: boolean }[]; // participants whose email = this handle, regardless of subject — finds orphans
 }
 
 /** Admin: dump the raw run picture for a subject — every participant, whether its token exists,
@@ -201,10 +205,39 @@ export async function inspectSubject(subjectId: string): Promise<SubjectInspect 
     for (const p of op ?? []) otherRuns.set((p as any).subject_id, (otherRuns.get((p as any).subject_id) ?? 0) + 1);
   }
 
+  // participants whose email equals this handle, regardless of subject_id — surfaces orphans
+  // (subject_id null) or mis-linked runs so we can re-attach them.
+  const { data: em } = await db
+    .from('participants')
+    .select('id, subject_id, token, email, session:sessions(scenario:scenarios(title))')
+    .ilike('email', subject.handle);
+  const emailMatches = (em ?? []).map((p: any) => ({ id: p.id, subjectId: p.subject_id ?? null, scenario: p.session?.scenario?.title ?? '—', email: p.email ?? null, hasToken: !!p.token }));
+
   return {
     subjectId, handle: subject.handle, displayName: subject.display_name ?? null,
     otherSubjectsSameEmail: others.map((s: any) => ({ id: s.id, handle: s.handle, runs: otherRuns.get(s.id) ?? 0 })),
     panelRows: panelRows ?? 0,
     participants: rows,
+    emailMatches,
   };
+}
+
+/** Repair: re-attach every participant whose email matches this subject's handle back to it —
+ *  and re-point their panel/profile rows. Heals runs orphaned by a delete (subject_id nulled).
+ *  Returns how many participants were re-linked. */
+export async function relinkRunsByEmail(subjectId: string): Promise<{ ok: boolean; relinked: number; reason?: string }> {
+  if (!(await isAdmin())) return { ok: false, relinked: 0, reason: 'forbidden' };
+  const db = createAdminClient();
+  const { data: subject } = await db.from('subjects').select('id, handle').eq('id', subjectId).maybeSingle<any>();
+  if (!subject) return { ok: false, relinked: 0, reason: 'no_subject' };
+
+  const { data: parts } = await db.from('participants').select('id, subject_id').ilike('email', subject.handle);
+  const toFix = (parts ?? []).filter((p: any) => p.subject_id !== subjectId);
+  const ids = toFix.map((p: any) => p.id);
+  if (!ids.length) return { ok: true, relinked: 0 };
+
+  await db.from('participants').update({ subject_id: subjectId }).in('id', ids);
+  await db.from('behavioral_panel').update({ subject_id: subjectId }).in('participant_id', ids);
+  await db.from('behavioral_profile').update({ subject_id: subjectId }).in('participant_id', ids);
+  return { ok: true, relinked: ids.length };
 }

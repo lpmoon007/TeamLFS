@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { facilitatorAllowed, isStaff, isAdmin } from '@/lib/facilitator-session';
 import { inspectSubject } from '@/lib/admin-actions';
+import { SubjectRepair } from '@/components/facilitator/SubjectRepair';
 import { loadSubjectDashboard } from '@/lib/subject-dashboard';
 import { listScenarios } from '@/lib/facilitator-actions';
 import { StartSessionForPerson } from '@/components/facilitator/StartSessionForPerson';
@@ -163,6 +164,28 @@ export default async function SubjectDashboardPage({
                   </tbody>
                 </table>
               </div>
+              <p className="db-sub" style={{ marginTop: 12 }}>Participants whose email = <code>{diag.handle}</code> (any subject — orphans show as ⚠):</p>
+              {diag.emailMatches.length === 0 ? (
+                <p className="db-sub">None found by email.</p>
+              ) : (
+                <div className="db-table-wrap">
+                  <table className="db-table">
+                    <thead><tr><th>Scenario</th><th>Token?</th><th>Linked to this profile?</th></tr></thead>
+                    <tbody>
+                      {diag.emailMatches.map((m) => (
+                        <tr key={m.id}>
+                          <td>{m.scenario}</td>
+                          <td>{m.hasToken ? 'yes' : 'NO'}</td>
+                          <td>{m.subjectId === diag.subjectId ? 'yes' : <span style={{ color: 'var(--warn)' }}>⚠ {m.subjectId ? 'other subject' : 'ORPHANED (no subject)'}</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {diag.emailMatches.some((m) => m.subjectId !== diag.subjectId) ? (
+                <SubjectRepair subjectId={diag.subjectId} />
+              ) : null}
             </div>
           </details>
         </section>
