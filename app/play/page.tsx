@@ -1,6 +1,7 @@
 import { facilitator } from '@/lib/facilitator-session';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { listPlayableScenarios, getLeaderHome } from '@/lib/leader-actions';
 import { PlayLibrary } from '@/components/PlayLibrary';
 import { ChangePassword } from '@/components/facilitator/ChangePassword';
@@ -18,6 +19,7 @@ export default async function PlayPage() {
         <div className="wm">Leadership Failure <span>Simulations</span></div>
         <div className="play-head-r">
           <span className="play-who">{me.displayName || me.email}</span>
+          <ThemeToggle />
           <LogoutButton />
         </div>
       </header>

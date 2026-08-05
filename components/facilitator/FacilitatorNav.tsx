@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { facilitatorLogout } from '@/lib/facilitator-actions';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // The admin console's left rail — connects Sessions + the scenario library/editor (and,
 // for admins, Accounts) into one surface. Shows the signed-in identity + sign out.
@@ -35,7 +36,10 @@ export function FacilitatorNav({ user }: { user?: { displayName: string | null; 
             <div className="facnav-name">{user.displayName || user.email}</div>
             <div className="facnav-role">{user.role}</div>
           </div>
-          <button className="facnav-out" onClick={async () => { await facilitatorLogout(); router.refresh(); }}>Sign out</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="facnav-out" onClick={async () => { await facilitatorLogout(); router.refresh(); }}>Sign out</button>
+            <ThemeToggle />
+          </div>
         </div>
       ) : null}
     </nav>

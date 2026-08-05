@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { facilitator } from '@/lib/facilitator-session';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { listDecisions } from '@/lib/preflight-actions';
 import { PreflightTool } from '@/components/PreflightTool';
 
@@ -19,6 +20,7 @@ export default async function PreflightPage() {
         <div className="play-head-r">
           <Link className="btn" href="/play/profile">← Profile</Link>
           <span className="play-who">{me.displayName || me.email}</span>
+          <ThemeToggle />
           <LogoutButton />
         </div>
       </header>

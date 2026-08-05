@@ -2,30 +2,56 @@
    the prototype's dark "command" aesthetic. Three zones: left panel, thread/email
    view, optional call overlay. */
 
+/* Light "reading" theme by default (calm, warm paper — easiest for long sessions), with a
+   softened dark under [data-theme="dark"] (dark slate + warm off-white, never pure black/white).
+   A ☀/☾ toggle stamps data-theme on <html>; an inline script in the layout sets it pre-render
+   to avoid a flash. */
 :root {
-  --bg: #0b0f14;
-  --bg-elev: #11161d;
-  --bg-elev-2: #161d26;
-  --line: #232c38;
-  --line-soft: #1b232e;
-  --text: #e6edf3;
-  --text-dim: #9bb0c3;
-  --text-faint: #5f7387;
-  --accent: #4aa8ff;
-  --accent-dim: #2b6fb0;
-  --online: #34d399;
-  --warn: #f59e0b;
-  --danger: #f87171;
+  --bg: #f6f4ef;          /* warm paper */
+  --bg-elev: #ffffff;      /* cards */
+  --bg-elev-2: #efece4;    /* insets / chips */
+  --line: #e3ded3;
+  --line-soft: #ece7dd;
+  --text: #222e39;         /* dark slate, not black */
+  --text-dim: #55636f;
+  --text-faint: #8a97a3;
+  --accent: #1f74d0;
+  --accent-dim: #7fb0e3;
+  --on-accent: #ffffff;    /* text on an accent/solid fill — white on the darker light-mode blue */
+  --online: #1c8a54;
+  --warn: #b4732f;
+  --danger: #c0392b;
   --me: #1f6feb;
   --radius: 10px;
   --radius-sm: 7px;
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --shadow: 0 6px 24px rgba(20, 26, 34, 0.10);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+:root[data-theme="dark"] {
+  --bg: #141a22;           /* dark slate, not near-black */
+  --bg-elev: #1b2430;
+  --bg-elev-2: #212c3a;
+  --line: #2c3948;
+  --line-soft: #232e3b;
+  --text: #dfe4ea;         /* warm off-white, not pure white */
+  --text-dim: #a6b4c2;
+  --text-faint: #6b7a8a;
+  --accent: #4aa8ff;
+  --accent-dim: #2b6fb0;
+  --on-accent: #04121f;    /* dark text on the lighter dark-mode blue */
+  --online: #34d399;
+  --warn: #f59e0b;
+  --danger: #f87171;
+  --me: #1f6feb;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+.theme-toggle { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-elev); color: var(--text-dim); font-size: 15px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 body {
   margin: 0;
   background: var(--bg);
@@ -55,7 +81,7 @@ button { font-family: inherit; cursor: pointer; }
 .identity .who .role { color: var(--text-faint); font-size: 11px; }
 .avatar {
   width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
-  font-weight: 700; font-size: 12px; color: #04121f; background: var(--accent);
+  font-weight: 700; font-size: 12px; color: var(--on-accent); background: var(--accent);
 }
 
 .btn {
@@ -63,7 +89,7 @@ button { font-family: inherit; cursor: pointer; }
   border-radius: var(--radius-sm); padding: 7px 12px; font-size: 12px; font-weight: 600;
 }
 .btn:hover { border-color: var(--accent-dim); }
-.btn.primary { background: var(--accent); color: #04121f; border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .btn.ghost { background: transparent; }
 .btn.brief { border-color: var(--accent-dim); color: var(--accent); }
 
@@ -97,12 +123,12 @@ button { font-family: inherit; cursor: pointer; }
 .contact.active { background: var(--bg-elev); outline: 1px solid var(--line); }
 .contact .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: 0 0 auto; }
 .contact .dot.online { background: var(--online); box-shadow: 0 0 8px rgba(52, 211, 153, 0.6); }
-.contact .c-av { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #04121f; flex: 0 0 auto; }
+.contact .c-av { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--on-accent); flex: 0 0 auto; }
 .contact .c-main { flex: 1; min-width: 0; }
 .contact .c-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .contact .c-sub { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .contact .c-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.badge { background: var(--accent); color: #04121f; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 6px; min-width: 18px; text-align: center; }
+.badge { background: var(--accent); color: var(--on-accent); font-size: 10px; font-weight: 700; border-radius: 999px; padding: 1px 6px; min-width: 18px; text-align: center; }
 .tag-call { font-size: 9px; color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 4px; padding: 0 4px; }
 
 .email-row { display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: var(--radius-sm); width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); }
@@ -198,12 +224,12 @@ button { font-family: inherit; cursor: pointer; }
 
 .call-overlay { position: fixed; inset: 0; background: radial-gradient(60% 60% at 50% 30%, #13202d 0%, #070b10 100%); display: flex; flex-direction: column; align-items: center; z-index: 60; padding: 40px 20px; }
 .call-overlay .c-id { margin-top: 30px; text-align: center; }
-.call-overlay .c-big-av { width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; font-weight: 700; color: #04121f; margin: 0 auto 16px; }
+.call-overlay .c-big-av { width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; font-weight: 700; color: var(--on-accent); margin: 0 auto 16px; }
 .call-overlay .c-name { font-size: 22px; font-weight: 700; }
 .call-overlay .c-state { color: var(--text-dim); margin-top: 4px; }
 .call-overlay .c-actions { margin-top: auto; display: flex; gap: 16px; }
 .call-btn { border: 0; border-radius: 999px; padding: 14px 26px; font-weight: 700; color: #fff; }
-.call-btn.accept { background: var(--online); color: #04121f; }
+.call-btn.accept { background: var(--online); color: var(--on-accent); }
 .call-btn.decline, .call-btn.end { background: var(--danger); }
 
 /* ----- centered notices (guards / marketing) ----- */
@@ -488,7 +514,7 @@ button { font-family: inherit; cursor: pointer; }
 .co-msg.you { justify-content: flex-end; }
 .co-bubble { font-size: 14px; line-height: 1.6; padding: 11px 14px; border-radius: 13px; max-width: 82%; }
 .co-msg.dir .co-bubble { background: var(--bg-elev-2); color: var(--text); border-top-left-radius: 4px; }
-.co-msg.you .co-bubble { background: var(--accent); color: #04121f; border-top-right-radius: 4px; }
+.co-msg.you .co-bubble { background: var(--accent); color: var(--on-accent); border-top-right-radius: 4px; }
 .co-msg.dir { flex-direction: column; align-items: flex-start; }
 .co-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .co-chip { font-family: var(--mono); font-size: 11px; color: var(--accent); background: var(--bg-elev-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
@@ -804,7 +830,7 @@ button { font-family: inherit; cursor: pointer; }
 /* ----- solo read path ----- */
 .solo { min-height: 100vh; }
 .solo-head { display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--bg-elev); position: sticky; top: 0; z-index: 5; }
-.solo-logo { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: #04121f; display: grid; place-items: center; font-weight: 800; }
+.solo-logo { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; font-weight: 800; }
 .solo-co-name { font-weight: 700; font-size: 14px; }
 .solo-co-sub { font-size: 11px; color: var(--text-faint); }
 .solo-week { border-left: 1px solid var(--line); padding-left: 14px; margin-left: 6px; }

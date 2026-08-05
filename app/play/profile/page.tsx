@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { facilitator } from '@/lib/facilitator-session';
 import { FacilitatorLogin } from '@/components/facilitator/FacilitatorLogin';
 import { LogoutButton } from '@/components/facilitator/LogoutButton';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { buildFingerprintForEmail } from '@/lib/profile/fingerprint';
 import { getLedgerForEmail } from '@/lib/profile/ledger';
 import { ProfileView } from '@/components/ProfileView';
@@ -24,6 +25,7 @@ export default async function ProfilePage() {
         <div className="play-head-r">
           <Link className="btn" href="/play">← Play</Link>
           <span className="play-who">{me.displayName || me.email}</span>
+          <ThemeToggle />
           <LogoutButton />
         </div>
       </header>
