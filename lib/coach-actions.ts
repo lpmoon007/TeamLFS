@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { anthropicApiKey, VOICE_MODEL } from '@/lib/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { currentFacilitator } from '@/lib/auth';
+import { isAdmin } from '@/lib/facilitator-session';
 import { buildEvidencePack } from '@/lib/profile/evidence-pack';
 import { ground, repairPrompt, REFUSAL } from '@/lib/profile/grounding';
 import { validateCue, rejectionNote } from '@/lib/profile/cue-validator';
@@ -75,17 +76,25 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-export async function askLeaderCoach(params: { history: CoachTurn[]; question: string }): Promise<CoachReply> {
+export async function askLeaderCoach(params: { history: CoachTurn[]; question: string; subjectId?: string }): Promise<CoachReply> {
   const q = params.question.trim();
   if (!q) return { ok: false, reason: 'empty' };
   const me = await currentFacilitator();
-  if (!me || me.isMaster || !/@/.test(me.email)) return { ok: false, reason: 'not_signed_in' };
+  if (!me) return { ok: false, reason: 'not_signed_in' };
 
   let key: string;
   try { key = anthropicApiKey(); } catch { return { ok: false, reason: 'no_api_key' }; }
 
   const db = createAdminClient();
-  const { data: subject } = await db.from('subjects').select('id, display_name, handle').eq('handle', me.email.toLowerCase()).maybeSingle<any>();
+  let subject: any = null;
+  if (params.subjectId) {
+    // a facilitator/coach reviewing a specific person's profile (coach-visibility per spec)
+    if (!(await isAdmin())) return { ok: false, reason: 'forbidden' };
+    ({ data: subject } = await db.from('subjects').select('id, display_name, handle').eq('id', params.subjectId).maybeSingle<any>());
+  } else {
+    if (me.isMaster || !/@/.test(me.email)) return { ok: false, reason: 'not_signed_in' };
+    ({ data: subject } = await db.from('subjects').select('id, display_name, handle').eq('handle', me.email.toLowerCase()).maybeSingle<any>());
+  }
   if (!subject) return { ok: false, reason: 'no_profile' };
   const pack = await buildEvidencePack(subject.id);
   if (!pack) return { ok: false, reason: 'no_runs' };

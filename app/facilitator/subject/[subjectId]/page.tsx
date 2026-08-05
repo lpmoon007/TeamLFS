@@ -3,8 +3,10 @@ import { facilitatorAllowed, isStaff, isAdmin } from '@/lib/facilitator-session'
 import { inspectSubject } from '@/lib/admin-actions';
 import { SubjectRepair } from '@/components/facilitator/SubjectRepair';
 import { loadSubjectDashboard } from '@/lib/subject-dashboard';
+import { getLedger } from '@/lib/profile/ledger';
 import { listScenarios } from '@/lib/facilitator-actions';
 import { StartSessionForPerson } from '@/components/facilitator/StartSessionForPerson';
+import { SubjectProfilePanel } from '@/components/facilitator/SubjectProfilePanel';
 import { Notice } from '@/components/Notice';
 
 // The longitudinal subject dashboard — a person's arc across sessions (Behavioral Memory
@@ -38,7 +40,9 @@ export default async function SubjectDashboardPage({
   const canStart = await isStaff();
   const scenarios = canStart ? await listScenarios() : [];
   const admin = await isAdmin();
-  const diag = admin ? await inspectSubject(subjectId) : null;
+  const [diag, ledger] = admin
+    ? await Promise.all([inspectSubject(subjectId), getLedger(subjectId)])
+    : [null, null];
 
   return (
     <div className="debrief">
@@ -117,6 +121,10 @@ export default async function SubjectDashboardPage({
           </div>
         )}
       </section>
+
+      {admin ? (
+        <SubjectProfilePanel ledger={ledger} subjectId={subjectId} name={d.displayName} hasRuns={d.allRuns.length > 0} />
+      ) : null}
 
       <section className="db-panel">
         <h2>Trait posture <span className="db-dim" style={{ fontSize: 12, fontWeight: 400 }}>(confidence-weighted across sessions · v0.1 hypothesis)</span></h2>

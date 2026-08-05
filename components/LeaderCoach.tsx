@@ -30,7 +30,7 @@ function parseChips(text: string): { body: string; chips: string[] } {
   return { body: text.replace(m[0], '').trim(), chips };
 }
 
-export function LeaderCoach() {
+export function LeaderCoach({ subjectId, readOnly = false }: { subjectId?: string; readOnly?: boolean } = {}) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [box, setBox] = useState('');
   const [busy, setBusy] = useState(false);
@@ -48,7 +48,7 @@ export function LeaderCoach() {
     setTurns((t) => [...t, { role: 'user', content: qq }]);
     scroll();
     try {
-      const res = await askLeaderCoach({ history, question: qq });
+      const res = await askLeaderCoach({ history, question: qq, subjectId });
       if (res.ok && res.reply) {
         const { body, chips } = parseChips(res.reply);
         setTurns((t) => [...t, { role: 'assistant', content: res.reply!, chips, cards: res.cards, repaired: res.repaired, refused: res.refused }]);
@@ -73,10 +73,12 @@ export function LeaderCoach() {
 
   return (
     <section className="pf-sec">
-      <div className="pf-sec-h">Ask your coach — grounded in your whole record</div>
+      <div className="pf-sec-h">{readOnly ? 'The coach — grounded in their whole record' : 'Ask your coach — grounded in your whole record'}</div>
       <div className="co">
         <div className="co-log" ref={logRef}>
-          <div className="co-msg dir"><div className="co-bubble">Ask me anything in your record — where a marker came from, whether a finding holds, what would overturn it, or what to work on next. I only speak to what your runs show; if it isn’t in your log, I’ll say so.</div></div>
+          <div className="co-msg dir"><div className="co-bubble">{readOnly
+            ? 'Ask anything in their record — where a marker came from, whether a finding holds, what would overturn it. It only speaks to what their runs show; if it isn’t in the log, it says so.'
+            : 'Ask me anything in your record — where a marker came from, whether a finding holds, what would overturn it, or what to work on next. I only speak to what your runs show; if it isn’t in your log, I’ll say so.'}</div></div>
           {turns.map((t, i) => {
             if (t.role === 'user') return <div className="co-msg you" key={i}><div className="co-bubble">{t.content}</div></div>;
             const { body, chips } = parseChips(t.content);
@@ -101,9 +103,11 @@ export function LeaderCoach() {
                           {card.anchor ? <div className="co-card-why">From: {card.anchor}</div> : null}
                         </>
                       )}
-                      <button className="btn primary co-commit" disabled={committed[k]} onClick={() => commit(card, k)}>
-                        {committed[k] ? 'Committed ✓' : 'Commit to this'}
-                      </button>
+                      {readOnly ? null : (
+                        <button className="btn primary co-commit" disabled={committed[k]} onClick={() => commit(card, k)}>
+                          {committed[k] ? 'Committed ✓' : 'Commit to this'}
+                        </button>
+                      )}
                     </div>
                   );
                 })}
