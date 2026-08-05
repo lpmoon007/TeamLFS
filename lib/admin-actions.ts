@@ -149,6 +149,7 @@ export interface SubjectInspect {
   panelRows: number;
   participants: SubjectInspectRow[];
   emailMatches: { id: string; subjectId: string | null; scenario: string; email: string | null; hasToken: boolean }[]; // participants whose email = this handle, regardless of subject — finds orphans
+  orphanRuns: { participantId: string; name: string | null; scenario: string; status: string; overall: number | null }[]; // human runs with NO subject — claimable
 }
 
 /** Admin: dump the raw run picture for a subject — every participant, whether its token exists,
@@ -213,13 +214,42 @@ export async function inspectSubject(subjectId: string): Promise<SubjectInspect 
     .ilike('email', subject.handle);
   const emailMatches = (em ?? []).map((p: any) => ({ id: p.id, subjectId: p.subject_id ?? null, scenario: p.session?.scenario?.title ?? '—', email: p.email ?? null, hasToken: !!p.token }));
 
+  // orphaned human runs — a token but NO subject (e.g. nulled when a subject was deleted).
+  // Claimable to any profile. Scored so the admin can identify the right one.
+  const { data: orphans } = await db
+    .from('participants')
+    .select('id, name, token, session:sessions!inner(id, status, scenario:scenarios!inner(title))')
+    .is('subject_id', null)
+    .not('token', 'is', null)
+    .limit(40);
+  const orphanRuns: SubjectInspect['orphanRuns'] = [];
+  for (const p of orphans ?? []) {
+    const s = (p as any).session;
+    let overall: number | null = null;
+    try { const d = await buildSoloDebrief(s.id, (p as any).token); if (d.ok) overall = d.debrief.overall; } catch { /* ignore */ }
+    orphanRuns.push({ participantId: (p as any).id, name: (p as any).name ?? null, scenario: s.scenario?.title ?? '—', status: s.status, overall });
+  }
+
   return {
     subjectId, handle: subject.handle, displayName: subject.display_name ?? null,
     otherSubjectsSameEmail: others.map((s: any) => ({ id: s.id, handle: s.handle, runs: otherRuns.get(s.id) ?? 0 })),
     panelRows: panelRows ?? 0,
     participants: rows,
     emailMatches,
+    orphanRuns,
   };
+}
+
+/** Attach a specific orphaned participant (a run with no subject) to a subject — and re-point
+ *  its panel/profile rows. */
+export async function attachParticipant(subjectId: string, participantId: string): Promise<{ ok: boolean; reason?: string }> {
+  if (!(await isAdmin())) return { ok: false, reason: 'forbidden' };
+  const db = createAdminClient();
+  const { error } = await db.from('participants').update({ subject_id: subjectId }).eq('id', participantId);
+  if (error) return { ok: false, reason: error.message };
+  await db.from('behavioral_panel').update({ subject_id: subjectId }).eq('participant_id', participantId);
+  await db.from('behavioral_profile').update({ subject_id: subjectId }).eq('participant_id', participantId);
+  return { ok: true };
 }
 
 /** Repair: re-attach every participant whose email matches this subject's handle back to it —

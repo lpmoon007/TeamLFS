@@ -183,8 +183,8 @@ export default async function SubjectDashboardPage({
                   </table>
                 </div>
               )}
-              {diag.emailMatches.some((m) => m.subjectId !== diag.subjectId) ? (
-                <SubjectRepair subjectId={diag.subjectId} />
+              {diag.emailMatches.some((m) => m.subjectId !== diag.subjectId) || diag.orphanRuns.length ? (
+                <SubjectRepair subjectId={diag.subjectId} orphans={diag.orphanRuns} />
               ) : null}
             </div>
           </details>
