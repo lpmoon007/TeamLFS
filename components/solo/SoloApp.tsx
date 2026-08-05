@@ -561,6 +561,10 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
             <div className="dock-lbl">
               <span className="l">Your call — Week {week.n}</span>
               <span className="adv">{buzzer ? 'The week ran out — make the call' : low ? 'Time is short — decide, or buy more time' : 'Decide early and time jumps ahead'}</span>
+              <div className={`th-clock${buzzer ? ' buzzer' : low ? ' low' : ''}`} title="Time left this week">
+                <span className="th-clock-day">Day {curDay}<small>/{totalDays}</small></span>
+                <span className="th-clock-time">{buzzer ? "time's up" : `${mm}:${ss}`}</span>
+              </div>
             </div>
             <div className="dock-row">
               <textarea value={decisionText} onChange={(e) => setDecisionText(e.target.value)} placeholder="This week I'm deciding to…" disabled={deciding} />

@@ -115,7 +115,7 @@
 /* decision dock */
 .soloui .dock{position:fixed;left:0;right:0;bottom:32px;z-index:25;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-top:1px solid var(--border);box-shadow:0 -8px 30px rgba(12,35,64,.10);}
 .soloui .dock-in{max-width:900px;margin:0 auto;padding:12px 20px 14px;}
-.soloui .dock-lbl{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.soloui .dock-lbl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
 .soloui .dock-lbl .l{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-soft);}
 .soloui .dock-lbl .adv{font-size:11px;color:var(--muted);}
 .soloui .dock-row{display:flex;gap:10px;align-items:flex-end;}
@@ -461,16 +461,17 @@
 .soloui .hudclock.buzzer .hc-hint{display:block;color:#FBE3E0;}
 @keyframes cdpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.03);}}
 
-/* live clock inside the advisor dialogue — the room's timer is hidden behind the modal, so
-   keep the day + countdown in view; you should never lose track of time while you talk. */
-.soloui .modal-h .th-clock{margin-left:auto;display:flex;align-items:baseline;gap:8px;padding:5px 11px;border-radius:10px;background:var(--navy);color:#fff;font-family:'JetBrains Mono',monospace;transition:background .3s;}
-.soloui .modal-h .th-clock .th-clock-day{font-size:15px;font-weight:700;line-height:1;letter-spacing:-.01em;}
-.soloui .modal-h .th-clock .th-clock-day small{font-size:10px;font-weight:600;color:#9DB6D4;}
-.soloui .modal-h .th-clock .th-clock-time{font-size:11px;color:#9DB6D4;}
-.soloui .modal-h .th-clock.low{background:#8A2F27;animation:cdpulse 1s ease-in-out infinite;}
-.soloui .modal-h .th-clock.low .th-clock-time,.soloui .modal-h .th-clock.low .th-clock-day small{color:#F3B7B0;}
-.soloui .modal-h .th-clock.buzzer{background:#8A2F27;box-shadow:0 0 0 2px #F08D82;animation:cdpulse .7s ease-in-out infinite;}
-.soloui .modal-h .th-clock.buzzer .th-clock-time{color:#FBE3E0;}
+/* live clock reused where the HUD clock can be hidden — the advisor dialogue (behind the
+   modal) and the decision dock (top clock scrolled off). Never lose track of time. */
+.soloui .th-clock{display:flex;align-items:baseline;gap:8px;padding:5px 11px;border-radius:10px;background:var(--navy);color:#fff;font-family:'JetBrains Mono',monospace;transition:background .3s;}
+.soloui .th-clock .th-clock-day{font-size:15px;font-weight:700;line-height:1;letter-spacing:-.01em;}
+.soloui .th-clock .th-clock-day small{font-size:10px;font-weight:600;color:#9DB6D4;}
+.soloui .th-clock .th-clock-time{font-size:11px;color:#9DB6D4;}
+.soloui .th-clock.low{background:#8A2F27;animation:cdpulse 1s ease-in-out infinite;}
+.soloui .th-clock.low .th-clock-time,.soloui .th-clock.low .th-clock-day small{color:#F3B7B0;}
+.soloui .th-clock.buzzer{background:#8A2F27;box-shadow:0 0 0 2px #F08D82;animation:cdpulse .7s ease-in-out infinite;}
+.soloui .th-clock.buzzer .th-clock-time{color:#FBE3E0;}
+.soloui .modal-h .th-clock,.soloui .dock-lbl .th-clock{margin-left:auto;}
 
 /* wrapper fills the viewport with the light theme */
 .soloui{min-height:100vh;}
