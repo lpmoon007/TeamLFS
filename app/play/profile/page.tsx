@@ -5,6 +5,7 @@ import { LogoutButton } from '@/components/facilitator/LogoutButton';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { buildFingerprintForEmail } from '@/lib/profile/fingerprint';
 import { getLedgerForEmail } from '@/lib/profile/ledger';
+import { getMyChallenges } from '@/lib/challenge-actions';
 import { ProfileView } from '@/components/ProfileView';
 
 // The participant's own Leadership Profile — private to them (and their coach). Built from
@@ -13,9 +14,10 @@ export default async function ProfilePage() {
   const me = await facilitator();
   if (!me) return <FacilitatorLogin />;
   const eligible = !me.isMaster && /@/.test(me.email);
-  const [fp, ledger] = await Promise.all([
+  const [fp, ledger, ch] = await Promise.all([
     eligible ? buildFingerprintForEmail(me.email) : null,
     eligible ? getLedgerForEmail(me.email) : null,
+    eligible ? getMyChallenges() : null,
   ]);
 
   return (
@@ -31,7 +33,7 @@ export default async function ProfilePage() {
         </div>
       </header>
       <div className="play-body">
-        <ProfileView fp={fp} ledger={ledger} name={(me.displayName || me.email || '').split(' ')[0]} />
+        <ProfileView fp={fp} ledger={ledger} name={(me.displayName || me.email || '').split(' ')[0]} challenges={ch?.challenges ?? []} />
       </div>
     </div>
   );

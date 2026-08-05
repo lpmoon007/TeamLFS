@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { askLeaderCoach, commitFromCoach, type CoachTurn, type CoachCard } from '@/lib/coach-actions';
 import { DictateButton } from '@/components/DictateButton';
 
@@ -36,6 +37,7 @@ export function LeaderCoach({ subjectId, readOnly = false }: { subjectId?: strin
   const [busy, setBusy] = useState(false);
   const [committed, setCommitted] = useState<Record<string, boolean>>({});
   const logRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const scroll = (smooth = false) => setTimeout(() => logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: smooth ? 'smooth' : 'auto' }), 0);
 
@@ -68,7 +70,7 @@ export function LeaderCoach({ subjectId, readOnly = false }: { subjectId?: strin
     if (committed[k]) return;
     const behavior = card.type === 'commitment' ? card.rep ?? '' : card.action ?? '';
     const res = await commitFromCoach({ behavior, cue: card.type === 'cue' ? card.cue : undefined, focusLabel: card.targets ?? card.marker });
-    if (res.ok) setCommitted((c) => ({ ...c, [k]: true }));
+    if (res.ok) { setCommitted((c) => ({ ...c, [k]: true })); router.refresh(); } // surface the new rep in the panel above
   };
 
   return (

@@ -522,6 +522,35 @@ button { font-family: inherit; cursor: pointer; }
 .pf-claim-meta { font-size: 11px; color: var(--text-faint); margin-top: 7px; font-variant-numeric: tabular-nums; }
 .pf-gen { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 .pf-gen-note { font-size: 12px; color: var(--text-faint); }
+/* 30-day reps — the active-challenge loop */
+.ch-reps { display: flex; flex-direction: column; gap: 12px; }
+.ch-rep { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); border-left: 3px solid var(--accent); padding: 15px 16px; }
+.ch-rep.done { border-left-color: var(--online); opacity: 0.92; }
+.ch-rep-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ch-rep-behavior { font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.45; }
+.ch-rep-badge { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--bg); border: 1px solid var(--accent-dim); border-radius: 999px; padding: 2px 10px; font-variant-numeric: tabular-nums; }
+.ch-rep-badge.done { color: var(--online); border-color: rgba(52,211,153,0.4); }
+.ch-rep-cue { font-size: 12.5px; line-height: 1.5; color: var(--text-dim); margin-top: 7px; }
+.ch-rep-cue-k { font-weight: 700; color: var(--text-faint); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.05em; }
+.ch-rep-focus { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
+.ch-track { height: 7px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line-soft); overflow: hidden; margin-top: 12px; }
+.ch-track-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.3s ease; }
+.ch-rep-stats { display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--text-dim); margin-top: 7px; }
+.ch-rep-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+.ch-streak { color: var(--warn); font-weight: 600; }
+.ch-rep-checkin { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.ch-did { font-size: 13px; }
+.ch-miss, .ch-note-toggle { font-size: 12.5px; }
+.ch-note-toggle { background: none; border: none; color: var(--text-faint); cursor: pointer; padding: 4px 6px; }
+.ch-note-toggle:hover { color: var(--text-dim); }
+.ch-note { flex: 1 1 100%; margin-top: 8px; padding: 8px 11px; font-size: 13px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
+.ch-checked { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--online); font-weight: 600; }
+.ch-relog { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 12px; text-decoration: underline; }
+.ch-relog:hover { color: var(--text-dim); }
+.ch-rep-foot { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+.ch-complete { background: none; border: none; color: var(--online); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 0; }
+.ch-drop { background: none; border: none; color: var(--text-faint); font-size: 11.5px; cursor: pointer; padding: 0; margin-left: auto; }
+.ch-drop:hover { color: var(--danger); }
 .pf-gen-err { font-size: 12.5px; color: var(--danger); }
 /* leadership coach */
 .co { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }
