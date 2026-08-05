@@ -57,11 +57,13 @@ export function SubjectProfilePanel({ ledger, subjectId, name, hasRuns }: { ledg
     <>
       <section className="db-panel">
         <button className="db-acc-h" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <span className="db-acc-caret" aria-hidden>{open ? '▾' : '▸'}</span>
           <h2>Leadership findings <span className="pill draft">private · coach view</span></h2>
-          {!open ? (
-            <span className="db-acc-sum">{hasFindings ? `${ledger!.open.length} finding${ledger!.open.length === 1 ? '' : 's'}` : 'none yet'} · coach below</span>
-          ) : null}
+          <span className="acc-right">
+            {!open ? (
+              <span className="db-acc-sum">{hasFindings ? `${ledger!.open.length} finding${ledger!.open.length === 1 ? '' : 's'}` : 'none yet'} · coach below</span>
+            ) : null}
+            <span className="acc-toggle">{open ? 'Hide' : 'Show'}<span className="acc-chev" aria-hidden>{open ? '▲' : '▼'}</span></span>
+          </span>
         </button>
         {open ? (
           <div className="db-acc-body">

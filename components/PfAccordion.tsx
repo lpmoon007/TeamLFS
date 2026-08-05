@@ -9,9 +9,11 @@ export function PfAccordion({ title, sub, defaultOpen = true, children }: { titl
   return (
     <section className="pf-sec">
       <button type="button" className="pf-acc-h" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <span className="pf-acc-caret" aria-hidden>{open ? '▾' : '▸'}</span>
         <span className="pf-acc-title">{title}</span>
-        {!open && sub ? <span className="pf-acc-sum">{sub}</span> : null}
+        <span className="acc-right">
+          {!open && sub ? <span className="pf-acc-sum">{sub}</span> : null}
+          <span className="acc-toggle">{open ? 'Hide' : 'Show'}<span className="acc-chev" aria-hidden>{open ? '▲' : '▼'}</span></span>
+        </span>
       </button>
       {open ? <div className="pf-acc-body">{children}</div> : null}
     </section>
