@@ -405,6 +405,52 @@ button { font-family: inherit; cursor: pointer; }
 .play-acct > summary::before { content: '⚙ '; opacity: .6; }
 .play-acct[open] > summary { margin-bottom: 12px; }
 
+.play-sec-link { float: right; font-size: 12px; font-weight: 600; color: var(--accent); text-transform: none; letter-spacing: 0; }
+
+/* leadership profile (Phase 3 — fingerprint + trajectory + run log) */
+.pf { max-width: 780px; }
+.pf-top { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.pf-h1 { font-size: 24px; margin: 0; letter-spacing: -0.01em; }
+.pf-badge { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent-dim); background: rgba(74,168,255,0.08); border-radius: 999px; padding: 3px 10px; }
+.pf-lead { color: var(--text-dim); font-size: 14px; line-height: 1.6; margin: 0 0 26px; max-width: 65ch; }
+.pf-lead b { color: var(--text); font-weight: 600; }
+.pf-empty { color: var(--text-dim); font-size: 14px; line-height: 1.6; max-width: 60ch; }
+.pf-sec { margin-bottom: 30px; }
+.pf-sec-h { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 14px; }
+.pf-traj { display: flex; align-items: center; gap: 16px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; }
+.pf-traj-n { font-family: var(--mono); font-weight: 800; font-size: 18px; color: var(--text); }
+.pf-traj-n span { font-family: var(--sans); font-weight: 500; font-size: 12px; color: var(--text-faint); margin-left: 6px; }
+.pf-sig { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 520px) { .pf-sig { grid-template-columns: 1fr; } }
+.pf-sig-card { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; border-left-width: 3px; }
+.pf-sig-card.good { border-left-color: var(--online); }
+.pf-sig-card.warn { border-left-color: var(--warn); }
+.pf-sig-k { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.pf-sig-v { font-size: 16px; font-weight: 700; color: var(--text); margin: 4px 0 3px; }
+.pf-sig-sub { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.pf-markers { display: flex; flex-direction: column; gap: 14px; }
+.pf-marker-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.pf-marker-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.pf-marker-score { font-family: var(--mono); font-weight: 800; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+.pf-marker-max { font-size: 11px; font-weight: 600; color: var(--text-faint); font-family: var(--sans); }
+.pf-trend { font-family: var(--sans); font-size: 11px; font-weight: 700; margin-left: 7px; }
+.pf-trend.up { color: var(--online); } .pf-trend.dn { color: var(--warn); }
+.pf-bar { height: 7px; border-radius: 999px; background: var(--bg-elev-2); overflow: hidden; }
+.pf-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); }
+.pf-marker-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text-faint); margin-top: 6px; }
+.pf-conf { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.pf-conf.high { color: var(--online); } .pf-conf.moderate { color: var(--accent); } .pf-conf.provisional { color: var(--text-faint); }
+.pf-runs { display: flex; flex-direction: column; gap: 8px; }
+.pf-run { display: flex; align-items: center; gap: 12px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 11px 14px; text-decoration: none; color: inherit; }
+.pf-run:hover { border-color: var(--accent); }
+.pf-run-score { flex: 0 0 auto; min-width: 34px; text-align: center; font-family: var(--mono); font-weight: 800; font-size: 15px; color: var(--accent); }
+.pf-run-t { font-weight: 600; font-size: 13.5px; }
+.pf-run-cond { font-size: 11.5px; color: var(--text-faint); }
+.pf-run-when { font-size: 11.5px; color: var(--text-faint); margin-left: auto; }
+.pf-run-link { font-size: 12px; font-weight: 600; color: var(--text-dim); }
+.pf-next { font-size: 13px; line-height: 1.6; color: var(--text-dim); background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; margin-top: 6px; }
+.pf-next b { color: var(--text); font-weight: 600; }
+
 /* scenario library */
 .lib-section-h { font-size: 13px; font-weight: 700; margin: 0 0 10px; }
 .lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }

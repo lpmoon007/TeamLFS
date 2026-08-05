@@ -58,7 +58,10 @@ export function PlayLibrary({ scenarios, runs, stats, name }: { scenarios: Playa
 
       {stats ? (
         <section className="play-sec">
-          <div className="play-sec-h">Your leadership across {stats.completed} run{stats.completed === 1 ? '' : 's'}</div>
+          <div className="play-sec-h">
+            Your leadership across {stats.completed} run{stats.completed === 1 ? '' : 's'}
+            <a className="play-sec-link" href="/play/profile">Full profile →</a>
+          </div>
           <div className="play-stats">
             <div className="stat">
               <div className="stat-k">Average read</div>
