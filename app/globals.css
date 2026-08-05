@@ -551,6 +551,49 @@ button { font-family: inherit; cursor: pointer; }
 .ch-complete { background: none; border: none; color: var(--online); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 0; }
 .ch-drop { background: none; border: none; color: var(--text-faint); font-size: 11.5px; cursor: pointer; padding: 0; margin-left: auto; }
 .ch-drop:hover { color: var(--danger); }
+/* 30-day rep — three-option choose, obstacle, rating, active, done */
+.rep-opts { display: flex; flex-direction: column; gap: 10px; }
+.rep-opt { display: flex; align-items: flex-start; gap: 11px; text-align: left; width: 100%; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 13px 15px; cursor: pointer; transition: border-color .12s, background .12s; }
+.rep-opt:hover { border-color: var(--accent-dim); }
+.rep-opt.sel { border-color: var(--accent); background: var(--bg); }
+.rep-radio { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 2px; border-radius: 999px; border: 2px solid var(--line); }
+.rep-opt.sel .rep-radio { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 0 42%, transparent 46%); }
+.rep-opt-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.rep-opt-text { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.45; }
+.rep-opt-tag { font-size: 11.5px; line-height: 1.5; color: var(--text-dim); }
+.rep-obst { margin-top: 14px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; }
+.rep-obst-l { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 7px; }
+.rep-obst-q { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+.rep-obst-s { font-size: 11.5px; line-height: 1.55; color: var(--text-dim); margin: 0 0 10px; }
+.rep-obst textarea { width: 100%; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: 10px 12px; font: inherit; font-size: 12.5px; line-height: 1.5; color: var(--text); background: var(--bg); resize: vertical; min-height: 54px; }
+.rep-obst textarea:focus { outline: none; border-color: var(--accent); }
+.rep-active { background: var(--bg-elev); border: 1px solid var(--line-soft); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 15px 16px; }
+.rep-active-text { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.45; }
+.rep-active-tag { font-size: 11.5px; color: var(--text-faint); margin-top: 4px; }
+.rep-nudge { margin-top: 12px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.35); border-radius: var(--radius-sm); padding: 10px 13px; font-size: 12.5px; line-height: 1.5; color: var(--text); }
+.rep-rate { margin-top: 14px; }
+.rep-rate-l { font-size: 12.5px; color: var(--text-dim); margin-bottom: 8px; }
+.rep-rate-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.rep-rn { width: 34px; height: 34px; border-radius: var(--radius-sm); border: 1px solid var(--line-soft); background: var(--bg); color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer; transition: .1s; }
+.rep-rn:hover { border-color: var(--accent-dim); color: var(--text); }
+.rep-rn.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.rep-followup { margin-top: 14px; background: var(--bg); border: 1px solid var(--accent-dim); border-radius: var(--radius-sm); padding: 12px 14px; }
+.rep-fu-q { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 9px; }
+.rep-fu-row { display: flex; gap: 8px; }
+.rep-fu-row input { flex: 1; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 12px; font: inherit; font-size: 13px; color: var(--text); background: var(--bg-elev); }
+.rep-fu-row input:focus { outline: none; border-color: var(--accent); }
+.rep-stats { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-dim); margin-top: 13px; }
+.rep-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+.rep-last { color: var(--text-faint); }
+.rep-obst-echo { font-size: 11.5px; color: var(--text-faint); margin-top: 8px; font-style: italic; }
+.rep-done-list { display: flex; flex-direction: column; gap: 10px; }
+.rep-done { background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 13px 15px; }
+.rep-done-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.rep-done-text { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.rep-done-badge { flex: 0 0 auto; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; border-radius: 999px; padding: 2px 9px; border: 1px solid var(--line); color: var(--text-dim); }
+.rep-done-badge.kept { color: var(--online); border-color: rgba(52,211,153,.4); }
+.rep-done-badge.partial { color: var(--warn); border-color: rgba(245,158,11,.4); }
+.rep-done-badge.not_kept { color: var(--text-faint); }
 /* pre-flight check-back — waiting list */
 .cb-waiting { display: flex; flex-direction: column; gap: 6px; }
 .cb-wait { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--text-dim); padding: 8px 12px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }

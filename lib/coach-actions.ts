@@ -154,7 +154,13 @@ export async function askLeaderCoach(params: { history: CoachTurn[]; question: s
   }
 }
 
-/** Commit a coach-proposed rep or if-then cue as a 30-day challenge (their own profile). */
+const MARKER_BY_LABEL: Record<string, string> = {
+  'information-seeking': 'A1', 'decision calibration': 'A2', 'consultation breadth': 'A3',
+  'truth-seeking over comfort': 'A4', 'intent–action integrity': 'A5', 'composure under escalation': 'A6',
+};
+
+/** Commit a coach-proposed rep or if-then cue as a 30-day challenge (their own profile). One
+ *  active rep at a time (§8); resolves a target_marker from the focus label when it names one. */
 export async function commitFromCoach(params: { behavior: string; cue?: string; focusLabel?: string }): Promise<{ ok: boolean; reason?: string }> {
   const me = await currentFacilitator();
   if (!me || me.isMaster || !/@/.test(me.email)) return { ok: false, reason: 'not_signed_in' };
@@ -163,11 +169,16 @@ export async function commitFromCoach(params: { behavior: string; cue?: string; 
   const db = createAdminClient();
   const { data: subject } = await db.from('subjects').select('id').eq('handle', me.email.toLowerCase()).maybeSingle<any>();
   if (!subject) return { ok: false, reason: 'no_profile' };
+  const { data: active } = await db.from('challenges').select('id').eq('subject_id', subject.id).eq('status', 'active').limit(1).maybeSingle<any>();
+  if (active) return { ok: false, reason: 'already_active' };
+  const label = (params.focusLabel ?? '').trim();
+  const targetMarker = /^A[1-6]$/i.test(label) ? label.toUpperCase() : MARKER_BY_LABEL[label.toLowerCase()] ?? null;
   const { error } = await db.from('challenges').insert({
     subject_id: subject.id,
     behavior,
     cue: params.cue?.trim() || null,
-    focus_label: params.focusLabel?.trim() || null,
+    focus_label: label || null,
+    target_marker: targetMarker,
   });
   if (error) return { ok: false, reason: error.message };
   return { ok: true };
