@@ -57,6 +57,48 @@ function canonicalOf(subjects: DupSubject[]): DupSubject {
   return [...subjects].sort((a, b) => Number(b.hasEmail) - Number(a.hasEmail) || b.runs - a.runs || a.createdAt.localeCompare(b.createdAt))[0];
 }
 
+export interface MergePreview {
+  groups: {
+    handle: string;
+    keepId: string;
+    keepHandle: string;
+    keepRuns: number;
+    remove: { id: string; handle: string; runs: number; moves: number }[]; // moves = rows re-pointed
+  }[];
+  byTable: Record<string, number>; // rows to re-point per table, across all groups
+  totalRemoved: number;
+}
+
+/** Read-only: exactly what a merge WOULD do — which profile is kept, which are removed, and how
+ *  many rows in each table get re-pointed. No mutation. */
+export async function previewMerge(): Promise<MergePreview> {
+  if (!(await isAdmin())) return { groups: [], byTable: {}, totalRemoved: 0 };
+  const db = createAdminClient();
+  const groups = await findDuplicatePeople();
+  const byTable: Record<string, number> = {};
+  let totalRemoved = 0;
+  const out: MergePreview['groups'] = [];
+
+  for (const g of groups) {
+    const keep = canonicalOf(g.subjects);
+    const remove = g.subjects.filter((s) => s.id !== keep.id);
+    const removeDetail = [];
+    for (const d of remove) {
+      let moves = 0;
+      for (const table of SUBJECT_TABLES) {
+        const { count } = await db.from(table).select('id', { count: 'exact', head: true }).eq('subject_id', d.id);
+        const n = count ?? 0;
+        moves += n;
+        byTable[table] = (byTable[table] ?? 0) + n;
+      }
+      removeDetail.push({ id: d.id, handle: d.handle, runs: d.runs, moves });
+      totalRemoved++;
+    }
+    out.push({ handle: keep.displayName || keep.handle, keepId: keep.id, keepHandle: keep.handle, keepRuns: keep.runs, remove: removeDetail });
+  }
+  return { groups: out, byTable, totalRemoved };
+}
+
 export async function mergeDuplicatePeople(): Promise<{ ok: boolean; reason?: string; groups: number; removed: number; details: { handle: string; keptRuns: number; removed: number }[] }> {
   if (!(await isAdmin())) return { ok: false, reason: 'forbidden', groups: 0, removed: 0, details: [] };
   const db = createAdminClient();
