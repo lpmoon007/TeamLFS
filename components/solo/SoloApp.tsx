@@ -586,6 +586,12 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                 <div className="nm">{castByKey.get(asking)?.name ?? asking}</div>
                 <div className="rl">{castByKey.get(asking)?.short ?? castByKey.get(asking)?.role ?? ''}</div>
               </div>
+              {phase === 'run' && !decided ? (
+                <div className={`th-clock${buzzer ? ' buzzer' : low ? ' low' : ''}`} title="The clock keeps running while you talk">
+                  <span className="th-clock-day">Day {curDay}<small>/{totalDays}</small></span>
+                  <span className="th-clock-time">{buzzer ? "time's up" : `${mm}:${ss}`}</span>
+                </div>
+              ) : null}
               <button className="x" onClick={() => { setAsking(null); setAskText(''); }}>×</button>
             </div>
             <div className="thread-body">
@@ -619,7 +625,7 @@ export function SoloApp({ bundle }: { bundle: SoloBundle }) {
                 onChange={(e) => setAskText(e.target.value)}
                 placeholder={`Message ${castByKey.get(asking)?.name?.split(' ')[0] ?? 'them'}…`}
                 autoFocus
-                onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendAsk(asking); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAsk(asking); } }}
               />
               <DictateButton onText={(t) => setAskText((v) => (v ? v + ' ' + t : t))} />
               <button className="snd" disabled={askBusy || !askText.trim()} onClick={() => sendAsk(asking)}>
