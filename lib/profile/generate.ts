@@ -152,12 +152,16 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
     }
   }
 
+  let insertErr: string | null = null;
   for (const f of findings) {
-    await db.from('profile_claims').insert({
+    const { error } = await db.from('profile_claims').insert({
       subject_id: subjectId, text: f.text, falsifier: f.falsifier, marker: f.marker ?? null,
       made_at_run: pack.runNo, status: 'open', conditions_tested: [condition],
     });
+    if (error && !insertErr) insertErr = error.message;
   }
+  // verify what actually landed — the count is the ground truth the UI reads back
+  const { count: persisted } = await db.from('profile_claims').select('id', { count: 'exact', head: true }).eq('subject_id', subjectId).eq('status', 'open');
 
   await db.from('leadership_profiles').insert({
     subject_id: subjectId,
@@ -174,5 +178,5 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
     model: VOICE_MODEL,
   });
 
-  return { ok: true, runNo: pack.runNo, diag: { runNo: pack.runNo, generated: findings.length, rawFindings, priorClaims: pack.claims.length } };
+  return { ok: true, runNo: pack.runNo, diag: { runNo: pack.runNo, generated: findings.length, rawFindings, priorClaims: pack.claims.length, persisted: persisted ?? 0, ...(insertErr ? { insertErr } : {}) } };
 }

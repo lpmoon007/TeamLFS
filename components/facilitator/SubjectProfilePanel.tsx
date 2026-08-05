@@ -44,7 +44,10 @@ export function SubjectProfilePanel({ ledger, subjectId, name, hasRuns }: { ledg
     try {
       const res = await generateForSubject(subjectId);
       if (res.diag) setDiag(Object.entries(res.diag).map(([k, v]) => `${k}=${v}`).join(' · '));
-      if (res.ok) router.refresh();
+      // hard reload when rows actually landed — rules out RSC/router-cache staleness. Keep the
+      // diag visible in the query string so we can read it after the reload if nothing shows.
+      if (res.ok && (res.diag?.persisted ?? 1) > 0) { window.location.reload(); return; }
+      if (res.ok) setErr('Generation reported success but nothing persisted — see diag.');
       else setErr(REASONS[res.reason ?? ''] ?? `Couldn’t generate — try again.${res.reason ? ` (${res.reason})` : ''}`);
     } catch (e) { setErr(`Couldn’t generate — ${e instanceof Error ? e.message : 'try again'}.`); }
     finally { setBusy(false); }
