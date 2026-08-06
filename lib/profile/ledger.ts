@@ -9,6 +9,7 @@ export interface LedgerClaim {
   id: string;
   label: string; // C1, C2, …
   text: string;
+  mechanism: string | null; // one-line causal read under the finding — why it matters (§2g)
   falsifier: string;
   marker: string | null;
   status: string;
@@ -41,6 +42,7 @@ export async function getLedger(subjectId: string): Promise<Ledger> {
     id: c.id,
     label: `C${i + 1}`,
     text: c.text,
+    mechanism: c.mechanism ?? null,
     falsifier: c.falsifier,
     marker: c.marker ?? null,
     status: c.status,

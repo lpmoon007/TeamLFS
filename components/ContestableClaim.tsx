@@ -38,6 +38,7 @@ export function ContestableClaim({ c, readOnly = false }: { c: LedgerClaim; read
         <span className="pf-claim-text">{c.text}</span>
         {c.contested ? <span className="pf-claim-status contested">contested</span> : <span className={`pf-claim-status ${c.status}`}>{STATUS_LABEL[c.status] ?? c.status}</span>}
       </div>
+      {c.mechanism ? <div className="pf-claim-mech"><span className="pf-claim-mk">Why it matters</span>{c.mechanism}</div> : null}
       <div className="pf-claim-fals"><span className="pf-claim-fk">Overturned if:</span> {c.falsifier}</div>
       {c.contested && c.contestNote ? (
         <div className="pf-claim-contest">You said this doesn’t fit: “{c.contestNote}” — your next run tests it first, and the coach argues the evidence.</div>

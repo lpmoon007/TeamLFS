@@ -38,6 +38,7 @@ export interface FingerprintRun {
   condition: string;
   date: string | null;
   debriefUrl: string;
+  takeaway: string; // one line: what this run actually turned on
 }
 export interface Fingerprint {
   runs: number; // completed, scored runs
@@ -48,6 +49,16 @@ export interface Fingerprint {
   gap: { label: string; avg: number; n: number } | null; // consistent lowest marker
   trajectory: number[]; // overall score, oldest → newest
   runLog: FingerprintRun[];
+}
+
+/** One honest line for the run log — what the run turned on, drawn from the record: the
+ *  decisive person they missed if there was one, else how much of the held truth they surfaced. */
+function runTakeaway(d: any): string {
+  const crit = (d.counterfactuals ?? []).find((c: any) => c.critical) ?? (d.counterfactuals ?? [])[0];
+  if (crit?.who) return `missed ${crit.who}${crit.topic ? ` — who knew about ${crit.topic}` : ', who had the piece that mattered'}`;
+  const held = (d.surfacedCount ?? 0) + (d.missedCount ?? 0);
+  if (held > 0) return `surfaced ${d.surfacedCount} of ${held} held fact${held === 1 ? '' : 's'}`;
+  return d.verdictTag || d.ending?.tag || '—';
 }
 
 const confidenceOf = (n: number, conditions: number): FingerprintMarker['confidence'] =>
@@ -68,7 +79,7 @@ export async function buildFingerprint(subjectId: string): Promise<Fingerprint |
   }
 
   // build each debrief once; keep only finished, scored runs, oldest → newest
-  type Built = { sessionId: string; overall: number; grade: string; condition: string; markers: any[]; scenario: string; date: string | null; debriefUrl: string };
+  type Built = { sessionId: string; overall: number; grade: string; condition: string; markers: any[]; scenario: string; date: string | null; debriefUrl: string; takeaway: string };
   const built: Built[] = [];
   await Promise.all(
     rows.map(async (p: any) => {
@@ -89,6 +100,7 @@ export async function buildFingerprint(subjectId: string): Promise<Fingerprint |
           scenario: s.scenario?.title ?? '—',
           date: s.started_at ?? null,
           debriefUrl: `/solo/${s.id}/debrief?t=${p.token}`,
+          takeaway: runTakeaway(d.debrief),
         });
       } catch {
         /* unscorable run is skipped */
@@ -144,7 +156,7 @@ export async function buildFingerprint(subjectId: string): Promise<Fingerprint |
     runLog: built
       .slice()
       .reverse()
-      .map((b) => ({ sessionId: b.sessionId, scenario: b.scenario, score: b.overall, grade: b.grade, condition: b.condition, date: b.date, debriefUrl: b.debriefUrl })),
+      .map((b) => ({ sessionId: b.sessionId, scenario: b.scenario, score: b.overall, grade: b.grade, condition: b.condition, date: b.date, debriefUrl: b.debriefUrl, takeaway: b.takeaway })),
   };
 }
 

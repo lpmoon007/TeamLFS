@@ -52,6 +52,7 @@ function LedgerCard({ c }: { c: LedgerClaim }) {
         <span className={`pf-lg-st ${c.status}`}>{STATUS_LABEL[c.status] ?? c.status}</span>
       </div>
       <div className="pf-lg-b">
+        {c.mechanism ? <div className="pf-lg-f mech"><span className="pf-lg-fk">Why it matters</span>{c.mechanism}</div> : null}
         <div className="pf-lg-f"><span className="pf-lg-fk">Would be overturned by</span>{c.falsifier}</div>
         <div className="pf-lg-f res"><span className="pf-lg-fk">What happened</span>{WHAT_HAPPENED[c.status] ?? '—'}{c.gradedAtRun ? ` (graded run ${c.gradedAtRun})` : ''}</div>
       </div>
@@ -262,11 +263,14 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
           <div className="pf-runs">
             {fp.runLog.map((r, i) => (
               <a className="pf-run" key={i} href={r.debriefUrl}>
-                <span className="pf-run-score">{r.score}</span>
-                <span className="pf-run-t">{r.scenario}</span>
-                <span className="pf-run-cond">{r.condition} team</span>
-                <span className="pf-run-when">{r.date ? new Date(r.date).toLocaleDateString() : ''}</span>
-                <span className="pf-run-link">Debrief →</span>
+                <span className="pf-run-head">
+                  <span className="pf-run-score">{r.score}</span>
+                  <span className="pf-run-t">{r.scenario}</span>
+                  <span className="pf-run-cond">{r.condition} team</span>
+                  <span className="pf-run-when">{r.date ? new Date(r.date).toLocaleDateString() : ''}</span>
+                  <span className="pf-run-link">Debrief →</span>
+                </span>
+                {r.takeaway && r.takeaway !== '—' ? <span className="pf-run-take">{r.takeaway}</span> : null}
               </a>
             ))}
           </div>

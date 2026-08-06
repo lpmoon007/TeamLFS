@@ -24,7 +24,7 @@ function parseJson(text: string): any | null {
 }
 
 interface Grade { id: string; grade: 'held' | 'sharpened' | 'overturned' | 'untested'; looked_for?: string; found?: boolean; evidence?: string[]; narrower?: { text: string; falsifier: string } }
-interface Finding { text: string; falsifier: string; marker?: string | null }
+interface Finding { text: string; falsifier: string; marker?: string | null; mechanism?: string | null }
 
 /** Generate (or return the cached) Leadership Profile for a subject's latest completed run. */
 export async function generateProfile(subjectId: string): Promise<{ ok: boolean; runNo?: number; reason?: string; diag?: Record<string, any> }> {
@@ -90,11 +90,12 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
     `You are the Director writing a leader's private Leadership Profile from the RECORD below. Write in the SECOND PERSON, to the leader. ` +
     `Produce 2-4 FINDINGS about how THIS leader leads. EVERY finding is a claim that carries a FALSIFIER — the specific, observable thing in a future run that would prove it WRONG. A finding with no falsifier is decoration; do not write one. ` +
     `A finding that predicts nothing ("you are conflict-avoidant") is banned; a finding that predicts a great deal ("you soften bad news to anyone carrying a cost from a decision you made, and are blunt with everyone else") is the target. ` +
+    `EACH finding also carries a "mechanism" — ONE sentence, second person, naming WHY the pattern matters or what it costs: the causal link the leader can act on ("you reach the room but stop at the loudest voice, so the person who actually holds the fact is never asked"). The mechanism must trace to the RECORD, invent nothing, and never merely restate the finding. ` +
     `Ground everything in the RECORD: never invent a number, a quote, or a name. When evidence is thin (few runs), say so and stay directional; one instance is an instance, never a record. ` +
     `Do not restate claims already overturned; if this run overturned a prior claim, you may write its replacement. ` +
     `Also write a short 2-3 sentence "narrative" tying the findings together. ` +
     `And a "transfer" object — how their biggest gap shows up at WORK: {"tell":"the real-world behaviour and the moment it happens","watch_for":"the specific everyday work moment to catch it in"}. Reason about their PATTERN generalised to work; NEVER invent a company, colleague, or number. This is a coaching hypothesis, not an assessment. ` +
-    `Output ONLY JSON: {"findings":[{"text":"<second-person claim>","falsifier":"<what would overturn it>","marker":"<one of the six marker keys or null>"}],"narrative":"...","transfer":{"tell":"...","watch_for":"..."}}`;
+    `Output ONLY JSON: {"findings":[{"text":"<second-person claim>","mechanism":"<one sentence: why it matters / what it costs>","falsifier":"<what would overturn it>","marker":"<one of the six marker keys or null>"}],"narrative":"...","transfer":{"tell":"...","watch_for":"..."}}`;
   const auditForGen = grades.length
     ? `\n\nAUDIT of prior claims this run:\n${[...gradeById.values()].map((g) => `- ${g.id}: ${g.grade}${g.narrower ? ` → narrower: "${g.narrower.text}"` : ''}`).join('\n')}`
     : '';
@@ -119,6 +120,11 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
   // ---- 5. grounding gate — every generated string must trace to the record ----------------
   const rawFindings = findings.length;
   findings = findings.filter((f) => f?.text && f?.falsifier && ground(`${f.text} ${f.falsifier}`, pack.record).hard.length === 0);
+  // mechanism is held to the same bar as the finding: keep it only if it grounds, else the
+  // finding stands without it (a mechanism that invents specifics is worse than none).
+  for (const f of findings) {
+    if (f.mechanism && ground(f.mechanism, pack.record).hard.length > 0) f.mechanism = null;
+  }
   if (narrative && ground(narrative, pack.record).hard.length > 0) narrative = ''; // drop ungrounded narrative rather than show it
   if (transfer && ground(`${transfer.tell} ${transfer.watch_for}`, pack.record).hard.length > 0) transfer = null; // drop if it invented specifics
   if (!findings.length) return { ok: false, reason: 'nothing_grounded', diag: { runNo: pack.runNo, rawFindings, groundedFindings: 0, priorClaims: pack.claims.length } };
@@ -156,6 +162,7 @@ export async function generateProfile(subjectId: string): Promise<{ ok: boolean;
   for (const f of findings) {
     const { error } = await db.from('profile_claims').insert({
       subject_id: subjectId, text: f.text, falsifier: f.falsifier, marker: f.marker ?? null,
+      mechanism: f.mechanism ?? null,
       made_at_run: pack.runNo, status: 'open', conditions_tested: [condition],
     });
     if (error && !insertErr) insertErr = error.message;
