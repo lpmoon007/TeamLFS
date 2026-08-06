@@ -5,7 +5,6 @@ import { LogoutButton } from '@/components/facilitator/LogoutButton';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { buildFingerprintForEmail } from '@/lib/profile/fingerprint';
 import { getLedgerForEmail } from '@/lib/profile/ledger';
-import { getMyChallenges } from '@/lib/challenge-actions';
 import { listDecisions } from '@/lib/preflight-actions';
 import { buildNextScenario } from '@/lib/profile/next-scenario';
 import { ProfileView } from '@/components/ProfileView';
@@ -16,10 +15,9 @@ export default async function ProfilePage() {
   const me = await facilitator();
   if (!me) return <FacilitatorLogin />;
   const eligible = !me.isMaster && /@/.test(me.email);
-  const [fp, ledger, ch, decisions] = await Promise.all([
+  const [fp, ledger, decisions] = await Promise.all([
     eligible ? buildFingerprintForEmail(me.email) : null,
     eligible ? getLedgerForEmail(me.email) : null,
-    eligible ? getMyChallenges() : null,
     eligible ? listDecisions() : null,
   ]);
   const nextScenario = eligible ? await buildNextScenario(me.email, fp, ledger) : null;
@@ -37,7 +35,7 @@ export default async function ProfilePage() {
         </div>
       </header>
       <div className="play-body">
-        <ProfileView fp={fp} ledger={ledger} name={(me.displayName || me.email || '').split(' ')[0]} challenges={ch?.challenges ?? []} decisions={decisions ?? []} nextScenario={nextScenario} />
+        <ProfileView fp={fp} ledger={ledger} name={(me.displayName || me.email || '').split(' ')[0]} decisions={decisions ?? []} nextScenario={nextScenario} />
       </div>
     </div>
   );

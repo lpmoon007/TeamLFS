@@ -109,22 +109,20 @@ export async function buildEvidencePack(subjectId: string): Promise<EvidencePack
     ? claims.map((c, i) => `C${i + 1} [${c.id}] "${strip(c.text)}" — falsifier: ${strip(c.falsifier)} — status ${c.status}, tested under ${c.conditions_tested.join('/') || 'no conditions yet'}`).join('\n')
     : '(no prior claims — this is the first profile)';
 
-  // completed 30-day reps (for audit rule 1: no invariant claim without a failed targeted rep).
-  // The rep's target_marker is what the gap-vs-invariant test matches against a claim's marker.
-  const { data: challenges } = await db.from('challenges').select('id, target_marker, focus_key, target_days, created_at, outcome, obstacle').eq('subject_id', subjectId);
+  // completed 30-day reps (for audit rule 1: no invariant claim without a failed targeted rep)
+  const { data: challenges } = await db.from('challenges').select('id, focus_key, target_days, created_at').eq('subject_id', subjectId);
   const hasReps: { marker: string | null; kept: boolean }[] = [];
   let repBlock = '(no 30-day reps on record)';
   if (challenges && challenges.length) {
     const ids = challenges.map((c: any) => c.id);
     const { data: checkins } = await db.from('challenge_checkins').select('challenge_id, did').in('challenge_id', ids);
-    const logged = new Map<string, number>();
-    for (const ci of checkins ?? []) logged.set((ci as any).challenge_id, (logged.get((ci as any).challenge_id) ?? 0) + 1);
+    const kept = new Map<string, number>();
+    for (const ci of checkins ?? []) if ((ci as any).did) kept.set((ci as any).challenge_id, (kept.get((ci as any).challenge_id) ?? 0) + 1);
     repBlock = challenges
       .map((c: any) => {
-        const n = logged.get(c.id) ?? 0;
-        const marker = c.target_marker ?? c.focus_key ?? null; // target_marker is the authoritative aim
-        hasReps.push({ marker, kept: n >= 21 }); // a rep only "targeted and moved/failed" a marker at 21+ logged days
-        return `  - rep targeting ${marker ?? 'a focus'}: ${n} days logged (target ${c.target_days ?? 30})${c.outcome ? `, graded ${c.outcome}` : ''}`;
+        const n = kept.get(c.id) ?? 0;
+        hasReps.push({ marker: c.focus_key ?? null, kept: n >= 21 });
+        return `  - rep on ${c.focus_key ?? 'a focus'}: ${n} kept check-ins (target ${c.target_days ?? 30} days)`;
       })
       .join('\n');
   }

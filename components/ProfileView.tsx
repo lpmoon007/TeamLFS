@@ -1,11 +1,9 @@
 import type { Fingerprint } from '@/lib/profile/fingerprint';
 import type { Ledger, LedgerClaim } from '@/lib/profile/ledger';
-import type { LeaderChallenge } from '@/lib/challenge-actions';
 import type { DecisionRow } from '@/lib/preflight-actions';
 import type { NextScenario as Nudge } from '@/lib/profile/next-scenario';
 import { GenerateFindings } from '@/components/GenerateFindings';
 import { PfAccordion } from '@/components/PfAccordion';
-import { ChallengePanel } from '@/components/ChallengePanel';
 import { CheckBackPanel } from '@/components/CheckBackPanel';
 import { NextScenario } from '@/components/NextScenario';
 import { LeaderCoach } from '@/components/LeaderCoach';
@@ -53,7 +51,7 @@ function Claim({ c, showFalsifier = true }: { c: LedgerClaim; showFalsifier?: bo
   );
 }
 
-export function ProfileView({ fp, ledger, name, challenges = [], decisions = [], nextScenario = null }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; challenges?: LeaderChallenge[]; decisions?: DecisionRow[]; nextScenario?: Nudge | null }) {
+export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = null }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; decisions?: DecisionRow[]; nextScenario?: Nudge | null }) {
   if (!fp) {
     return (
       <div className="pf">
@@ -189,8 +187,6 @@ export function ProfileView({ fp, ledger, name, challenges = [], decisions = [],
       )}
 
       <CheckBackPanel decisions={decisions} />
-
-      <ChallengePanel challenges={challenges} />
 
       <LeaderCoach />
     </div>
