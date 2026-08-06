@@ -6,7 +6,11 @@ import { MARKER_LABEL, type RepOption } from '@/lib/rep-options';
 import type { RepRow } from '@/lib/rep';
 
 const CHALLENGE = 'https://challenge.belegendary.org/';
-const handoffUrl = (rep: string, ref: string) => `${CHALLENGE}?rep=${encodeURIComponent(rep)}&src=lfs&ref=${encodeURIComponent(ref)}`;
+// The challenge's signup form reads ?rep= and pre-fills the commitment; the #signup fragment
+// drops the person straight onto that form. ref/src are ignored by the form but let consistency
+// come back to the right person if the webhook is wired. Fragment MUST come last.
+const handoffUrl = (rep: string, ref: string) =>
+  `${CHALLENGE}?rep=${encodeURIComponent(rep)}&src=lfs${ref ? `&ref=${encodeURIComponent(ref)}` : ''}#signup`;
 
 // The 30-day rep — the prescription half. Delivery lives at challenge.belegendary.org; this
 // generates the rep from the gap, captures the obstacle, commits it, and hands off with the rep
