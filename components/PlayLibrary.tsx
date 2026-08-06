@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { startLeaderRun, type PlayableScenario, type LeaderRun, type LeaderStats } from '@/lib/leader-actions';
+import { summaryHtml } from '@/lib/summary-html';
 
 // A hand-drawn sparkline of finished-run scores (0–100), oldest → newest. No library — a
 // short polyline with an emphasized endpoint, sized to sit inside a stat tile.
@@ -122,7 +123,7 @@ export function PlayLibrary({ scenarios, runs, stats, name }: { scenarios: Playa
             {scenarios.map((s) => (
               <div className="lib-card play-scn" key={s.id}>
                 <div className="lib-card-top"><strong>{s.title}</strong></div>
-                {s.summary ? <div className="lib-card-sub" dangerouslySetInnerHTML={{ __html: s.summary }} /> : null}
+                {s.summary ? <div className="lib-card-sub" dangerouslySetInnerHTML={{ __html: summaryHtml(s.summary) }} /> : null}
                 <div className="lib-card-meta">
                   <span className={`realism-tag ${s.realism}`}>{s.realism}</span>
                   {s.weekCount ? (<><span>·</span><span>{s.weekCount} weeks</span></>) : null}

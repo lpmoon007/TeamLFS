@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { startLeaderRun } from '@/lib/leader-actions';
+import { summaryHtml } from '@/lib/summary-html';
 import type { NextScenario as Nudge } from '@/lib/profile/next-scenario';
 
 // The next-scenario nudge on the profile — the training-plan payoff. One grounded recommendation
@@ -32,7 +33,7 @@ export function NextScenario({ nudge }: { nudge: Nudge | null }) {
       <div className="ns-card">
         <div className="ns-card-main">
           <div className="ns-card-title">{s.title}{nudge.replay ? <span className="ns-replay">re-test</span> : null}</div>
-          {s.summary ? <p className="ns-card-sum">{s.summary}</p> : null}
+          {s.summary ? <p className="ns-card-sum" dangerouslySetInnerHTML={{ __html: summaryHtml(s.summary) }} /> : null}
           <div className="ns-card-meta">
             {s.difficulty != null ? <span>Difficulty {s.difficulty.toFixed(1)}</span> : null}
             {s.weekCount != null ? <span>{s.weekCount} weeks</span> : null}

@@ -588,6 +588,34 @@ button { font-family: inherit; cursor: pointer; }
 .pf-pick-email { color: var(--text-faint); font-size: 12.5px; }
 .pf-pick-runs { margin-left: auto; font-size: 12px; color: var(--text-dim); }
 .pf-pick-go { color: var(--accent); font-size: 12.5px; font-weight: 600; }
+/* number key */
+.pf-numkey { margin-top: 14px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 13px 16px; }
+.pf-numkey-h { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 9px; }
+.pf-numkey-row { font-size: 12px; line-height: 1.55; color: var(--text-dim); padding: 3px 0; }
+.pf-numkey-row b { color: var(--text); font-weight: 600; display: inline-block; min-width: 128px; }
+/* untested callout */
+.pf-untested { background: rgba(74,168,255,0.08); border: 1px solid var(--accent-dim); border-radius: var(--radius-sm); padding: 11px 14px; margin-bottom: 14px; font-size: 13px; line-height: 1.55; color: var(--text); }
+.pf-untested b { font-weight: 600; }
+/* what one run can't tell you */
+.pf-unknowns { }
+.pf-unk-list { display: flex; flex-direction: column; gap: 13px; }
+.pf-unk { font-size: 13.5px; line-height: 1.6; color: var(--text); margin: 0; max-width: 74ch; }
+.pf-unk-next { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line-soft); max-width: 74ch; }
+.pf-unk-next b { color: var(--text); font-weight: 600; }
+/* unlock-by-run table */
+.pf-unlock { margin-top: 18px; }
+.pf-unlock-h { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 12px; }
+.pf-unlock-grid { display: grid; grid-template-columns: minmax(0,1fr) repeat(4, 62px); gap: 0; border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }
+.pf-unlock-line { display: contents; }
+.pf-unlock-cell { padding: 9px 12px; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; }
+.pf-unlock-cell.label { justify-content: flex-start; color: var(--text); border-top: 1px solid var(--line-soft); }
+.pf-unlock-cell.head { border-top: none; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-faint); background: var(--bg-elev); }
+.pf-unlock-cell.now { background: rgba(74,168,255,0.07); }
+.pf-unlock-cell.head.now { color: var(--accent); }
+.pf-unlock-yes { color: var(--online); font-weight: 700; }
+.pf-unlock-no { color: var(--text-faint); }
+.pf-unlock-note { font-size: 11px; color: var(--text-faint); margin-top: 9px; line-height: 1.5; }
+@media (max-width: 640px) { .pf-unlock-grid { grid-template-columns: minmax(0,1fr) repeat(4, 44px); } .pf-unlock-cell { padding: 8px 6px; font-size: 11px; } }
 .pf-gen { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 .pf-gen-note { font-size: 12px; color: var(--text-faint); }
 /* 30-day reps — the active-challenge loop */

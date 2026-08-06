@@ -81,6 +81,63 @@ function GapCard({ fp, transfer, nextTitle }: { fp: Fingerprint; transfer: Ledge
   );
 }
 
+// the three-number key (Screen-15 §2d) — one small panel so 72 and 40/100 aren't read as the
+// same kind of number.
+function NumberKey() {
+  return (
+    <div className="pf-numkey">
+      <div className="pf-numkey-h">Three numbers, deliberately different</div>
+      <div className="pf-numkey-row"><b>Marker rates</b> the six on the fingerprint — difficulty-normalised, comparable across scenarios. Every longitudinal claim uses these.</div>
+      <div className="pf-numkey-row"><b>Run score</b> the number in the run log — a weighted composite for that run; it won’t equal the average of the six.</div>
+      <div className="pf-numkey-row"><b>Raw in-scenario scores</b> in your debriefs — they carry each scenario’s difficulty, so never compare them across runs.</div>
+    </div>
+  );
+}
+
+// "What one run can't tell you" (Screen-15 retention spec) — name the specific number and the
+// specific ambiguity, and what the next run resolves. Deterministic from the markers.
+function unknowns(fp: Fingerprint): string[] {
+  const items: string[] = [];
+  const exercised = [...fp.markers].filter((m) => m.n >= 1).sort((a, b) => a.avg - b.avg);
+  const low = exercised[0];
+  const cond = fp.conditions.length ? fp.conditions.join(' / ') : 'one team disposition';
+  if (low) items.push(`Your ${low.label.toLowerCase()} came in at ${low.avg}. I can’t yet tell whether that’s who you are or how this team was configured — you’ve played under ${cond} only, with no run under a different disposition to compare. That distinction is the difference between a habit and a condition, and it needs a second run.`);
+  const high = exercised[exercised.length - 1];
+  if (high && high.avg >= 90 && high.key !== low?.key) items.push(`Your ${high.label.toLowerCase()} held at ${high.avg} across the run. On one run that’s an observation, not a strength — it hasn’t been tested against a team that pushes back with new facts rather than pressure.`);
+  if (fp.runs < 2) items.push(`Your trait posture is empty. Traits are what survive across different situations, and so far you’ve been in one.`);
+  return items.slice(0, 4);
+}
+
+const UNLOCK_ROWS: { label: string; at: number }[] = [
+  { label: 'Findings + falsifiers', at: 1 },
+  { label: 'Six markers', at: 1 },
+  { label: 'Claims graded held / overturned', at: 2 },
+  { label: 'Trait vs. condition split', at: 2 },
+  { label: 'Trait posture', at: 3 },
+  { label: 'Trajectory plot', at: 3 },
+  { label: 'Self-revision (“we got you wrong”)', at: 3 },
+  { label: 'Invariant vs. gap verdict', at: 4 },
+];
+function UnlockTable({ runs }: { runs: number }) {
+  const nowCol = runs <= 1 ? 1 : runs === 2 ? 2 : runs < 4 ? 3 : 4;
+  return (
+    <div className="pf-unlock">
+      <div className="pf-unlock-h">What your profile can show you, by run</div>
+      <div className="pf-unlock-grid">
+        <div className="pf-unlock-cell head" />
+        {[1, 2, 3, 4].map((r) => <div key={r} className={`pf-unlock-cell head${r === nowCol ? ' now' : ''}`}>{r === 3 ? 'Run 3+' : r === 4 ? 'Run 4+' : `Run ${r}`}</div>)}
+        {UNLOCK_ROWS.map((row) => (
+          <div className="pf-unlock-line" key={row.label}>
+            <div className="pf-unlock-cell label">{row.label}</div>
+            {[1, 2, 3, 4].map((r) => <div key={r} className={`pf-unlock-cell${r === nowCol ? ' now' : ''}`}>{r >= row.at ? <span className="pf-unlock-yes">✓</span> : <span className="pf-unlock-no">—</span>}</div>)}
+          </div>
+        ))}
+      </div>
+      <div className="pf-unlock-note">An instrument, not a game — no streaks, levels, or scores. Each row is a fact about what a second observation makes possible.</div>
+    </div>
+  );
+}
+
 export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = null, preview = false, previewSubjectId }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; decisions?: DecisionRow[]; nextScenario?: Nudge | null; preview?: boolean; previewSubjectId?: string }) {
   if (!fp) {
     return (
@@ -118,10 +175,17 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
           <span className="pf-ostep">Take it to the coach</span>
         </div>
 
+        <NumberKey />
+
         <PfAccordion
           title="Findings — each one is a claim your next run can overturn"
           sub={ledger && ledger.open.length ? `${ledger.open.length} open finding${ledger.open.length === 1 ? '' : 's'}` : 'none yet'}
         >
+          {ledger && ledger.open.length && fp.runs < 2 ? (
+            <div className="pf-untested">
+              <b>These {ledger.open.length} claim{ledger.open.length === 1 ? '' : 's'} about you {ledger.open.length === 1 ? 'is' : 'are'} untested.</b> Each carries a specific observation that would overturn it — none has had the chance yet. Your next run grades them, whether they flatter you or not.
+            </div>
+          ) : null}
           {ledger?.narrative ? <p className="pf-narr">{ledger.narrative}</p> : null}
           {ledger && ledger.open.length ? (
             <div className="pf-claims">
@@ -220,6 +284,20 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
             Facing a real decision at work? <a href="/play/preflight">Run it through Before You Decide →</a> — your record hands you the questions it says you’ll skip.
           </p>
         )}
+
+        {fp.runs < 3 && unknowns(fp).length ? (
+          <section className="pf-sec pf-unknowns">
+            <div className="pf-sec-h">What {fp.runs === 1 ? 'one run' : `${fp.runs} runs`} can’t tell you yet</div>
+            <div className="pf-unk-list">
+              {unknowns(fp).map((u, i) => <p className="pf-unk" key={i}>{u}</p>)}
+            </div>
+            {nextScenario ? (
+              <p className="pf-unk-next">The run that closes the biggest of these: <b>{nextScenario.scenario.title}</b>{nextScenario.matchedMarker ? ` — it presses ${nextScenario.matchedMarker.toLowerCase()}, your weakest read so far` : ''}. If the number holds, it’s you; if it moves, it was the team. That’s a question only your next run can answer.</p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {fp.runs < 4 ? <UnlockTable runs={fp.runs} /> : null}
 
         {preview ? null : <CheckBackPanel decisions={decisions} />}
       </div>
