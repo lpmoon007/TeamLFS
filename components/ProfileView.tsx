@@ -12,6 +12,15 @@ import { LeaderCoach } from '@/components/LeaderCoach';
 const STATUS_LABEL: Record<string, string> = {
   open: 'open', held: 'held', sharpened: 'sharpened', overturned: 'overturned', withdrawn: 'withdrawn', untested: 'untested',
 };
+// one plain sentence per marker — a number with a sentence under it explains itself; a number alone doesn't
+const MARKER_DESC: Record<string, string> = {
+  A1: 'Whether you ask the second question, or stop at the first answer.',
+  A2: 'Whether the size of your move matches the evidence in hand.',
+  A3: 'Whether you reach the people who hold something material.',
+  A4: 'Whether you say the hard thing to the person it lands on.',
+  A5: 'The gap between what you said you’d do and what you did.',
+  A6: 'Whether your judgement degrades as the situation does.',
+};
 // what the grade means, in plain words — the reference's "what happened" column
 const WHAT_HAPPENED: Record<string, string> = {
   held: 'Tested and not overturned — it survived the falsifier.',
@@ -177,8 +186,6 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
           <span className="pf-ostep">Take it to the coach</span>
         </div>
 
-        <NumberKey />
-
         <PfAccordion
           title="Findings — each one is a claim your next run can overturn"
           sub={ledger && ledger.open.length ? `${ledger.open.length} open finding${ledger.open.length === 1 ? '' : 's'}` : 'none yet'}
@@ -203,35 +210,14 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
 
         <GapCard fp={fp} transfer={ledger?.transfer ?? null} nextTitle={nextScenario?.scenario.title ?? null} />
 
-        {preview ? null : <NextScenario nudge={nextScenario} />}
-
-        {fp.trajectory.length >= 2 ? (
-          <PfAccordion title="Trajectory" sub={`${fp.trajectory[0]} → ${fp.trajectory[fp.trajectory.length - 1]}`}>
-            <div className="pf-traj">
-              <Spark points={fp.trajectory} />
-              <div className="pf-traj-n">{fp.trajectory[0]} → {fp.trajectory[fp.trajectory.length - 1]} <span>overall, first to latest run</span></div>
-            </div>
-          </PfAccordion>
-        ) : null}
-
-        {fp.strength ? (
-          <PfAccordion title="Signature strength" sub={fp.strength.label}>
-            <div className="pf-sig">
-              <div className="pf-sig-card good">
-                <div className="pf-sig-k">Your strength</div>
-                <div className="pf-sig-v">{fp.strength.label}</div>
-                <div className="pf-sig-sub">{fp.strength.avg}/100 avg over {fp.strength.n} runs</div>
-              </div>
-            </div>
-          </PfAccordion>
-        ) : null}
-
-        <PfAccordion title="Your fingerprint — six universal behaviours" sub="six markers">
+        <PfAccordion title="Your fingerprint — six universal behaviours" sub="six markers" pinned>
           <div className="pf-markers">
             {fp.markers.map((m) => (
               <div className={`pf-marker${m.insufficient ? ' insufficient' : ''}`} key={m.key}>
                 <div className="pf-marker-top">
-                  <span className="pf-marker-label">{m.label}</span>
+                  <span className="pf-marker-label">{m.label}
+                    {MARKER_DESC[m.key] ? <span className="pf-marker-desc">{MARKER_DESC[m.key]}</span> : null}
+                  </span>
                   {m.insufficient ? (
                     <span className="pf-marker-insuf">insufficient evidence</span>
                   ) : (
@@ -259,6 +245,39 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
           </div>
         </PfAccordion>
 
+        {/* the retention close — immediately under the fingerprint, while the numbers are still on screen */}
+        {fp.runs < 3 && unknowns(fp).length ? (
+          <section className="pf-sec pf-unknowns">
+            <div className="pf-sec-h">What {fp.runs === 1 ? 'one run' : `${fp.runs} runs`} can’t tell you yet</div>
+            <div className="pf-unk-list">
+              {unknowns(fp).map((u, i) => <p className="pf-unk" key={i}>{u}</p>)}
+            </div>
+            {nextScenario ? (
+              <p className="pf-unk-next">The run that closes the biggest of these: <b>{nextScenario.scenario.title}</b>{nextScenario.matchedMarker ? ` — it presses ${nextScenario.matchedMarker.toLowerCase()}, your weakest read so far` : ''}. If the number holds, it’s you; if it moves, it was the team. That’s a question only your next run can answer.</p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {preview ? null : <NextScenario nudge={nextScenario} />}
+
+        {ledger?.transfer ? (
+          <PfAccordion title="Monday — how this shows up at work" sub="workplace transfer">
+            <div className="pf-transfer">
+              <div className="pf-transfer-tell">{ledger.transfer.tell}</div>
+              <div className="pf-transfer-watch"><span className="pf-transfer-k">Watch for:</span> {ledger.transfer.watch_for}</div>
+              <div className="pf-transfer-label">Coaching hypothesis — not an assessment.</div>
+            </div>
+            <a className="pf-preflight-link" href="/play/preflight">Facing a real decision? Run a pre-flight →</a>
+          </PfAccordion>
+        ) : (
+          <p className="pf-preflight-cta">
+            Facing a real decision at work? <a href="/play/preflight">Run it through Before You Decide →</a> — your record hands you the questions it says you’ll skip.
+          </p>
+        )}
+
+        {/* number key sits just above the run log — it explains numbers the reader has by now actually seen */}
+        <NumberKey />
+
         <PfAccordion title="Run log" sub={`${fp.runLog.length} run${fp.runLog.length === 1 ? '' : 's'}`}>
           <div className="pf-runs">
             {fp.runLog.map((r, i) => (
@@ -276,6 +295,27 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
           </div>
         </PfAccordion>
 
+        {fp.trajectory.length >= 2 ? (
+          <PfAccordion title="Trajectory" sub={`${fp.trajectory[0]} → ${fp.trajectory[fp.trajectory.length - 1]}`}>
+            <div className="pf-traj">
+              <Spark points={fp.trajectory} />
+              <div className="pf-traj-n">{fp.trajectory[0]} → {fp.trajectory[fp.trajectory.length - 1]} <span>overall, first to latest run</span></div>
+            </div>
+          </PfAccordion>
+        ) : null}
+
+        {fp.strength ? (
+          <PfAccordion title="Signature strength" sub={fp.strength.label}>
+            <div className="pf-sig">
+              <div className="pf-sig-card good">
+                <div className="pf-sig-k">Your strength</div>
+                <div className="pf-sig-v">{fp.strength.label}</div>
+                <div className="pf-sig-sub">{fp.strength.avg}/100 avg over {fp.strength.n} runs</div>
+              </div>
+            </div>
+          </PfAccordion>
+        ) : null}
+
         {ledger && ledger.graded.length ? (
           <PfAccordion title="The claim ledger — how prior findings held up" sub={`${ledger.graded.length} graded`} defaultOpen={false}>
             <p className="pf-lead" style={{ marginBottom: 14 }}>Confidence rises only when a claim survives a <b>new</b> condition — never by repetition. A claim never overturned or sharpened isn’t proof it’s right; it may just not have been tested.</p>
@@ -283,33 +323,6 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
               {ledger.graded.map((c) => <LedgerCard key={c.id} c={c} />)}
             </div>
           </PfAccordion>
-        ) : null}
-
-        {ledger?.transfer ? (
-          <PfAccordion title="Monday — how this shows up at work" sub="workplace transfer">
-            <div className="pf-transfer">
-              <div className="pf-transfer-tell">{ledger.transfer.tell}</div>
-              <div className="pf-transfer-watch"><span className="pf-transfer-k">Watch for:</span> {ledger.transfer.watch_for}</div>
-              <div className="pf-transfer-label">Coaching hypothesis — not an assessment.</div>
-            </div>
-            <a className="pf-preflight-link" href="/play/preflight">Facing a real decision? Run a pre-flight →</a>
-          </PfAccordion>
-        ) : (
-          <p className="pf-preflight-cta">
-            Facing a real decision at work? <a href="/play/preflight">Run it through Before You Decide →</a> — your record hands you the questions it says you’ll skip.
-          </p>
-        )}
-
-        {fp.runs < 3 && unknowns(fp).length ? (
-          <section className="pf-sec pf-unknowns">
-            <div className="pf-sec-h">What {fp.runs === 1 ? 'one run' : `${fp.runs} runs`} can’t tell you yet</div>
-            <div className="pf-unk-list">
-              {unknowns(fp).map((u, i) => <p className="pf-unk" key={i}>{u}</p>)}
-            </div>
-            {nextScenario ? (
-              <p className="pf-unk-next">The run that closes the biggest of these: <b>{nextScenario.scenario.title}</b>{nextScenario.matchedMarker ? ` — it presses ${nextScenario.matchedMarker.toLowerCase()}, your weakest read so far` : ''}. If the number holds, it’s you; if it moves, it was the team. That’s a question only your next run can answer.</p>
-            ) : null}
-          </section>
         ) : null}
 
         {fp.runs < 4 ? <UnlockTable runs={fp.runs} /> : null}

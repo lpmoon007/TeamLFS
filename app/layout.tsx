@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './profile-theme.css'; // MUST come after globals — the profile restyle wins on source order
 import './solo/soloengine.css'; // scoped under .soloui — cannot affect the team theme
 
 export const metadata: Metadata = {

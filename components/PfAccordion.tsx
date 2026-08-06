@@ -4,8 +4,18 @@ import { useState, type ReactNode } from 'react';
 // A collapsible profile section. The diagnostic blocks (findings, fingerprint, run log,
 // ledger…) run long; folding them lets a leader jump to the action loops — next run,
 // check-back, reps, coach — without scrolling past the whole read every time.
-export function PfAccordion({ title, sub, defaultOpen = true, children }: { title: ReactNode; sub?: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
+export function PfAccordion({ title, sub, defaultOpen = true, pinned = false, children }: { title: ReactNode; sub?: ReactNode; defaultOpen?: boolean; pinned?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
+  // pinned sections (the fingerprint, the run-1 ending) are the argument, not detail — they
+  // render as a plain headed section that can't be collapsed away.
+  if (pinned) {
+    return (
+      <section className="pf-sec">
+        <h2 className="pf-sec-h">{title}</h2>
+        <div>{children}</div>
+      </section>
+    );
+  }
   return (
     <section className="pf-sec">
       <button type="button" className="pf-acc-h" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
