@@ -579,6 +579,15 @@ button { font-family: inherit; cursor: pointer; }
 .pf-lg-f.res { color: var(--text); }
 .pf-lg-fk { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 5px; }
 @media (max-width: 560px) { .pf-lg-b { grid-template-columns: 1fr; } }
+/* preview-as (admin) */
+.pf-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.35); border-radius: var(--radius); padding: 10px 15px; font-size: 13px; color: var(--text); max-width: 1180px; }
+.pf-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; max-width: 620px; }
+.pf-pick-row { display: flex; align-items: center; gap: 14px; padding: 12px 15px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); text-decoration: none; color: var(--text); transition: border-color .12s; }
+.pf-pick-row:hover { border-color: var(--accent-dim); }
+.pf-pick-name { font-weight: 600; }
+.pf-pick-email { color: var(--text-faint); font-size: 12.5px; }
+.pf-pick-runs { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+.pf-pick-go { color: var(--accent); font-size: 12.5px; font-weight: 600; }
 .pf-gen { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 .pf-gen-note { font-size: 12px; color: var(--text-faint); }
 /* 30-day reps — the active-challenge loop */

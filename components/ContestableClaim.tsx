@@ -11,7 +11,7 @@ const STATUS_LABEL: Record<string, string> = {
 // An open finding the leader can contest (Screen-14 §3). Contesting persists — the next run tests
 // the claim first and the coach is told to argue the evidence, not restate the claim. This is a
 // real state, not local UI: a finding you can't push back on is an assessment, not a conversation.
-export function ContestableClaim({ c }: { c: LedgerClaim }) {
+export function ContestableClaim({ c, readOnly = false }: { c: LedgerClaim; readOnly?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -44,16 +44,18 @@ export function ContestableClaim({ c }: { c: LedgerClaim }) {
       ) : null}
       <div className="pf-claim-foot">
         <span className="pf-claim-meta">Made run {c.madeAtRun}{c.gradedAtRun ? ` · graded run ${c.gradedAtRun}` : ''}</span>
-        <span className="pf-claim-acts">
-          <button className="pf-contest-btn ask" onClick={() => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('lfs:coach-ask', { detail: `Where did the finding "${c.text}" come from, and how much should I trust it?` })); }}>Ask the coach →</button>
-          {c.contested ? (
-            <button className="pf-contest-btn withdraw" disabled={busy} onClick={withdraw}>Withdraw contest</button>
-          ) : (
-            <button className="pf-contest-btn" disabled={busy} onClick={() => setOpen((o) => !o)}>This doesn’t fit me</button>
-          )}
-        </span>
+        {readOnly ? null : (
+          <span className="pf-claim-acts">
+            <button className="pf-contest-btn ask" onClick={() => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('lfs:coach-ask', { detail: `Where did the finding "${c.text}" come from, and how much should I trust it?` })); }}>Ask the coach →</button>
+            {c.contested ? (
+              <button className="pf-contest-btn withdraw" disabled={busy} onClick={withdraw}>Withdraw contest</button>
+            ) : (
+              <button className="pf-contest-btn" disabled={busy} onClick={() => setOpen((o) => !o)}>This doesn’t fit me</button>
+            )}
+          </span>
+        )}
       </div>
-      {open && !c.contested ? (
+      {open && !c.contested && !readOnly ? (
         <div className="pf-contest-box">
           <div className="pf-contest-l">Why doesn’t this fit?</div>
           <p className="pf-contest-s">Your next run tests this claim first, and the coach argues from your evidence instead of restating it. Say what the finding gets wrong.</p>

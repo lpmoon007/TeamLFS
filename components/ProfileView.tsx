@@ -81,7 +81,7 @@ function GapCard({ fp, transfer, nextTitle }: { fp: Fingerprint; transfer: Ledge
   );
 }
 
-export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = null }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; decisions?: DecisionRow[]; nextScenario?: Nudge | null }) {
+export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = null, preview = false, previewSubjectId }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; decisions?: DecisionRow[]; nextScenario?: Nudge | null; preview?: boolean; previewSubjectId?: string }) {
   if (!fp) {
     return (
       <div className="pf">
@@ -125,19 +125,19 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
           {ledger?.narrative ? <p className="pf-narr">{ledger.narrative}</p> : null}
           {ledger && ledger.open.length ? (
             <div className="pf-claims">
-              {ledger.open.map((c) => <ContestableClaim key={c.id} c={c} />)}
+              {ledger.open.map((c) => <ContestableClaim key={c.id} c={c} readOnly={preview} />)}
             </div>
           ) : (
             <p className="pf-empty">No findings yet — generate them from your record. A finding that cannot be overturned isn’t a finding, so each one comes with the exact observation that would prove it wrong.</p>
           )}
-          {fp.runs > (ledger?.profiledRun ?? 0) || !ledger?.open.length ? (
+          {!preview && (fp.runs > (ledger?.profiledRun ?? 0) || !ledger?.open.length) ? (
             <GenerateFindings runNo={fp.runs} hasProfile={!!ledger?.open.length} />
           ) : null}
         </PfAccordion>
 
         <GapCard fp={fp} transfer={ledger?.transfer ?? null} nextTitle={nextScenario?.scenario.title ?? null} />
 
-        <NextScenario nudge={nextScenario} />
+        {preview ? null : <NextScenario nudge={nextScenario} />}
 
         {fp.trajectory.length >= 2 ? (
           <PfAccordion title="Trajectory" sub={`${fp.trajectory[0]} → ${fp.trajectory[fp.trajectory.length - 1]}`}>
@@ -221,11 +221,11 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
           </p>
         )}
 
-        <CheckBackPanel decisions={decisions} />
+        {preview ? null : <CheckBackPanel decisions={decisions} />}
       </div>
 
       <aside className="pf-rail">
-        <LeaderCoach />
+        {preview ? <LeaderCoach subjectId={previewSubjectId} readOnly /> : <LeaderCoach />}
       </aside>
     </div>
   );
