@@ -21,7 +21,15 @@ export interface FingerprintMarker {
   conditions: string[]; // distinct team dispositions it's been tested under
   confidence: 'provisional' | 'moderate' | 'high';
   series: number[]; // oldest → newest, for a sparkline
+  insufficient?: boolean; // too little evidence to state a rate (a ceiling on one run, or never exercised)
 }
+
+// the six Tier-A markers, always rendered — a marker with no data shows "insufficient evidence",
+// never a silent drop or a zero (Screen-15 §1a / §2c).
+const A_MARKERS: [string, string][] = [
+  ['A1', 'Information-seeking'], ['A2', 'Decision calibration'], ['A3', 'Consultation breadth'],
+  ['A4', 'Truth-seeking over comfort'], ['A5', 'Intent–action integrity'], ['A6', 'Composure under escalation'],
+];
 export interface FingerprintRun {
   sessionId: string;
   scenario: string;
@@ -101,24 +109,35 @@ export async function buildFingerprint(subjectId: string): Promise<Fingerprint |
       acc.set(m.key, cur);
     }
   }
-  const markers: FingerprintMarker[] = [...acc.entries()].map(([key, v]) => {
-    const avg = Math.round(v.values.reduce((a, b) => a + b, 0) / v.values.length);
-    const latest = v.values[v.values.length - 1];
-    const trend = v.values.length >= 2 ? latest - v.values[v.values.length - 2] : null;
-    return { key, label: v.label, avg, latest, trend, n: v.values.length, conditions: [...v.conditions], confidence: confidenceOf(v.values.length, v.conditions.size), series: v.values };
+  // always emit all six Tier-A markers. An aggregated marker at a ceiling (≥98) on a single-run
+  // basis is a claim of certainty, not a reading — flag it insufficient. A marker never scored
+  // (e.g. A5, or one the run gave no opportunity for) is an insufficient row, not a drop.
+  const byKey = new Map<string, { label: string; values: number[]; conditions: Set<string> }>(acc);
+  const markers: FingerprintMarker[] = A_MARKERS.map(([key, label]) => {
+    const v = byKey.get(key);
+    if (v && v.values.length) {
+      const avg = Math.round(v.values.reduce((a, b) => a + b, 0) / v.values.length);
+      const latest = v.values[v.values.length - 1];
+      const trend = v.values.length >= 2 ? latest - v.values[v.values.length - 2] : null;
+      const insufficient = avg >= 98 && v.values.length < 2; // ceiling on one run → not discriminating
+      return { key, label: v.label ?? label, avg, latest, trend, n: v.values.length, conditions: [...v.conditions], confidence: confidenceOf(v.values.length, v.conditions.size), series: v.values, insufficient };
+    }
+    return { key, label, avg: 0, latest: 0, trend: null, n: 0, conditions: [], confidence: 'provisional', series: [], insufficient: true };
   });
 
-  // signature strength / gap — only from markers with real repetition (n ≥ 2)
-  const ranked = markers.filter((m) => m.n >= 2).sort((a, b) => b.avg - a.avg);
+  // signature strength / gap — only real, sufficient markers with repetition (n ≥ 2)
+  const ranked = markers.filter((m) => m.n >= 2 && !m.insufficient).sort((a, b) => b.avg - a.avg);
   const strength = ranked.length ? { label: ranked[0].label, avg: ranked[0].avg, n: ranked[0].n } : null;
   const gap = ranked.length ? { label: ranked[ranked.length - 1].label, avg: ranked[ranked.length - 1].avg, n: ranked[ranked.length - 1].n } : null;
 
   const conditions = [...new Set(built.map((b) => b.condition))];
+  // display order: real markers by rate (desc), insufficient ones last
+  const sorted = [...markers].sort((a, b) => (Number(!!a.insufficient) - Number(!!b.insufficient)) || (b.avg - a.avg));
   return {
     runs: built.length,
     provisional: built.length < 2,
     conditions,
-    markers: markers.sort((a, b) => b.avg - a.avg),
+    markers: sorted,
     strength,
     gap: ranked.length >= 2 ? gap : null, // don't call something a gap when there's only one comparable marker
     trajectory: built.map((b) => b.overall),

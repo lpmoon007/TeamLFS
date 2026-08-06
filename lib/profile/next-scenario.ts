@@ -63,9 +63,9 @@ function targetMarkers(fp: Fingerprint, ledger: Ledger | null): string[] {
     if (k && !keys.includes(k)) keys.push(k);
   }
   if (keys.length) return keys;
-  // fallback: the two lowest exercised markers (works from a single run, framed as "so far")
+  // fallback: the two lowest markers with a real reading (insufficient/ceiling markers excluded)
   return (fp.markers ?? [])
-    .filter((m) => m.n >= 1)
+    .filter((m) => m.n >= 1 && !m.insufficient)
     .sort((a, b) => a.avg - b.avg)
     .slice(0, 2)
     .map((m) => m.key);

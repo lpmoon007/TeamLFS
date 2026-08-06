@@ -62,7 +62,7 @@ function LedgerCard({ c }: { c: LedgerClaim }) {
 // the navy gap card — the single most important thing to work on, promoted out of a list.
 function GapCard({ fp, transfer, nextTitle }: { fp: Fingerprint; transfer: Ledger['transfer']; nextTitle: string | null }) {
   const gap = fp.gap;
-  const lowest = [...fp.markers].filter((m) => m.n >= 1).sort((a, b) => a.avg - b.avg)[0] ?? null;
+  const lowest = [...fp.markers].filter((m) => m.n >= 1 && !m.insufficient).sort((a, b) => a.avg - b.avg)[0] ?? null;
   const label = gap?.label ?? lowest?.label ?? null;
   const score = gap?.avg ?? lowest?.avg ?? null;
   if (!label) return null;
@@ -98,12 +98,13 @@ function NumberKey() {
 // specific ambiguity, and what the next run resolves. Deterministic from the markers.
 function unknowns(fp: Fingerprint): string[] {
   const items: string[] = [];
-  const exercised = [...fp.markers].filter((m) => m.n >= 1).sort((a, b) => a.avg - b.avg);
-  const low = exercised[0];
+  const real = [...fp.markers].filter((m) => m.n >= 1 && !m.insufficient).sort((a, b) => a.avg - b.avg);
+  const low = real[0];
   const cond = fp.conditions.length ? fp.conditions.join(' / ') : 'one team disposition';
   if (low) items.push(`Your ${low.label.toLowerCase()} came in at ${low.avg}. I can’t yet tell whether that’s who you are or how this team was configured — you’ve played under ${cond} only, with no run under a different disposition to compare. That distinction is the difference between a habit and a condition, and it needs a second run.`);
-  const high = exercised[exercised.length - 1];
-  if (high && high.avg >= 90 && high.key !== low?.key) items.push(`Your ${high.label.toLowerCase()} held at ${high.avg} across the run. On one run that’s an observation, not a strength — it hasn’t been tested against a team that pushes back with new facts rather than pressure.`);
+  // a ceiling on one run is an observation, not a strength — name it as an open question
+  const ceiling = fp.markers.find((m) => m.insufficient && m.n >= 1 && m.avg >= 90);
+  if (ceiling) items.push(`Your ${ceiling.label.toLowerCase()} came in at the top of the scale on a single run. That’s an observation, not a strength — it hasn’t been tested against a team that pushes back with new facts rather than pressure, so there’s no telling yet whether it holds.`);
   if (fp.runs < 2) items.push(`Your trait posture is empty. Traits are what survive across different situations, and so far you’ve been in one.`);
   return items.slice(0, 4);
 }
@@ -227,20 +228,30 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
         <PfAccordion title="Your fingerprint — six universal behaviours" sub="six markers">
           <div className="pf-markers">
             {fp.markers.map((m) => (
-              <div className="pf-marker" key={m.key}>
+              <div className={`pf-marker${m.insufficient ? ' insufficient' : ''}`} key={m.key}>
                 <div className="pf-marker-top">
                   <span className="pf-marker-label">{m.label}</span>
-                  <span className="pf-marker-score">
-                    {m.avg}<span className="pf-marker-max">/100</span>
-                    {m.trend !== null && m.trend !== 0 ? <span className={`pf-trend ${m.trend > 0 ? 'up' : 'dn'}`}>{m.trend > 0 ? `▲${m.trend}` : `▼${Math.abs(m.trend)}`}</span> : null}
-                  </span>
+                  {m.insufficient ? (
+                    <span className="pf-marker-insuf">insufficient evidence</span>
+                  ) : (
+                    <span className="pf-marker-score">
+                      {m.avg}<span className="pf-marker-max">/100</span>
+                      {m.trend !== null && m.trend !== 0 ? <span className={`pf-trend ${m.trend > 0 ? 'up' : 'dn'}`}>{m.trend > 0 ? `▲${m.trend}` : `▼${Math.abs(m.trend)}`}</span> : null}
+                    </span>
+                  )}
                 </div>
-                <div className="pf-bar"><div className="pf-fill" style={{ width: `${m.avg}%` }} /></div>
+                <div className="pf-bar"><div className="pf-fill" style={{ width: m.insufficient ? '0%' : `${m.avg}%` }} /></div>
                 <div className="pf-marker-meta">
-                  <span className={`pf-conf ${m.confidence}`}>{CONF[m.confidence]}</span>
-                  <span>·</span>
-                  <span>{m.n} run{m.n === 1 ? '' : 's'}</span>
-                  {m.conditions.length ? <><span>·</span><span>{m.conditions.join(', ')}</span></> : null}
+                  {m.insufficient ? (
+                    <span>{m.n >= 1 ? 'too few scoreable moments on a single run to state a rate' : 'not exercised in these runs yet'}</span>
+                  ) : (
+                    <>
+                      <span className={`pf-conf ${m.confidence}`}>{CONF[m.confidence]}</span>
+                      <span>·</span>
+                      <span>{m.n} run{m.n === 1 ? '' : 's'}</span>
+                      {m.conditions.length ? <><span>·</span><span>{m.conditions.join(', ')}</span></> : null}
+                    </>
+                  )}
                 </div>
               </div>
             ))}
