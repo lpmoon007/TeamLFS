@@ -44,11 +44,14 @@ export function ContestableClaim({ c }: { c: LedgerClaim }) {
       ) : null}
       <div className="pf-claim-foot">
         <span className="pf-claim-meta">Made run {c.madeAtRun}{c.gradedAtRun ? ` · graded run ${c.gradedAtRun}` : ''}</span>
-        {c.contested ? (
-          <button className="pf-contest-btn withdraw" disabled={busy} onClick={withdraw}>Withdraw contest</button>
-        ) : (
-          <button className="pf-contest-btn" disabled={busy} onClick={() => setOpen((o) => !o)}>This doesn’t fit me</button>
-        )}
+        <span className="pf-claim-acts">
+          <button className="pf-contest-btn ask" onClick={() => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('lfs:coach-ask', { detail: `Where did the finding "${c.text}" come from, and how much should I trust it?` })); }}>Ask the coach →</button>
+          {c.contested ? (
+            <button className="pf-contest-btn withdraw" disabled={busy} onClick={withdraw}>Withdraw contest</button>
+          ) : (
+            <button className="pf-contest-btn" disabled={busy} onClick={() => setOpen((o) => !o)}>This doesn’t fit me</button>
+          )}
+        </span>
       </div>
       {open && !c.contested ? (
         <div className="pf-contest-box">

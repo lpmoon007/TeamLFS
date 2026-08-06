@@ -536,6 +536,49 @@ button { font-family: inherit; cursor: pointer; }
 .pf-contest-box textarea { width: 100%; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 11px; font: inherit; font-size: 12.5px; line-height: 1.5; color: var(--text); background: var(--bg); resize: vertical; min-height: 50px; }
 .pf-contest-box textarea:focus { outline: none; border-color: var(--warn); }
 .pf-contest-row { display: flex; gap: 9px; align-items: center; margin-top: 10px; }
+.pf-claim-acts { display: inline-flex; align-items: center; gap: 14px; }
+.pf-contest-btn.ask { color: var(--accent); }
+.pf-contest-btn.ask:hover { color: var(--accent); text-decoration: underline; }
+/* two-column profile layout (Run-04) */
+.pf-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start; max-width: 1180px; }
+.pf-main { min-width: 0; }
+.pf-rail { position: sticky; top: 20px; }
+.pf-rail .pf-sec { margin-top: 0; }
+@media (max-width: 1080px) { .pf-grid { grid-template-columns: 1fr; } .pf-rail { position: static; } }
+/* privacy bar + onion */
+.pf-priv { display: flex; gap: 11px; align-items: flex-start; margin-top: 16px; background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 12px 15px; font-size: 12px; line-height: 1.6; color: var(--text-dim); }
+.pf-priv b { color: var(--text); font-weight: 600; }
+.pf-priv-lock { flex: 0 0 auto; }
+.pf-onion { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 12px; font-size: 11px; color: var(--text-faint); }
+.pf-onion-t { color: var(--text-dim); font-weight: 600; }
+.pf-ostep { border: 1px solid var(--line-soft); border-radius: 999px; padding: 3px 10px; }
+.pf-ostep.on { border-color: var(--accent-dim); color: var(--accent); }
+.pf-oarr { color: var(--text-faint); }
+/* navy gap card */
+.pf-gapcard { background: var(--navy, #141a22); color: #fff; border-radius: var(--radius); padding: 20px 22px; margin-top: 18px; }
+.pf-gap-l { font-size: 10px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: #7E94AC; }
+.pf-gap-t { font-size: 20px; font-weight: 700; letter-spacing: -.01em; margin: 9px 0 10px; }
+.pf-gap-n { color: #9DB6D4; font-weight: 600; }
+.pf-gap-b { font-size: 13.5px; line-height: 1.62; color: #C6D1DD; margin: 0; max-width: 72ch; }
+.pf-gap-b b { color: #fff; font-weight: 600; }
+.pf-gap-then { font-size: 12px; color: #8FA2B6; border-top: 1px solid rgba(255,255,255,.12); padding-top: 12px; margin-top: 14px; line-height: 1.55; }
+.pf-gap-then b { color: #C6D1DD; font-weight: 600; }
+.pf-gap-cta { display: inline-block; margin-top: 13px; font-size: 12.5px; font-weight: 600; color: #7FC0FF; text-decoration: none; }
+.pf-gap-cta:hover { text-decoration: underline; }
+/* rich claim ledger */
+.pf-ldg { display: flex; flex-direction: column; gap: 10px; }
+.pf-lg { border: 1px solid var(--line-soft); border-radius: var(--radius); overflow: hidden; }
+.pf-lg-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 13px 15px; }
+.pf-lg-q { font-size: 13.5px; font-weight: 600; color: var(--text); line-height: 1.45; }
+.pf-lg-st { flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 2px 9px; border: 1px solid var(--line); color: var(--text-dim); }
+.pf-lg-st.held { color: var(--online); border-color: rgba(52,211,153,.4); }
+.pf-lg-st.sharpened { color: var(--warn); border-color: rgba(245,158,11,.4); }
+.pf-lg-st.overturned { color: var(--danger); border-color: rgba(248,113,113,.4); }
+.pf-lg-b { border-top: 1px solid var(--line-soft); padding: 12px 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--bg-elev); }
+.pf-lg-f { font-size: 12px; line-height: 1.5; color: var(--text-dim); }
+.pf-lg-f.res { color: var(--text); }
+.pf-lg-fk { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 5px; }
+@media (max-width: 560px) { .pf-lg-b { grid-template-columns: 1fr; } }
 .pf-gen { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 .pf-gen-note { font-size: 12px; color: var(--text-faint); }
 /* 30-day reps — the active-challenge loop */

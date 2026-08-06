@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { askLeaderCoach, commitFromCoach, type CoachTurn, type CoachCard } from '@/lib/coach-actions';
 import { DictateButton } from '@/components/DictateButton';
@@ -41,6 +41,19 @@ export function LeaderCoach({ subjectId, readOnly = false }: { subjectId?: strin
 
   const scroll = (smooth = false) => setTimeout(() => logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: smooth ? 'smooth' : 'auto' }), 0);
 
+  // "Ask the coach about this finding" — a finding card dispatches a question; pick it up here
+  // (skip in the read-only admin view). askRef keeps the listener bound to the latest ask().
+  const askRef = useRef<(t: string) => void>(() => {});
+  useEffect(() => {
+    if (readOnly) return;
+    const h = (e: Event) => {
+      const q = (e as CustomEvent).detail as string;
+      if (q) { logRef.current?.closest('section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); askRef.current(q); }
+    };
+    window.addEventListener('lfs:coach-ask', h);
+    return () => window.removeEventListener('lfs:coach-ask', h);
+  }, [readOnly]);
+
   const ask = async (text: string) => {
     const qq = text.trim();
     if (!qq || busy) return;
@@ -65,6 +78,7 @@ export function LeaderCoach({ subjectId, readOnly = false }: { subjectId?: strin
       scroll(true);
     }
   };
+  askRef.current = ask;
 
   const commit = async (card: CoachCard, k: string) => {
     if (committed[k]) return;
