@@ -59,6 +59,18 @@ export function cronSecret(): string {
   return process.env.CRON_SECRET ?? '';
 }
 
+/** Server-only shared secret verifying inbound 30-Day Challenge completion
+ *  callbacks (POST /api/challenge/webhook). Must match TEAMLFS_WEBHOOK_SECRET on
+ *  the challenge app. Empty when unset — the webhook route then returns 503. */
+export function challengeWebhookSecret(): string {
+  return process.env.CHALLENGE_WEBHOOK_SECRET ?? '';
+}
+
+/** Base URL of Be Legendary's "Your 30-Day Challenge" enrollment app, used to
+ *  build the debrief hand-off deep link. Override per environment if needed. */
+export const CHALLENGE_URL =
+  process.env.NEXT_PUBLIC_CHALLENGE_URL ?? 'https://challenge.belegendary.org';
+
 export function assertPublicEnv(): void {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error(

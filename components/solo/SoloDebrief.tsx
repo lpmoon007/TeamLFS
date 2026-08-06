@@ -1,5 +1,6 @@
 import type { SoloDebrief } from '@/lib/solo-debrief';
 import { DirectorChat } from '@/components/solo/DirectorChat';
+import { buildChallengeLink, commitmentFromWeakestRead } from '@/lib/challenge-link';
 
 // Solo game-film debrief — re-skinned to the prototype debrief layer (soloengine.css:
 // .result / .res-top / .dim / .tl / .coach / .ending / .cf / .vh). Authored prose carries
@@ -10,6 +11,14 @@ function Prose({ html, className }: { html: string; className?: string }) {
 }
 
 export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }) {
+  // Hand-off into the 30-Day Challenge: the commitment defaults to the weakest
+  // coaching read (coaching is ordered lowest-first), and `ref` is this run's id
+  // so the challenge app can round-trip the results back to us in 30 days.
+  const challengeCommitment = commitmentFromWeakestRead(d.coaching[0]?.label);
+  const challengeHref = buildChallengeLink({
+    commitment: challengeCommitment,
+    ref: d.sessionId,
+  });
   return (
     <div className="result">
       <div className={`res-top ${d.survived ? 'survive' : 'fail'}`}>
@@ -121,6 +130,25 @@ export function SoloDebriefView({ d, token }: { d: SoloDebrief; token?: string }
             </ol>
           </div>
         ))}
+
+        <div className="res-h">Take it into the next 30 days</div>
+        <div className="cta30">
+          <div className="cta30-eyebrow">Your 30-Day Challenge · Be Legendary</div>
+          <h3>A read doesn&apos;t change in a debrief. It changes in reps.</h3>
+          <p>
+            The move above is the one worth practicing when it isn&apos;t a
+            crisis. Carry it into a 30-day challenge: one small rep a day, a
+            text to check in, and a coach watching the streak.
+          </p>
+          <span className="rep">{challengeCommitment}</span>
+          <a className="go" href={challengeHref}>
+            Start my 30-day challenge →
+          </a>
+          <span className="fine">
+            Opens the enrollment page with this rep pre-filled — you can reword
+            it there. Your results feed back into your leadership picture here.
+          </span>
+        </div>
 
         <div className="res-h">Villain or hero?</div>
         <div className="vh">

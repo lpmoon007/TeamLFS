@@ -1,5 +1,5 @@
 import 'server-only';
-import { facilitatorSecret, cronSecret } from '@/lib/env';
+import { facilitatorSecret, cronSecret, challengeWebhookSecret } from '@/lib/env';
 
 // Length-guarded constant-time-ish compare.
 function safeEqual(provided: string, expected: string): boolean {
@@ -40,4 +40,14 @@ export function isCron(req: Request): boolean {
   } catch {
     return false;
   }
+}
+
+// Guard for the 30-Day Challenge completion callback. The challenge app sends the
+// shared secret in the `X-Webhook-Secret` header (not a Bearer token). Returns
+// false when CHALLENGE_WEBHOOK_SECRET is unset, so an unconfigured deploy rejects
+// rather than silently trusting every caller.
+export function isChallengeWebhook(req: Request): boolean {
+  const provided = req.headers.get('x-webhook-secret');
+  if (!provided) return false;
+  return safeEqual(provided.trim(), challengeWebhookSecret());
 }
