@@ -8,6 +8,9 @@ import { ContestableClaim } from '@/components/ContestableClaim';
 import { CheckBackPanel } from '@/components/CheckBackPanel';
 import { NextScenario } from '@/components/NextScenario';
 import { LeaderCoach } from '@/components/LeaderCoach';
+import { RepSection } from '@/components/RepSection';
+import { repOptionsFor } from '@/lib/rep-options';
+import type { RepRow } from '@/lib/rep';
 
 const STATUS_LABEL: Record<string, string> = {
   open: 'open', held: 'held', sharpened: 'sharpened', overturned: 'overturned', withdrawn: 'withdrawn', untested: 'untested',
@@ -149,7 +152,7 @@ function UnlockTable({ runs }: { runs: number }) {
   );
 }
 
-export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = null, preview = false, previewSubjectId }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; decisions?: DecisionRow[]; nextScenario?: Nudge | null; preview?: boolean; previewSubjectId?: string }) {
+export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = null, preview = false, previewSubjectId, repCommitted = null }: { fp: Fingerprint | null; ledger: Ledger | null; name: string; decisions?: DecisionRow[]; nextScenario?: Nudge | null; preview?: boolean; previewSubjectId?: string; repCommitted?: RepRow | null }) {
   if (!fp) {
     return (
       <div className="pf">
@@ -161,6 +164,13 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
       </div>
     );
   }
+
+  // the rep targets the UNSOLVED half of the gap — the weakest marker with a real reading,
+  // never one at ceiling (those are excluded as insufficient). Fall back to A1 if none is scored.
+  const realMarkers = fp.markers.filter((m) => m.n >= 1 && !m.insufficient);
+  const repTarget = realMarkers.length ? realMarkers[realMarkers.length - 1].key : 'A1';
+  const repOptions = repOptionsFor(repTarget);
+  const repClaimId = ledger?.open.find((c) => c.marker === repTarget)?.id ?? null;
 
   return (
     <div className="pf pf-grid">
@@ -259,6 +269,8 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
         ) : null}
 
         {preview ? null : <NextScenario nudge={nextScenario} />}
+
+        <RepSection options={repOptions} targetMarker={repTarget} sourceClaimId={repClaimId} committed={repCommitted} readOnly={preview} />
 
         {ledger?.transfer ? (
           <PfAccordion title="Monday — how this shows up at work" sub="workplace transfer">

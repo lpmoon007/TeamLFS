@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { ScenarioLibItem } from '@/lib/facilitator-actions';
+import { summaryHtml } from '@/lib/summary-html';
 
 // Scenario Library grid with a realism filter (all / realistic / abstract). Client-side so
 // the filter is instant; the data is fetched server-side and passed in.
@@ -24,7 +25,7 @@ export function ScenarioLibraryView({ scenarios }: { scenarios: ScenarioLibItem[
         <strong>{s.title}</strong>
         <span className={`cast-badge ${s.mode === 'solo' ? 'ai' : 'human'}`}>{s.mode}</span>
       </div>
-      {s.summary ? <div className="lib-card-sub" dangerouslySetInnerHTML={{ __html: s.summary }} /> : null}
+      {s.summary ? <div className="lib-card-sub" dangerouslySetInnerHTML={{ __html: summaryHtml(s.summary) }} /> : null}
       <div className="lib-card-meta">
         <span className={`realism-tag ${s.realism}`}>{s.realism}</span>
         <span>·</span>

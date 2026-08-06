@@ -227,6 +227,49 @@
 .pf-unlock-no{color:#C8CED6}
 .pf-unlock-note{font-size:11.5px;line-height:1.6;color:var(--pf-soft);padding:13px 18px;border-top:1px solid var(--pf-line)}
 
+/* ---------- 30-day rep (the prescription; delivery lives at the challenge) ---------- */
+.pf-rep{scroll-margin-top:80px}
+.pf-rep-lead{font-size:14.5px;line-height:1.7;color:var(--pf-muted);margin:0 0 16px;max-width:80ch;text-wrap:pretty}
+.pf-rep-lead b{color:var(--pf-ink);font-weight:600}
+.pf-rep-opts{display:flex;flex-direction:column;gap:11px}
+.pf-rep-opt{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--pf-line);border-radius:12px;padding:15px 17px;cursor:pointer;background:var(--pf-surface);transition:border-color .15s,background .15s}
+.pf-rep-opt:hover{border-color:var(--pf-tint-edge)}
+.pf-rep-opt.on{border-color:var(--pf-steel);background:var(--pf-tint)}
+.pf-rep-opt input{margin-top:3px;accent-color:var(--pf-steel);flex:none}
+.pf-rep-opt-body{display:flex;flex-direction:column;gap:6px;min-width:0}
+.pf-rep-opt-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.pf-rep-opt-text{font-size:14.5px;font-weight:500;line-height:1.5;text-wrap:pretty}
+.pf-rep-diff{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-radius:5px;padding:4px 7px;flex:none;white-space:nowrap;background:#F0F1F4;color:var(--pf-muted)}
+.pf-rep-diff.stretch{background:var(--pf-tint);color:var(--pf-steel-deep)}
+.pf-rep-diff.hard{background:var(--pf-warn-bg);color:var(--pf-warn)}
+.pf-rep-opt-targets{font-size:12px;line-height:1.55;color:var(--pf-muted)}
+.pf-rep-obstacle{margin-top:16px;background:var(--pf-tint);border:1px solid var(--pf-tint-edge);border-radius:12px;padding:16px 18px}
+.pf-rep-obs-q{font-size:14px;font-weight:600;color:var(--pf-navy)}
+.pf-rep-obs-s{font-size:12.5px;line-height:1.6;color:var(--pf-muted);margin:6px 0 11px;text-wrap:pretty}
+.pf-rep-obstacle textarea{width:100%;border:1px solid var(--pf-tint-edge);border-radius:9px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.55;background:var(--pf-surface);color:var(--pf-ink);resize:vertical}
+.pf-rep-obstacle textarea:focus{outline:0;border-color:var(--pf-steel)}
+.pf-rep-commit-row{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-top:12px}
+.pf-rep-commit-note{font-size:11.5px;color:var(--pf-soft)}
+.pf-rep-committed{background:var(--pf-surface);border:1px solid var(--pf-line);border-radius:13px;padding:19px 21px}
+.pf-rep.committed .pf-rep-committed{border-color:#CBE4D5;background:var(--pf-good-bg)}
+.pf-rep-k{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--pf-good)}
+.pf-rep-text{font-size:16px;font-weight:600;line-height:1.45;margin:9px 0 0;text-wrap:pretty}
+.pf-rep-obs{font-size:13px;line-height:1.6;color:var(--pf-muted);margin:11px 0 0}
+.pf-rep-obs b,.pf-rep-outcome b{color:var(--pf-ink);font-weight:600}
+.pf-rep-sub,.pf-rep-outcome{font-size:13px;line-height:1.65;color:var(--pf-muted);margin:11px 0 0;max-width:76ch;text-wrap:pretty}
+.pf-rep-row{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:15px}
+.pf-rep-cta{display:inline-block;margin-top:15px;background:var(--pf-steel);color:#fff;border-radius:9px;padding:11px 18px;font-size:13px;font-weight:600;text-decoration:none}
+.pf-rep-row .pf-rep-cta{margin-top:0}
+.pf-rep-cta:hover{background:#2470BC;color:#fff}
+.pf-rep-copy{font-size:12.5px;font-weight:500;font-family:inherit;border-radius:9px;padding:11px 15px;cursor:pointer;border:1px solid var(--pf-line);background:transparent;color:var(--pf-muted)}
+.pf-rep-copy:hover{border-color:var(--pf-tint-edge);color:var(--pf-steel-deep)}
+
+/* header CTA — steel fill, state-aware */
+.rep-cta{background:var(--pf-steel,#185FA5);color:#fff;border-color:transparent}
+.rep-cta:hover{background:#2470BC;color:#fff}
+.rep-cta.live{background:var(--pf-good,#2F8A5B)}
+.rep-cta.done{background:var(--pf-gold,#8A6D2F)}
+
 /* ---------- misc ---------- */
 .pf-empty{font-size:13.5px;line-height:1.68;color:var(--pf-muted);margin:0;max-width:74ch;text-wrap:pretty}
 .pf-spark{display:block}

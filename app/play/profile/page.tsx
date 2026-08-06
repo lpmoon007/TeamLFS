@@ -10,6 +10,7 @@ import { listDecisions } from '@/lib/preflight-actions';
 import { buildNextScenarioForSubject } from '@/lib/profile/next-scenario';
 import { listPeople } from '@/lib/facilitator-actions';
 import { ProfileView } from '@/components/ProfileView';
+import { getRepState, repDay, type RepRow } from '@/lib/rep';
 
 // The participant's own Leadership Profile — private to them (and their coach), resolved by
 // email. Admins/master can also PREVIEW any subject's profile read-only with ?as=<subjectId|
@@ -40,6 +41,15 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const [fp, ledger] = subjectId ? await Promise.all([buildFingerprint(subjectId), getLedger(subjectId)]) : [null, null];
   const decisions = subjectId && !preview ? await listDecisions() : null; // decisions are self-scoped; read-only in preview
   const nextScenario = subjectId ? await buildNextScenarioForSubject(subjectId) : null;
+  const repState: RepRow | null = subjectId ? await getRepState(subjectId) : null;
+
+  // state-aware 30-day-rep CTA: none → prompt; committed → day N of 30; complete → kept X/30
+  const showRepCta = !!subjectId && !preview && !!fp;
+  const repCta = !repState
+    ? { label: 'Your 30-day rep', cls: '' }
+    : repState.outcome
+      ? { label: `Rep complete · kept ${repState.daysLogged ?? 0}/30`, cls: 'done' }
+      : { label: `Rep committed · day ${repDay(repState.committedAt, new Date())} of 30`, cls: 'live' };
 
   // master/admin with no profile of their own and no preview target → offer a picker
   const showPicker = !subjectId && admin;
@@ -51,6 +61,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         <div className="wm">Leadership Failure <span>Simulations</span></div>
         <div className="play-head-r">
           <Link className="btn" href="/play">← Play</Link>
+          {showRepCta ? <a className={`btn rep-cta ${repCta.cls}`} href="#rep">{repCta.label}</a> : null}
           <Link className="btn brief" href="/play/preflight">Before You Decide →</Link>
           <span className="play-who">{me.displayName || me.email}</span>
           <ThemeToggle />
@@ -82,7 +93,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             ) : <p className="pf-empty">No one has completed a run yet.</p>}
           </div>
         ) : (
-          <ProfileView fp={fp} ledger={ledger} name={displayName.split(' ')[0]} decisions={decisions ?? []} nextScenario={nextScenario} preview={preview} previewSubjectId={preview ? subjectId ?? undefined : undefined} />
+          <ProfileView fp={fp} ledger={ledger} name={displayName.split(' ')[0]} decisions={decisions ?? []} nextScenario={nextScenario} preview={preview} previewSubjectId={preview ? subjectId ?? undefined : undefined} repCommitted={repState} />
         )}
       </div>
     </div>
