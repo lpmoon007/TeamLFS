@@ -4,6 +4,7 @@ import type { DecisionRow } from '@/lib/preflight-actions';
 import type { NextScenario as Nudge } from '@/lib/profile/next-scenario';
 import { GenerateFindings } from '@/components/GenerateFindings';
 import { PfAccordion } from '@/components/PfAccordion';
+import { ContestableClaim } from '@/components/ContestableClaim';
 import { CheckBackPanel } from '@/components/CheckBackPanel';
 import { NextScenario } from '@/components/NextScenario';
 import { LeaderCoach } from '@/components/LeaderCoach';
@@ -83,7 +84,7 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
         {ledger?.narrative ? <p className="pf-narr">{ledger.narrative}</p> : null}
         {ledger && ledger.open.length ? (
           <div className="pf-claims">
-            {ledger.open.map((c) => <Claim key={c.id} c={c} />)}
+            {ledger.open.map((c) => <ContestableClaim key={c.id} c={c} />)}
           </div>
         ) : (
           <p className="pf-empty">No findings yet — generate them from your record. A finding that cannot be overturned isn’t a finding, so each one comes with the exact observation that would prove it wrong.</p>

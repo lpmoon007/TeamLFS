@@ -520,6 +520,22 @@ button { font-family: inherit; cursor: pointer; }
 .pf-claim-fals { font-size: 12.5px; line-height: 1.5; color: var(--text-dim); margin-top: 7px; }
 .pf-claim-fk { font-weight: 700; color: var(--text-faint); text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.05em; }
 .pf-claim-meta { font-size: 11px; color: var(--text-faint); margin-top: 7px; font-variant-numeric: tabular-nums; }
+.pf-claim-foot .pf-claim-meta { margin-top: 0; }
+/* contest-a-finding */
+.pf-claim.contested { border-left-color: var(--warn); }
+.pf-claim-status.contested { color: var(--warn); border-color: rgba(245,158,11,0.4); }
+.pf-claim-status.contested::before { background: var(--warn); }
+.pf-claim-contest { font-size: 12px; line-height: 1.5; color: var(--warn); margin-top: 8px; background: rgba(245,158,11,0.08); border-radius: var(--radius-sm); padding: 8px 11px; }
+.pf-claim-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.pf-contest-btn { flex: 0 0 auto; background: none; border: none; font-size: 11.5px; color: var(--text-faint); cursor: pointer; padding: 0; }
+.pf-contest-btn:hover { color: var(--warn); }
+.pf-contest-btn.withdraw:hover { color: var(--text-dim); }
+.pf-contest-box { margin-top: 12px; background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--radius-sm); padding: 13px 14px; }
+.pf-contest-l { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--warn); margin-bottom: 6px; }
+.pf-contest-s { font-size: 11.5px; line-height: 1.5; color: var(--text-dim); margin: 0 0 9px; }
+.pf-contest-box textarea { width: 100%; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); padding: 9px 11px; font: inherit; font-size: 12.5px; line-height: 1.5; color: var(--text); background: var(--bg); resize: vertical; min-height: 50px; }
+.pf-contest-box textarea:focus { outline: none; border-color: var(--warn); }
+.pf-contest-row { display: flex; gap: 9px; align-items: center; margin-top: 10px; }
 .pf-gen { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 .pf-gen-note { font-size: 12px; color: var(--text-faint); }
 /* 30-day reps — the active-challenge loop */

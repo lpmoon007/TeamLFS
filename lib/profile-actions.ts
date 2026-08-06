@@ -22,3 +22,24 @@ export async function generateForSubject(subjectId: string): Promise<{ ok: boole
   if (!(await isAdmin())) return { ok: false, reason: 'forbidden' };
   return generateProfile(subjectId);
 }
+
+/** Contest one of your own findings (Screen-14 §3). Persists the challenge so the next run tests
+ *  it first and the coach argues the evidence rather than restating the claim. Toggle off with a
+ *  null note. Only the leader can contest their own claim. */
+export async function contestFinding(params: { claimId: string; note?: string | null }): Promise<{ ok: boolean; reason?: string }> {
+  const me = await currentFacilitator();
+  if (!me || me.isMaster || !/@/.test(me.email)) return { ok: false, reason: 'not_signed_in' };
+  const db = createAdminClient();
+  const { data: subject } = await db.from('subjects').select('id').eq('handle', me.email.toLowerCase()).maybeSingle<any>();
+  if (!subject) return { ok: false, reason: 'no_profile' };
+  // ownership: the claim must belong to this leader's subject
+  const { data: claim } = await db.from('profile_claims').select('id').eq('id', params.claimId).eq('subject_id', subject.id).maybeSingle<any>();
+  if (!claim) return { ok: false, reason: 'not_found' };
+  const clearing = params.note === null;
+  const { error } = await db.from('profile_claims').update({
+    contested_at: clearing ? null : new Date().toISOString(),
+    contest_note: clearing ? null : (params.note?.trim() || null),
+  }).eq('id', params.claimId).eq('subject_id', subject.id);
+  if (error) return { ok: false, reason: error.message };
+  return { ok: true };
+}

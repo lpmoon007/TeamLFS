@@ -13,12 +13,13 @@ const STATUS_LABEL: Record<string, string> = { open: 'open', held: 'held', sharp
 
 function Claim({ c }: { c: LedgerClaim }) {
   return (
-    <div className={`pf-claim ${c.status}`}>
+    <div className={`pf-claim ${c.status}${c.contested ? ' contested' : ''}`}>
       <div className="pf-claim-top">
         <span className="pf-claim-text">{c.text}</span>
-        <span className={`pf-claim-status ${c.status}`}>{STATUS_LABEL[c.status] ?? c.status}</span>
+        {c.contested ? <span className="pf-claim-status contested">contested</span> : <span className={`pf-claim-status ${c.status}`}>{STATUS_LABEL[c.status] ?? c.status}</span>}
       </div>
       <div className="pf-claim-fals"><span className="pf-claim-fk">Overturned if:</span> {c.falsifier}</div>
+      {c.contested && c.contestNote ? <div className="pf-claim-contest">They contest this: “{c.contestNote}” — the next run tests it first.</div> : null}
       <div className="pf-claim-meta">Made run {c.madeAtRun}{c.gradedAtRun ? ` · graded run ${c.gradedAtRun}` : ''}{c.superseded ? ' · superseded' : ''}</div>
     </div>
   );

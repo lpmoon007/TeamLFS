@@ -15,6 +15,8 @@ export interface LedgerClaim {
   madeAtRun: number;
   gradedAtRun: number | null;
   superseded: boolean;
+  contested: boolean;        // the leader said this doesn't fit — next run tests it first
+  contestNote: string | null;
 }
 export interface Ledger {
   claims: LedgerClaim[];
@@ -29,7 +31,9 @@ export async function getLedger(subjectId: string): Promise<Ledger> {
   const db = createAdminClient();
   const { data: rows } = await db
     .from('profile_claims')
-    .select('id, text, falsifier, marker, status, made_at_run, graded_at_run, superseded_by')
+    // select('*') so a not-yet-applied column (contested_at/contest_note on a lagging DB) is
+    // simply absent from the row rather than erroring the whole ledger read.
+    .select('*')
     .eq('subject_id', subjectId)
     .order('made_at_run', { ascending: true })
     .order('created_at', { ascending: true });
@@ -43,6 +47,8 @@ export async function getLedger(subjectId: string): Promise<Ledger> {
     madeAtRun: c.made_at_run,
     gradedAtRun: c.graded_at_run ?? null,
     superseded: !!c.superseded_by,
+    contested: !!c.contested_at,
+    contestNote: c.contest_note ?? null,
   }));
 
   const { data: prof } = await db

@@ -20,6 +20,8 @@ export interface ClaimRow {
   made_at_run: number;
   held_count: number;
   conditions_tested: string[];
+  contested?: boolean;
+  contestNote?: string | null;
 }
 export interface EvidencePack {
   record: string; // the grounding source + prompt context
@@ -94,19 +96,21 @@ export async function buildEvidencePack(subjectId: string): Promise<EvidencePack
     .sort((a: any, b: any) => (b.started_at ?? '').localeCompare(a.started_at ?? ''))[0];
   const latestCondition = latest ? CONDITION[latest.run_config?.disposition as string] ?? 'neutral' : null;
 
-  // prior claims (the ledger)
+  // prior claims (the ledger). select('*') so contested_at/contest_note are absent-not-error
+  // on a lagging DB.
   const { data: claimRows } = await db
     .from('profile_claims')
-    .select('id, text, falsifier, marker, status, made_at_run, held_count, conditions_tested')
+    .select('*')
     .eq('subject_id', subjectId)
     .in('status', ['open', 'held', 'sharpened'])
     .order('made_at_run', { ascending: true });
   const claims: ClaimRow[] = (claimRows ?? []).map((c: any) => ({
     id: c.id, text: c.text, falsifier: c.falsifier, marker: c.marker ?? null, status: c.status,
     made_at_run: c.made_at_run, held_count: c.held_count ?? 0, conditions_tested: c.conditions_tested ?? [],
+    contested: !!c.contested_at, contestNote: c.contest_note ?? null,
   }));
   const claimBlock = claims.length
-    ? claims.map((c, i) => `C${i + 1} [${c.id}] "${strip(c.text)}" — falsifier: ${strip(c.falsifier)} — status ${c.status}, tested under ${c.conditions_tested.join('/') || 'no conditions yet'}`).join('\n')
+    ? claims.map((c, i) => `C${i + 1} [${c.id}] "${strip(c.text)}" — falsifier: ${strip(c.falsifier)} — status ${c.status}${c.contested ? ` — CONTESTED by the leader: "${strip(c.contestNote ?? 'no reason given')}" — the next run must test THIS first, and you must argue the evidence rather than restate the claim` : ''}, tested under ${c.conditions_tested.join('/') || 'no conditions yet'}`).join('\n')
     : '(no prior claims — this is the first profile)';
 
   // completed 30-day reps (for audit rule 1: no invariant claim without a failed targeted rep)
