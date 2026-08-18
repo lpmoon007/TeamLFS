@@ -9,6 +9,7 @@ import { CheckBackPanel } from '@/components/CheckBackPanel';
 import { NextScenario } from '@/components/NextScenario';
 import { LeaderCoach } from '@/components/LeaderCoach';
 import { RepSection } from '@/components/RepSection';
+import { Sailboat, type BoatPart } from '@/components/Sailboat';
 import { repOptionsFor } from '@/lib/rep-options';
 import type { RepRow } from '@/lib/rep';
 
@@ -172,6 +173,14 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
   const repOptions = repOptionsFor(repTarget);
   const repClaimId = ledger?.open.find((c) => c.marker === repTarget)?.id ?? null;
 
+  // the six Tier-A markers as boat parts — fill is the rate, insufficient markers draw as a
+  // hatched, unfilled sail (the sailboat is the profile's face, bound to live data).
+  const boat: Record<string, BoatPart> = Object.fromEntries(
+    fp.markers
+      .filter((m) => m.key.startsWith('A'))
+      .map((m) => [m.key, { key: m.key, name: m.label, value: m.insufficient ? null : m.avg, trend: m.trend, insufficient: !!m.insufficient } as BoatPart]),
+  );
+
   return (
     <div className="pf pf-grid">
       <div className="pf-main">
@@ -195,6 +204,8 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
           <span className="pf-ostep">Contest it</span><span className="pf-oarr">→</span>
           <span className="pf-ostep">Take it to the coach</span>
         </div>
+
+        <Sailboat parts={boat} />
 
         <PfAccordion
           title="Findings — each one is a claim your next run can overturn"

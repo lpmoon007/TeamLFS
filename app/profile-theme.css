@@ -276,3 +276,28 @@
 .pf-preview-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--pf-gold-bg);border:1px solid #E8DCC0;border-radius:10px;padding:11px 15px;font-size:12.5px;color:var(--pf-gold);margin-bottom:18px}
 .pf-claim-text,.pf-lg-q,.pf-gap-t,.pf-h1{text-wrap:pretty}
 .pf :focus-visible{outline:2px solid var(--pf-steel);outline-offset:2px;border-radius:4px}
+
+/* ============================================================================
+   SAILBOAT HERO — the fingerprint as a rigging diagram. Self-contained dark
+   instrument panel (holds on any page theme); numerals in JetBrains Mono.
+   ============================================================================ */
+.sb{margin:20px 0 4px; background:linear-gradient(180deg,#0d1c30,#0a1626); border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:10px 10px 4px; overflow:hidden}
+.sb-bar{display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:6px 8px 0}
+.sb-seg-l{font-size:9.5px; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:#59677A}
+.sb-seg{display:inline-flex; border:1px solid rgba(255,255,255,.12); border-radius:8px; overflow:hidden}
+.sb-seg button{font:inherit; font-size:11.5px; font-weight:600; padding:5px 12px; border:0; cursor:pointer; background:transparent; color:#9DB0C4}
+.sb-seg button[aria-pressed="true"]{background:rgba(46,107,176,.22); color:#E8EDF2}
+.sb-stage{width:100%; display:block}
+.sb-stage text{font-family:'Inter',system-ui,-apple-system,sans-serif}
+.sb-n{font-family:'JetBrains Mono',ui-monospace,monospace; font-weight:600; fill:#E8EDF2}
+.sb-name{font-size:14px; font-weight:600; fill:#E8EDF2}
+.sb-sub{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; letter-spacing:.08em; fill:#7C97B8}
+.sb-name.sb-leak,.sb-sub.sb-leak{fill:#E08A5E}
+.sb-part{cursor:pointer; transition:opacity .15s}
+.sb-part.sb-dim{opacity:.4}
+.sb-part:focus{outline:none}
+.sb-part:focus-visible{outline:2px solid #2E6BB0; outline-offset:2px}
+.sb-legend text{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.09em; fill:#7A8AA0}
+.sb-subcap{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; letter-spacing:.11em; fill:#59677A}
+.sb-foot{fill:#9DB0C4; font-size:12.5px}
+.sb-readout{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:13px; fill:#E8EDF2; letter-spacing:.02em}
