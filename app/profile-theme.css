@@ -318,3 +318,7 @@
 .pf-marker.leak .pf-marker-part{color:#C85A25}
 .pf-marker.leak .pf-marker-score{color:#C85A25}
 .pf-marker.leak .pf-fill{background:#C85A25}
+
+/* ---- gap card = the leak (ties the metaphor); mono the figure ---- */
+.pf-gap-n{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
+.pf-gap-leak{color:#E7A06F;font-weight:600}

@@ -84,7 +84,7 @@ function GapCard({ fp, transfer, nextTitle }: { fp: Fingerprint; transfer: Ledge
   if (!label) return null;
   return (
     <div className="pf-gapcard">
-      <div className="pf-gap-l">{gap ? 'Your gap' : 'Your lowest read so far'}</div>
+      <div className="pf-gap-l">{gap ? 'Your gap' : 'Your lowest read so far'}<span className="pf-gap-leak"> · the leak</span></div>
       <div className="pf-gap-t">{label}{score != null ? <span className="pf-gap-n"> · {score}/100</span> : null}</div>
       {gap ? (
         <p className="pf-gap-b">Across <b>{gap.n} comparable runs</b> this is where your read sits lowest. It’s a gap, not a verdict — it firms up, or gets overturned, the moment a run tests it under a new condition.</p>
