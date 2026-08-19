@@ -322,3 +322,7 @@
 /* ---- gap card = the leak (ties the metaphor); mono the figure ---- */
 .pf-gap-n{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
 .pf-gap-leak{color:#E7A06F;font-weight:600}
+
+/* ---- numeral system: all longitudinal figures share the boat's mono face ---- */
+.pf-run-score{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
+.pf-traj-n{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
