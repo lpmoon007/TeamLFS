@@ -311,3 +311,10 @@
 :root[data-theme="dark"] .sb-name, .dark .sb-name{fill:#E8EDF2}
 :root[data-theme="dark"] .sb-n, .dark .sb-n{fill:#E8EDF2}
 :root[data-theme="dark"] .sb-foot, .dark .sb-foot{fill:#9DB0C4}
+
+/* ---- fingerprint ↔ boat cohesion: mono numerals, boat-part tag, the leak ---- */
+.pf-marker-score{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
+.pf-marker-part{display:inline-block;margin-left:9px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--pf-soft);vertical-align:2px}
+.pf-marker.leak .pf-marker-part{color:#C85A25}
+.pf-marker.leak .pf-marker-score{color:#C85A25}
+.pf-marker.leak .pf-fill{background:#C85A25}

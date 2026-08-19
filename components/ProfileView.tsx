@@ -25,6 +25,8 @@ const MARKER_DESC: Record<string, string> = {
   A5: 'The gap between what you said you’d do and what you did.',
   A6: 'Whether your judgement degrades as the situation does.',
 };
+// boat-part vocabulary — the fingerprint list and the sailboat speak one language
+const PART_WORD: Record<string, string> = { A1: 'Hull', A2: 'Jib', A3: 'Fleet', A4: 'Mainsail', A5: 'Helm', A6: 'Compass' };
 // what the grade means, in plain words — the reference's "what happened" column
 const WHAT_HAPPENED: Record<string, string> = {
   held: 'Tested and not overturned — it survived the falsifier.',
@@ -180,6 +182,8 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
       .filter((m) => m.key.startsWith('A'))
       .map((m) => [m.key, { key: m.key, name: m.label, value: m.insufficient ? null : m.avg, trend: m.trend, insufficient: !!m.insufficient } as BoatPart]),
   );
+  // the leak = the lowest scored marker (same rule the boat uses) — carried into the list
+  const leakKey = [...fp.markers].filter((m) => m.n >= 1 && !m.insufficient).sort((a, b) => a.avg - b.avg)[0]?.key ?? null;
 
   return (
     <div className="pf pf-grid">
@@ -234,9 +238,10 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
         <PfAccordion title="Your fingerprint — six universal behaviours" sub="six markers" pinned>
           <div className="pf-markers">
             {fp.markers.map((m) => (
-              <div className={`pf-marker${m.insufficient ? ' insufficient' : ''}`} key={m.key}>
+              <div className={`pf-marker${m.insufficient ? ' insufficient' : ''}${m.key === leakKey ? ' leak' : ''}`} key={m.key}>
                 <div className="pf-marker-top">
-                  <span className="pf-marker-label">{m.label}
+                  <span className="pf-marker-label"><span className="pf-marker-nm">{m.label}</span>
+                    {PART_WORD[m.key] ? <span className="pf-marker-part">{PART_WORD[m.key]}{m.key === leakKey ? ' · the leak' : ''}</span> : null}
                     {MARKER_DESC[m.key] ? <span className="pf-marker-desc">{MARKER_DESC[m.key]}</span> : null}
                   </span>
                   {m.insufficient ? (
