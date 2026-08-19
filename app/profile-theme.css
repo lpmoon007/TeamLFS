@@ -277,27 +277,37 @@
 .pf-claim-text,.pf-lg-q,.pf-gap-t,.pf-h1{text-wrap:pretty}
 .pf :focus-visible{outline:2px solid var(--pf-steel);outline-offset:2px;border-radius:4px}
 
+
 /* ============================================================================
-   SAILBOAT HERO — the fingerprint as a rigging diagram. Self-contained dark
-   instrument panel (holds on any page theme); numerals in JetBrains Mono.
+   SAILBOAT HERO — the fingerprint as a rigging diagram (light register).
+   Numerals in JetBrains Mono; the lowest marker is the leak (orange).
    ============================================================================ */
-.sb{margin:20px 0 4px; background:linear-gradient(180deg,#0d1c30,#0a1626); border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:10px 10px 4px; overflow:hidden}
+.sb{margin:20px 0 4px; background:linear-gradient(180deg,#FFFFFF,#F4F8FC); border:1px solid #E1E7F0; border-radius:18px; padding:10px 10px 4px; overflow:hidden; box-shadow:0 1px 2px rgba(16,42,70,.04)}
 .sb-bar{display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:6px 8px 0}
-.sb-seg-l{font-size:9.5px; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:#59677A}
-.sb-seg{display:inline-flex; border:1px solid rgba(255,255,255,.12); border-radius:8px; overflow:hidden}
-.sb-seg button{font:inherit; font-size:11.5px; font-weight:600; padding:5px 12px; border:0; cursor:pointer; background:transparent; color:#9DB0C4}
-.sb-seg button[aria-pressed="true"]{background:rgba(46,107,176,.22); color:#E8EDF2}
+.sb-seg-l{font-size:9.5px; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:#8894A6}
+.sb-seg{display:inline-flex; border:1px solid #D8E0EC; border-radius:8px; overflow:hidden}
+.sb-seg button{font:inherit; font-size:11.5px; font-weight:600; padding:5px 12px; border:0; cursor:pointer; background:transparent; color:#5C728B}
+.sb-seg button[aria-pressed="true"]{background:#E7EFF8; color:#16324F}
 .sb-stage{width:100%; display:block}
 .sb-stage text{font-family:'Inter',system-ui,-apple-system,sans-serif}
-.sb-n{font-family:'JetBrains Mono',ui-monospace,monospace; font-weight:600; fill:#E8EDF2}
-.sb-name{font-size:14px; font-weight:600; fill:#E8EDF2}
-.sb-sub{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; letter-spacing:.08em; fill:#7C97B8}
-.sb-name.sb-leak,.sb-sub.sb-leak{fill:#E08A5E}
+.sb-n{font-family:'JetBrains Mono',ui-monospace,monospace; font-weight:600; fill:#0C2340}
+.sb-n.lk{fill:#C85A25}
+.sb-name{font-size:14px; font-weight:600; fill:#16324F}
+.sb-name.sb-leak{fill:#C85A25}
+.sb-sub{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; letter-spacing:.06em; fill:#5C728B}
+.sb-sub.sb-leak{fill:#C85A25}
+.sb-chip{font-weight:700; fill:#C85A25}
 .sb-part{cursor:pointer; transition:opacity .15s}
-.sb-part.sb-dim{opacity:.4}
+.sb-part.sb-dim{opacity:.38}
 .sb-part:focus{outline:none}
 .sb-part:focus-visible{outline:2px solid #2E6BB0; outline-offset:2px}
-.sb-legend text{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.09em; fill:#7A8AA0}
-.sb-subcap{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; letter-spacing:.11em; fill:#59677A}
-.sb-foot{fill:#9DB0C4; font-size:12.5px}
-.sb-readout{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:13px; fill:#E8EDF2; letter-spacing:.02em}
+.sb-legend text{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:9.5px; letter-spacing:.09em; fill:#8894A6}
+.sb-subcap{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; letter-spacing:.11em; fill:#A0AAB8}
+.sb-foot{fill:#5C728B; font-size:12.5px}
+.sb-readout{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:13px; fill:#16324F; letter-spacing:.02em}
+
+/* dark mode: keep the boat legible if the profile is viewed dark */
+:root[data-theme="dark"] .sb, .dark .sb{background:linear-gradient(180deg,#0d1c30,#0a1626); border-color:rgba(255,255,255,.10)}
+:root[data-theme="dark"] .sb-name, .dark .sb-name{fill:#E8EDF2}
+:root[data-theme="dark"] .sb-n, .dark .sb-n{fill:#E8EDF2}
+:root[data-theme="dark"] .sb-foot, .dark .sb-foot{fill:#9DB0C4}
