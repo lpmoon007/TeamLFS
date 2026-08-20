@@ -217,7 +217,7 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
         >
           {ledger && ledger.open.length && fp.runs < 2 ? (
             <div className="pf-untested">
-              <b>These {ledger.open.length} claim{ledger.open.length === 1 ? '' : 's'} about you {ledger.open.length === 1 ? 'is' : 'are'} untested.</b> Each carries a specific observation that would overturn it — none has had the chance yet. Your next run grades them, whether they flatter you or not.
+              <b>{ledger.open.length === 1 ? 'This' : `These ${ledger.open.length}`} claim{ledger.open.length === 1 ? '' : 's'} about you {ledger.open.length === 1 ? 'is' : 'are'} untested.</b> Each carries a specific observation that would overturn it — none has had the chance yet. Your next run grades them, whether they flatter you or not.
             </div>
           ) : null}
           {ledger?.narrative ? <p className="pf-narr">{ledger.narrative}</p> : null}

@@ -331,3 +331,8 @@
    older confidence/low-width dataviz colouring so the list and the boat agree) */
 .pf-marker .pf-fill{background:var(--pf-steel)!important}
 .pf-marker.leak .pf-fill{background:#C85A25!important}
+
+/* fix: the always-dark "what one run can't tell you" panel needs explicit light
+   body text — a global p rule was giving .pf-unk theme ink (invisible in light mode) */
+.pf-unknowns .pf-unk{color:#C6D1DD}
+.pf-unknowns .pf-unk b{color:#fff;font-weight:600}
