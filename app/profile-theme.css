@@ -326,3 +326,8 @@
 /* ---- numeral system: all longitudinal figures share the boat's mono face ---- */
 .pf-run-score{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
 .pf-traj-n{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:0}
+
+/* fingerprint fills echo the boat: uniform steel sails, orange leak (override the
+   older confidence/low-width dataviz colouring so the list and the boat agree) */
+.pf-marker .pf-fill{background:var(--pf-steel)!important}
+.pf-marker.leak .pf-fill{background:#C85A25!important}
