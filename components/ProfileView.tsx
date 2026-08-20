@@ -27,6 +27,13 @@ const MARKER_DESC: Record<string, string> = {
 };
 // boat-part vocabulary — the fingerprint list and the sailboat speak one language
 const PART_WORD: Record<string, string> = { A1: 'Hull', A2: 'Jib', A3: 'Fleet', A4: 'Mainsail', A5: 'Helm', A6: 'Compass' };
+// deterministic run-log date (fixed locale + UTC) so server and client render identically — no
+// timezone/locale hydration mismatch (was: new Date(...).toLocaleDateString()).
+const fmtRunDate = (s: string | null) => {
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: 'numeric' });
+};
 // what the grade means, in plain words — the reference's "what happened" column
 const WHAT_HAPPENED: Record<string, string> = {
   held: 'Tested and not overturned — it survived the falsifier.',
@@ -314,7 +321,7 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
                   <span className="pf-run-score">{r.score}</span>
                   <span className="pf-run-t">{r.scenario}</span>
                   <span className="pf-run-cond">{r.condition} team</span>
-                  <span className="pf-run-when">{r.date ? new Date(r.date).toLocaleDateString() : ''}</span>
+                  <span className="pf-run-when">{fmtRunDate(r.date)}</span>
                   <span className="pf-run-link">Debrief →</span>
                 </span>
                 {r.takeaway && r.takeaway !== '—' ? <span className="pf-run-take">{r.takeaway}</span> : null}

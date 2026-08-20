@@ -336,3 +336,16 @@
    body text — a global p rule was giving .pf-unk theme ink (invisible in light mode) */
 .pf-unknowns .pf-unk{color:#C6D1DD}
 .pf-unknowns .pf-unk b{color:#fff;font-weight:600}
+
+/* ---- sailboat: mobile treatment — bigger boat, compact legend below ---- */
+.sb-key{display:none; flex-direction:column; margin:2px 8px 8px; border-top:1px solid #E1E7F0}
+.sb-key-row{display:flex; align-items:baseline; gap:9px; padding:9px 4px; border-bottom:1px solid #EDEFF3}
+.sb-key-nm{font-size:13px; font-weight:600; color:#16324F; flex:1; min-width:0}
+.sb-key-pt{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:8.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#8894A6}
+.sb-key-v{font-family:'JetBrains Mono',ui-monospace,monospace; font-size:13px; font-weight:600; color:#16324F; white-space:nowrap}
+.sb-key-row.leak .sb-key-nm,.sb-key-row.leak .sb-key-v,.sb-key-row.leak .sb-key-pt{color:#C85A25}
+.sb-key-coach{font-size:11.5px; color:#5C728B; padding:10px 4px 2px}
+@media(max-width:620px){
+  .sb-lbl,.sb-subcap,.sb-foot,.sb-legend{display:none}
+  .sb-key{display:flex}
+}

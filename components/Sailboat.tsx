@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // The leadership fingerprint drawn as a sailboat. Each Tier-A marker is a fixed boat part; the
 // fill of a sail IS its rate, the numeral sits on the part, and a marker with too little evidence
@@ -34,6 +34,15 @@ const fillTop = (apexY: number, baseY: number, v: number) => baseY - (Math.max(0
 export function Sailboat({ parts }: { parts: Record<string, BoatPart> }) {
   const [insider, setInsider] = useState(true);
   const [hot, setHot] = useState<string | null>(null);
+  // on a phone the ring callouts crowd a small boat — crop the viewBox to the boat itself
+  // (bigger), hide the callouts (CSS), and read the markers from a compact legend below.
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia('(max-width:620px)');
+    const u = () => setMobile(m.matches);
+    u(); m.addEventListener('change', u); return () => m.removeEventListener('change', u);
+  }, []);
+  const viewBox = mobile ? '130 92 640 486' : '0 0 1040 680';
   const word = (k: string) => (insider ? VOCAB[k]?.ins : VOCAB[k]?.plain) ?? '';
 
   const P = (k: string): BoatPart => parts[k] ?? { key: k, name: k, value: null, trend: null, insufficient: true };
@@ -62,6 +71,13 @@ export function Sailboat({ parts }: { parts: Record<string, BoatPart> }) {
     ? `${parts[hot].name} · ${valText(parts[hot])}${deltaText(parts[hot].trend)}${isLeak(hot) ? ' · the leak' : ''}`
     : null;
 
+  // compact legend order (mobile): real markers by rate, insufficient ones last
+  const legendOrder = [a1, a2, a3, a4, a5, a6].slice().sort((x, y) => {
+    const bad = (p: BoatPart) => p.insufficient || p.value === null;
+    if (bad(x) !== bad(y)) return bad(x) ? 1 : -1;
+    return (y.value ?? 0) - (x.value ?? 0);
+  });
+
   return (
     <div className="sb">
       <div className="sb-bar">
@@ -72,7 +88,7 @@ export function Sailboat({ parts }: { parts: Record<string, BoatPart> }) {
         </span>
       </div>
 
-      <svg className="sb-stage" viewBox="0 0 1040 680" role="img"
+      <svg className="sb-stage" viewBox={viewBox} role="img"
         aria-label="Your leadership markers drawn as a sailboat; the lowest marker is the leak; the coach is a lighthouse casting light on the boat.">
         <defs>
           <clipPath id="sbMain"><rect x="470" y={mainTop} width="180" height={434 - mainTop} /></clipPath>
@@ -225,6 +241,18 @@ export function Sailboat({ parts }: { parts: Record<string, BoatPart> }) {
           <line x1="720" y1="650" x2="748" y2="650" stroke={LEAK} strokeWidth="2" /><text x="754" y="654">THE LEAK</text>
         </g>
       </svg>
+
+      {/* compact legend — shown only on phones, where the ring callouts are hidden */}
+      <div className="sb-key">
+        {legendOrder.map((p) => (
+          <div className={`sb-key-row${isLeak(p.key) ? ' leak' : ''}`} key={p.key}>
+            <span className="sb-key-nm">{p.name}</span>
+            <span className="sb-key-pt">{word(p.key)}</span>
+            <span className="sb-key-v">{valText(p)}{deltaText(p.trend)}{isLeak(p.key) ? ' · the leak' : ''}</span>
+          </div>
+        ))}
+        <div className="sb-key-coach">The coach is the lighthouse — grounded, cites only.</div>
+      </div>
     </div>
   );
 }
