@@ -1237,3 +1237,6 @@ button { font-family: inherit; cursor: pointer; }
 /* closed-root sign-in doors */
 .home-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
 .home-cta .btn { text-decoration: none; }
+
+/* inline role picker in the Accounts list */
+.role-sel { font: inherit; font-size: 12px; padding: 3px 8px; border: 1px solid var(--line, #d9dee6); border-radius: 6px; background: var(--bg-elev, #fff); color: inherit; cursor: pointer; }

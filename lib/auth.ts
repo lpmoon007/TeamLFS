@@ -251,6 +251,14 @@ export async function setFacilitatorActive(id: string, active: boolean): Promise
   await db.from('facilitators').update({ active }).eq('id', id);
   if (!active) await db.from('facilitator_sessions').delete().eq('facilitator_id', id); // revoke live sessions
 }
+
+/** Change an account's role (admin console). Revokes their live sessions so the new surface —
+ *  play vs. console — takes effect on their next sign-in rather than mid-session. */
+export async function setFacilitatorRole(id: string, role: Role): Promise<void> {
+  const db = createAdminClient();
+  await db.from('facilitators').update({ role: cleanRole(role) }).eq('id', id);
+  await db.from('facilitator_sessions').delete().eq('facilitator_id', id);
+}
 export async function countFacilitators(): Promise<number> {
   const { count } = await createAdminClient().from('facilitators').select('id', { count: 'exact', head: true });
   return count ?? 0;

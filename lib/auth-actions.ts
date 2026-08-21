@@ -1,5 +1,5 @@
 'use server';
-import { authenticate, startAccountSession, createFacilitator, listFacilitators, setFacilitatorActive, changePassword, currentSessionToken, type FacilitatorListItem, type Role } from '@/lib/auth';
+import { authenticate, startAccountSession, createFacilitator, listFacilitators, setFacilitatorActive, setFacilitatorRole, changePassword, currentSessionToken, type FacilitatorListItem, type Role } from '@/lib/auth';
 import { isAdmin, facilitator } from '@/lib/facilitator-session';
 
 // Account auth actions (email + password). The legacy master-secret login stays in
@@ -34,6 +34,17 @@ export async function createAccount(params: { email: string; password: string; d
 export async function setAccountActive(id: string, active: boolean): Promise<{ ok: boolean; reason?: string }> {
   if (!(await isAdmin())) return { ok: false, reason: 'forbidden' };
   await setFacilitatorActive(id, active);
+  return { ok: true };
+}
+
+/** Change an account's role — facilitator ⇄ leader (player) ⇄ admin. Admin-only. You can't
+ *  change your OWN role, so no admin can accidentally lock themselves out of the console (the
+ *  master key is the escape hatch if that ever happens). */
+export async function setAccountRole(id: string, role: Role): Promise<{ ok: boolean; reason?: string }> {
+  if (!(await isAdmin())) return { ok: false, reason: 'forbidden' };
+  const me = await facilitator();
+  if (me?.id === id) return { ok: false, reason: 'cant_change_own_role' };
+  await setFacilitatorRole(id, role);
   return { ok: true };
 }
 

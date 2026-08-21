@@ -34,7 +34,7 @@ export default async function AccountsPage() {
         </header>
         <div className="fac-body">
           <div className="fac-body-top"><h1>Accounts</h1></div>
-          <AccountsAdmin accounts={accounts} orphans={orphans} />
+          <AccountsAdmin accounts={accounts} orphans={orphans} meId={me?.id} />
         </div>
       </div>
     </div>

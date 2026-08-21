@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createAccount, setAccountActive } from '@/lib/auth-actions';
+import { createAccount, setAccountActive, setAccountRole } from '@/lib/auth-actions';
 import type { FacilitatorListItem } from '@/lib/auth';
 
 export interface AccountlessPerson { id: string; name: string; email: string; runs: number }
@@ -10,7 +10,7 @@ export interface AccountlessPerson { id: string; name: string; email: string; ru
 // Admin — manage facilitator/admin accounts: list, create, deactivate/reactivate. Also flags
 // people who have runs but no login (e.g. an account that went missing), so a profile with no
 // way to sign in is visible here instead of a surprise.
-export function AccountsAdmin({ accounts, orphans = [] }: { accounts: FacilitatorListItem[]; orphans?: AccountlessPerson[] }) {
+export function AccountsAdmin({ accounts, orphans = [], meId }: { accounts: FacilitatorListItem[]; orphans?: AccountlessPerson[]; meId?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -37,6 +37,12 @@ export function AccountsAdmin({ accounts, orphans = [] }: { accounts: Facilitato
   const toggle = async (id: string, active: boolean) => {
     await setAccountActive(id, active);
     router.refresh();
+  };
+
+  const changeRole = async (id: string, r: 'leader' | 'facilitator' | 'admin') => {
+    const res = await setAccountRole(id, r);
+    if (res.ok) { setFlash('Role updated — they get the new surface on their next sign-in.'); router.refresh(); }
+    else setFlash(res.reason === 'cant_change_own_role' ? 'You can’t change your own role — ask another admin, or use the master key.' : `Couldn’t change role: ${res.reason ?? 'error'}`);
   };
 
   const prefill = (o: AccountlessPerson) => {
@@ -105,7 +111,17 @@ export function AccountsAdmin({ accounts, orphans = [] }: { accounts: Facilitato
                   <tr key={a.id} style={a.active ? undefined : { opacity: 0.55 }}>
                     <td>{a.email}</td>
                     <td>{a.displayName ?? '—'}</td>
-                    <td><span className={`cast-badge ${a.role === 'admin' ? 'human' : 'ai'}`}>{a.role}</span></td>
+                    <td>
+                      {a.id === meId ? (
+                        <span className={`cast-badge ${a.role === 'admin' ? 'human' : 'ai'}`} title="You can’t change your own role">{a.role}</span>
+                      ) : (
+                        <select className="role-sel" value={a.role} onChange={(e) => changeRole(a.id, e.target.value as 'leader' | 'facilitator' | 'admin')}>
+                          <option value="leader">leader (play)</option>
+                          <option value="facilitator">facilitator</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      )}
+                    </td>
                     <td>{a.runs > 0 ? <span className="pill live">{a.runs} run{a.runs === 1 ? '' : 's'}</span> : <span className="pill">never played</span>}</td>
                     <td className="db-dim">{a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleDateString() : 'never'}</td>
                     <td><span className={`pill ${a.active ? 'live' : 'ended'}`}>{a.active ? 'active' : 'disabled'}</span></td>
