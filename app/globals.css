@@ -1240,3 +1240,6 @@ button { font-family: inherit; cursor: pointer; }
 
 /* inline role picker in the Accounts list */
 .role-sel { font: inherit; font-size: 12px; padding: 3px 8px; border: 1px solid var(--line, #d9dee6); border-radius: 6px; background: var(--bg-elev, #fff); color: inherit; cursor: pointer; }
+
+/* inline rename field in the People roster */
+.rename-in { font: inherit; font-size: 13px; font-weight: 600; padding: 4px 8px; border: 1px solid var(--accent, #185FA5); border-radius: 6px; background: var(--bg-elev, #fff); color: inherit; width: 180px; }

@@ -1015,6 +1015,22 @@ export async function createPerson(params: { name: string; email?: string; orgId
   return { ok: true, id: data.id };
 }
 
+/** Fix a person's display name (e.g. a typo). Updates the subject, and — if they have a login
+ *  account matched by email — the account's name too, so it reads the same everywhere (profile,
+ *  accounts list, coach greeting). Staff only. */
+export async function renamePerson(subjectId: string, name: string): Promise<{ ok: boolean; reason?: string }> {
+  const db = await guard();
+  const clean = name.trim();
+  if (!clean) return { ok: false, reason: 'empty' };
+  const { data: subj } = await db.from('subjects').select('handle').eq('id', subjectId).maybeSingle<any>();
+  if (!subj) return { ok: false, reason: 'not_found' };
+  const { error } = await db.from('subjects').update({ display_name: clean }).eq('id', subjectId);
+  if (error) return { ok: false, reason: error.message };
+  const handle = String(subj.handle ?? '').toLowerCase();
+  if (/@/.test(handle)) await db.from('facilitators').update({ display_name: clean }).eq('email', handle);
+  return { ok: true };
+}
+
 // Lean setup info for a scenario (for the New Session picker + a person's profile): the
 // human-castable seats + the people roster, in one call.
 export interface SessionSetupInfo {

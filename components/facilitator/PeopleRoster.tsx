@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createPerson, type PersonItem } from '@/lib/facilitator-actions';
+import { createPerson, renamePerson, type PersonItem } from '@/lib/facilitator-actions';
 import { createAccount, setAccountRole } from '@/lib/auth-actions';
 
 // People roster — the players. A person is a cross-session subject; their runs accumulate
@@ -17,6 +17,17 @@ export function PeopleRoster({ people, keyParam, canManageAccounts = false, meId
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const startEdit = (p: PersonItem) => { setEditId(p.id); setEditName(p.name); setFlash(null); };
+  const cancelEdit = () => { setEditId(null); setEditName(''); };
+  const saveRename = async (id: string) => {
+    if (!editName.trim()) return;
+    const res = await renamePerson(id, editName);
+    if (res.ok) { setEditId(null); setFlash('Name updated.'); router.refresh(); }
+    else setFlash(`Couldn’t rename: ${res.reason ?? 'error'}`);
+  };
 
   const changeRole = async (accountId: string, r: 'leader' | 'facilitator' | 'admin') => {
     const res = await setAccountRole(accountId, r);
@@ -83,7 +94,12 @@ export function PeopleRoster({ people, keyParam, canManageAccounts = false, meId
               <tbody>
                 {people.map((p) => (
                   <tr key={p.id}>
-                    <td><strong>{p.name}</strong></td>
+                    <td>
+                      {editId === p.id ? (
+                        <input className="rename-in" value={editName} autoFocus onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveRename(p.id); if (e.key === 'Escape') cancelEdit(); }} />
+                      ) : <strong>{p.name}</strong>}
+                    </td>
                     <td className="db-dim">{p.email ?? '—'}</td>
                     <td>
                       {!p.role ? (
@@ -99,8 +115,18 @@ export function PeopleRoster({ people, keyParam, canManageAccounts = false, meId
                       )}
                     </td>
                     <td>{p.runs > 0 ? <span className="pill live">{p.runs} run{p.runs === 1 ? '' : 's'}</span> : <span className="pill">never played</span>}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Link className="btn ghost" href={`/facilitator/subject/${p.id}${keyParam}`}>Profile →</Link>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {editId === p.id ? (
+                        <>
+                          <button className="btn primary" disabled={!editName.trim()} onClick={() => saveRename(p.id)}>Save</button>{' '}
+                          <button className="btn ghost" onClick={cancelEdit}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="btn ghost" onClick={() => startEdit(p)}>Rename</button>{' '}
+                          <Link className="btn ghost" href={`/facilitator/subject/${p.id}${keyParam}`}>Profile →</Link>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
