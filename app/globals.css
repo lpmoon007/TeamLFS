@@ -1233,3 +1233,7 @@ button { font-family: inherit; cursor: pointer; }
 .sd-vh-txt { font-size: 13px; line-height: 1.7; color: var(--text-dim); }
 .sd-vh-close { font-size: 13px; line-height: 1.7; color: var(--text-dim); text-align: center; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .sd-vh-close b { color: var(--text); }
+
+/* closed-root sign-in doors */
+.home-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+.home-cta .btn { text-decoration: none; }
