@@ -24,7 +24,7 @@ export default async function PeoplePage() {
         <div className="fac-body">
           <div className="fac-body-top"><h1>People</h1></div>
           {admin ? <DuplicatePeople groups={dupes} /> : null}
-          <PeopleRoster people={people} keyParam="" canManageAccounts={admin} />
+          <PeopleRoster people={people} keyParam="" canManageAccounts={admin} meId={me?.id} />
         </div>
       </div>
     </div>

@@ -3,13 +3,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createPerson, type PersonItem } from '@/lib/facilitator-actions';
-import { createAccount } from '@/lib/auth-actions';
+import { createAccount, setAccountRole } from '@/lib/auth-actions';
 
 // People roster — the players. A person is a cross-session subject; their runs accumulate
 // into the profile the divergence quadrant + subject dashboard read. Admins can add a person
 // as a login account (Leader / Facilitator / Admin) in one step — creating the account also
 // provisions their play profile — or add a play-only person with no login.
-export function PeopleRoster({ people, keyParam, canManageAccounts = false }: { people: PersonItem[]; keyParam: string; canManageAccounts?: boolean }) {
+export function PeopleRoster({ people, keyParam, canManageAccounts = false, meId }: { people: PersonItem[]; keyParam: string; canManageAccounts?: boolean; meId?: string }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,6 +17,12 @@ export function PeopleRoster({ people, keyParam, canManageAccounts = false }: { 
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+
+  const changeRole = async (accountId: string, r: 'leader' | 'facilitator' | 'admin') => {
+    const res = await setAccountRole(accountId, r);
+    if (res.ok) { setFlash('Role updated — they get the new surface on their next sign-in.'); router.refresh(); }
+    else setFlash(res.reason === 'cant_change_own_role' ? 'You can’t change your own role — ask another admin, or use the master key.' : `Couldn’t change role: ${res.reason ?? 'error'}`);
+  };
 
   const isLogin = role !== 'player';
   const canAdd = isLogin ? !!email.trim() && password.length >= 8 : !!(name.trim() || email.trim());
@@ -79,7 +85,19 @@ export function PeopleRoster({ people, keyParam, canManageAccounts = false }: { 
                   <tr key={p.id}>
                     <td><strong>{p.name}</strong></td>
                     <td className="db-dim">{p.email ?? '—'}</td>
-                    <td>{p.role ? <span className={`cast-badge ${p.role === 'admin' ? 'human' : 'ai'}`}>{p.role}</span> : <span className="db-dim">no login</span>}</td>
+                    <td>
+                      {!p.role ? (
+                        <span className="db-dim">no login</span>
+                      ) : canManageAccounts && p.accountId && p.accountId !== meId ? (
+                        <select className="role-sel" value={p.role} onChange={(e) => changeRole(p.accountId as string, e.target.value as 'leader' | 'facilitator' | 'admin')}>
+                          <option value="leader">leader (play)</option>
+                          <option value="facilitator">facilitator</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      ) : (
+                        <span className={`cast-badge ${p.role === 'admin' ? 'human' : 'ai'}`} title={p.accountId === meId ? 'You can’t change your own role' : undefined}>{p.role}</span>
+                      )}
+                    </td>
                     <td>{p.runs > 0 ? <span className="pill live">{p.runs} run{p.runs === 1 ? '' : 's'}</span> : <span className="pill">never played</span>}</td>
                     <td style={{ textAlign: 'right' }}>
                       <Link className="btn ghost" href={`/facilitator/subject/${p.id}${keyParam}`}>Profile →</Link>

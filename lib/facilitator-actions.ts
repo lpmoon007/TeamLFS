@@ -958,6 +958,7 @@ export interface PersonItem {
   email: string | null;
   runs: number;
   role: string | null; // their account role if they have a login (leader/facilitator/admin), else null — links People → Accounts
+  accountId?: string | null; // the facilitator account id, when they have a login — lets the roster change their role
 }
 
 /** List people (subjects) — optionally scoped to an org. */
@@ -977,9 +978,13 @@ export async function listPeople(orgId?: string | null): Promise<PersonItem[]> {
   // cross-link to the Accounts side: match each person's email to a login account's role
   const emails = rows.map((s) => String(s.handle).toLowerCase()).filter((h) => /@/.test(h));
   const roleByEmail = new Map<string, string>();
+  const idByEmail = new Map<string, string>();
   if (emails.length) {
-    const { data: accts } = await db.from('facilitators').select('email, role').in('email', emails);
-    for (const a of accts ?? []) roleByEmail.set(String((a as any).email).toLowerCase(), (a as any).role);
+    const { data: accts } = await db.from('facilitators').select('id, email, role').in('email', emails);
+    for (const a of accts ?? []) {
+      roleByEmail.set(String((a as any).email).toLowerCase(), (a as any).role);
+      idByEmail.set(String((a as any).email).toLowerCase(), (a as any).id);
+    }
   }
   return rows.map((s) => ({
     id: s.id,
@@ -987,6 +992,7 @@ export async function listPeople(orgId?: string | null): Promise<PersonItem[]> {
     email: /@/.test(s.handle) ? s.handle : null,
     runs: runs.get(s.id) ?? 0,
     role: roleByEmail.get(String(s.handle).toLowerCase()) ?? null,
+    accountId: idByEmail.get(String(s.handle).toLowerCase()) ?? null,
   }));
 }
 
