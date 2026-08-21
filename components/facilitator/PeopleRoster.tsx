@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createPerson, renamePerson, type PersonItem } from '@/lib/facilitator-actions';
+import { createPerson, renamePerson, changePersonEmail, type PersonItem } from '@/lib/facilitator-actions';
 import { createAccount, setAccountRole } from '@/lib/auth-actions';
 
 // People roster — the players. A person is a cross-session subject; their runs accumulate
@@ -20,13 +20,25 @@ export function PeopleRoster({ people, keyParam, canManageAccounts = false, meId
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const startEdit = (p: PersonItem) => { setEditId(p.id); setEditName(p.name); setFlash(null); };
-  const cancelEdit = () => { setEditId(null); setEditName(''); };
-  const saveRename = async (id: string) => {
+  const [editEmail, setEditEmail] = useState('');
+  const startEdit = (p: PersonItem) => { setEditId(p.id); setEditName(p.name); setEditEmail(p.email ?? ''); setFlash(null); };
+  const cancelEdit = () => { setEditId(null); setEditName(''); setEditEmail(''); };
+  const saveEdit = async (p: PersonItem) => {
     if (!editName.trim()) return;
-    const res = await renamePerson(id, editName);
-    if (res.ok) { setEditId(null); setFlash('Name updated.'); router.refresh(); }
-    else setFlash(`Couldn’t rename: ${res.reason ?? 'error'}`);
+    if (editName.trim() !== p.name) {
+      const r = await renamePerson(p.id, editName);
+      if (!r.ok) { setFlash(`Couldn’t rename: ${r.reason ?? 'error'}`); return; }
+    }
+    if (editEmail.trim().toLowerCase() !== (p.email ?? '').toLowerCase()) {
+      const r = await changePersonEmail(p.id, editEmail);
+      if (!r.ok) {
+        setFlash(r.reason === 'email_in_use' ? 'That email is already used by another person or account.'
+          : r.reason === 'invalid_email' ? 'That doesn’t look like a valid email.'
+          : `Couldn’t change email: ${r.reason ?? 'error'}`);
+        return;
+      }
+    }
+    setEditId(null); setFlash('Updated.'); router.refresh();
   };
 
   const changeRole = async (accountId: string, r: 'leader' | 'facilitator' | 'admin') => {
@@ -97,10 +109,16 @@ export function PeopleRoster({ people, keyParam, canManageAccounts = false, meId
                     <td>
                       {editId === p.id ? (
                         <input className="rename-in" value={editName} autoFocus onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') saveRename(p.id); if (e.key === 'Escape') cancelEdit(); }} />
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(p); if (e.key === 'Escape') cancelEdit(); }} />
                       ) : <strong>{p.name}</strong>}
                     </td>
-                    <td className="db-dim">{p.email ?? '—'}</td>
+                    <td className="db-dim">
+                      {editId === p.id ? (
+                        <input className="rename-in" style={{ width: 220 }} value={editEmail} placeholder="email (optional)"
+                          onChange={(e) => setEditEmail(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(p); if (e.key === 'Escape') cancelEdit(); }} />
+                      ) : (p.email ?? '—')}
+                    </td>
                     <td>
                       {!p.role ? (
                         <span className="db-dim">no login</span>
@@ -118,12 +136,12 @@ export function PeopleRoster({ people, keyParam, canManageAccounts = false, meId
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {editId === p.id ? (
                         <>
-                          <button className="btn primary" disabled={!editName.trim()} onClick={() => saveRename(p.id)}>Save</button>{' '}
+                          <button className="btn primary" disabled={!editName.trim()} onClick={() => saveEdit(p)}>Save</button>{' '}
                           <button className="btn ghost" onClick={cancelEdit}>Cancel</button>
                         </>
                       ) : (
                         <>
-                          <button className="btn ghost" onClick={() => startEdit(p)}>Rename</button>{' '}
+                          <button className="btn ghost" onClick={() => startEdit(p)}>Edit</button>{' '}
                           <Link className="btn ghost" href={`/facilitator/subject/${p.id}${keyParam}`}>Profile →</Link>
                         </>
                       )}

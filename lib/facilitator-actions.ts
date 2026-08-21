@@ -1031,6 +1031,32 @@ export async function renamePerson(subjectId: string, name: string): Promise<{ o
   return { ok: true };
 }
 
+/** Change a person's email — their identity/login. Updates the subject handle and, if they have
+ *  a login account on the old email, that account's email too, so sign-in and the People↔Accounts
+ *  link both follow. Rejects an email already used by another person or account. Staff only. */
+export async function changePersonEmail(subjectId: string, newEmail: string): Promise<{ ok: boolean; reason?: string }> {
+  const db = await guard();
+  const email = newEmail.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, reason: 'invalid_email' };
+  const handle = personSlug(email);
+  const { data: subj } = await db.from('subjects').select('handle, org_id').eq('id', subjectId).maybeSingle<any>();
+  if (!subj) return { ok: false, reason: 'not_found' };
+  const oldHandle = String(subj.handle ?? '').toLowerCase();
+  if (handle === oldHandle) return { ok: true }; // no change
+  // no other person may already use this email
+  const dupSel = db.from('subjects').select('id').eq('handle', handle).neq('id', subjectId);
+  const { data: dupSubj } = await (subj.org_id ? dupSel.eq('org_id', subj.org_id) : dupSel.is('org_id', null)).maybeSingle<any>();
+  if (dupSubj) return { ok: false, reason: 'email_in_use' };
+  // no other login account may already use this email
+  const { data: dupAcct } = await db.from('facilitators').select('id').eq('email', email).maybeSingle<any>();
+  if (dupAcct) return { ok: false, reason: 'email_in_use' };
+  // move the account (if one exists on the old email) to the new email, then the subject handle
+  if (/@/.test(oldHandle)) await db.from('facilitators').update({ email }).eq('email', oldHandle);
+  const { error } = await db.from('subjects').update({ handle }).eq('id', subjectId);
+  if (error) return { ok: false, reason: error.message };
+  return { ok: true };
+}
+
 // Lean setup info for a scenario (for the New Session picker + a person's profile): the
 // human-castable seats + the people roster, in one call.
 export interface SessionSetupInfo {
