@@ -224,7 +224,7 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
         >
           {ledger && ledger.open.length && fp.runs < 2 ? (
             <div className="pf-untested">
-              <b>{ledger.open.length === 1 ? 'This' : `These ${ledger.open.length}`} claim{ledger.open.length === 1 ? '' : 's'} about you {ledger.open.length === 1 ? 'is' : 'are'} untested.</b> Each carries a specific observation that would overturn it — none has had the chance yet. Your next run grades them, whether they flatter you or not.
+              <b>{ledger.open.length === 1 ? 'This' : `These ${ledger.open.length}`} claim{ledger.open.length === 1 ? '' : 's'} about you {ledger.open.length === 1 ? 'is' : 'are'} untested.</b> Each carries a specific observation that would overturn it — none has had the chance yet. Your next run is where you put each one to the test: you’ll see which hold and which you overturn.
             </div>
           ) : null}
           {ledger?.narrative ? <p className="pf-narr">{ledger.narrative}</p> : null}
@@ -286,7 +286,7 @@ export function ProfileView({ fp, ledger, name, decisions = [], nextScenario = n
               {unknowns(fp).map((u, i) => <p className="pf-unk" key={i}>{u}</p>)}
             </div>
             {nextScenario ? (
-              <p className="pf-unk-next">The run that closes the biggest of these: <b>{nextScenario.scenario.title}</b>{nextScenario.matchedMarker ? ` — it presses ${nextScenario.matchedMarker.toLowerCase()}, your weakest read so far` : ''}. If the number holds, it’s you; if it moves, it was the team. That’s a question only your next run can answer.</p>
+              <p className="pf-unk-next">The run that closes the biggest of these: <b>{nextScenario.scenario.title}</b>{nextScenario.matchedMarker ? ` — it presses ${nextScenario.matchedMarker.toLowerCase()}, your lowest read so far` : ''}. If the number holds, it’s you; if it moves, it was the team. That’s a question only your next run can answer.</p>
             ) : null}
           </section>
         ) : null}

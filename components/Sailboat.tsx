@@ -251,7 +251,7 @@ export function Sailboat({ parts }: { parts: Record<string, BoatPart> }) {
             <span className="sb-key-v">{valText(p)}{deltaText(p.trend)}{isLeak(p.key) ? ' · the leak' : ''}</span>
           </div>
         ))}
-        <div className="sb-key-coach">The coach is the lighthouse — grounded, cites only.</div>
+        <div className="sb-key-coach">The coach is the lighthouse — it lights the water; you sail the boat.</div>
       </div>
     </div>
   );
