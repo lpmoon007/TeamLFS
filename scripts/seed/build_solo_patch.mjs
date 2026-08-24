@@ -103,7 +103,7 @@ out.push(`-- ===================================================================
 -- was played on; NEW sessions get the bumped version.
 -- =============================================================================
 begin;
-update scenarios set title = ${q(title)}, summary = ${q(C.INTRO?.setup ?? null)} where id = ${q(SCEN_ID)};
+update scenarios set title = ${q(title)}, summary = ${q([C.INTRO?.role, C.INTRO?.setup].map((s) => (s ?? '').trim()).filter(Boolean).join(' ') || null)} where id = ${q(SCEN_ID)};
 update scenario_meta set driver_keys = ${j(drivers)}, week_count = ${C.WEEKS.length}, week_seconds = ${C.CONFIG?.weekSeconds ?? 'null'}, difficulty = ${DIFF}, content_version = content_version + 1 where scenario_id = ${q(SCEN_ID)};
 update documents set title = ${q(`${title} — engine content`)}, meta = ${j({ type: 'solo_content', slug, captured_fns: capturedFns })}, body_json = '${soloContentJson.replace(/'/g, "''")}'::jsonb where scenario_id = ${q(SCEN_ID)} and key = 'solo_content';
 `);

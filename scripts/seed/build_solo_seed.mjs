@@ -133,7 +133,10 @@ insert into organizations (id, name) values (${q(ORG_ID)}, 'TLFS Library') on co
 `);
 
 out.push(`-- scenario + real-time meta`);
-out.push(`insert into scenarios (id, org_id, title, summary) values (${q(SCEN_ID)}, ${q(ORG_ID)}, ${q(C.INTRO?.title ?? slug)}, ${q(C.INTRO?.setup ?? null)}) on conflict (id) do update set org_id = excluded.org_id, title = excluded.title, summary = excluded.summary;`);
+// The /play card summary must stand alone: lead with WHO you are (INTRO.role) then the situation
+// (INTRO.setup), so the card doesn't assume you already know the company, your role, or the crisis.
+const cardSummary = [C.INTRO?.role, C.INTRO?.setup].map((s) => (s ?? '').trim()).filter(Boolean).join(' ') || null;
+out.push(`insert into scenarios (id, org_id, title, summary) values (${q(SCEN_ID)}, ${q(ORG_ID)}, ${q(C.INTRO?.title ?? slug)}, ${q(cardSummary)}) on conflict (id) do update set org_id = excluded.org_id, title = excluded.title, summary = excluded.summary;`);
 out.push(
   `-- difficulty ${DIFF.difficulty} — ${DIFF.critical} critical holds / ${DIFF.weeks} wks, ${DIFF.teamSize} advisors, ${DIFF.weekSeconds}s/wk` +
     ` (info ${DIFF.infoLoad.toFixed(2)} · consult ${DIFF.consultLoad.toFixed(2)} · time ${DIFF.timePressure.toFixed(2)} · fragility ${DIFF.fragility.toFixed(2)})`,
