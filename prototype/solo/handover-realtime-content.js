@@ -366,7 +366,7 @@ window.SCENARIO = {
     ],
     humility:(x)=>[
       `You could let go when it was someone else\u2019s pride on the line. The real test was the moment it cost YOU \u2014 the spotlight, your product, your name. That\u2019s where letting go stops being a slogan.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 hesitation, in a handover, almost always defaults toward the founder keeping control.`:`Being needed feels like being useful. In a succession, it\u2019s often the thing quietly preventing the succession.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 hesitation, in a handover, almost always defaults toward the founder keeping control.`:`Being needed feels like being useful. In a succession, it\u2019s often the thing quietly preventing the succession.`}`,
       `The hardest, most generous thing a founder does is make himself unnecessary. It looks like loss from the inside and it\u2019s the greatest gift you can give the people who come next.`,
     ],
     people:(x)=>[

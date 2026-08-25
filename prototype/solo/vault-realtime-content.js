@@ -352,7 +352,7 @@ window.SCENARIO = {
     ],
     courage:(x)=>[
       `When the easy move (bless the fast, visible fix) and the right move (assemble first, act as one crew) split apart, name the cost of waiting out loud. A crew that sees you choose the slower truth on purpose will follow it; a crew that thinks you\u2019re just hesitating won\u2019t.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a crew reads a Keeper who won\u2019t decide as one who\u2019ll let the loudest fragment decide instead. Assemble, then commit, then hold.`:`Refusing the dramatic unilateral fix is only leadership if the crew sees you choose the harder, whole-picture route against the pressure to just act. Say the call early and stand in it.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a crew reads a Keeper who won\u2019t decide as one who\u2019ll let the loudest fragment decide instead. Assemble, then commit, then hold.`:`Refusing the dramatic unilateral fix is only leadership if the crew sees you choose the harder, whole-picture route against the pressure to just act. Say the call early and stand in it.`}`,
       `Coordination that only survives a calm day was never coordination. The test is the deep hour with the water rising \u2014 that\u2019s the one you\u2019re graded on.`,
     ],
     people:(x)=>[

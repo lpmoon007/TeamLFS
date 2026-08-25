@@ -344,7 +344,7 @@ window.SCENARIO = {
     ],
     courage:(x)=>[
       `When the easy move (let the strong guild walk) and the right move (hold the camp) split apart, name the cost of holding out loud. Naming the price is how you commit to paying it.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a camp reads a Steward who won\u2019t decide as a Steward who won\u2019t protect them. Decide, then hold.`:`Holding the colony together is only leadership if the camp sees you choose it against the easier path. Say the hard call early and stand in it.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a camp reads a Steward who won\u2019t decide as a Steward who won\u2019t protect them. Decide, then hold.`:`Holding the colony together is only leadership if the camp sees you choose it against the easier path. Say the hard call early and stand in it.`}`,
       `Unity that only survives good weather was never unity. The test is the frightened, hungry week \u2014 that\u2019s the one you\u2019re graded on.`,
     ],
     people:(x)=>[

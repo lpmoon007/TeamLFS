@@ -350,7 +350,7 @@ window.SCENARIO = {
       `Price the invisible line. The doctored logs and the fatigue never showed on a dashboard \u2014 count the exposure on the same page as the on-time rate and the trade stops looking free.`,
     ],
     standard:(x)=>[
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 in a drift like this, waiting is a decision, and it always favors the status quo that\u2019s hurting people.`:`You saw the drift and moved slowly on it. Every window you don\u2019t correct a beloved practice, it hardens into \u201cjust how we do things.\u201d`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 in a drift like this, waiting is a decision, and it always favors the status quo that\u2019s hurting people.`:`You saw the drift and moved slowly on it. Every window you don\u2019t correct a beloved practice, it hardens into \u201cjust how we do things.\u201d`}`,
       `Correcting the culture isn\u2019t attacking the pride \u2014 it\u2019s refusing to let the pride cash a check the drivers\u2019 bodies have to cover. Name the specific practice and the specific fix, not the people.`,
       `The near-miss was the cheapest warning you\u2019ll ever get. Act on the one that costs nothing, so you never have to act on the one that costs a life.`,
     ],

@@ -351,7 +351,7 @@ window.SCENARIO = {
     ],
     courage:(x)=>[
       `When the easy move (let the strong go fast, chase the summit) and the right move (pool the oxygen, honor the turn-around) split apart, name the cost of turning back out loud. A turn-around time you won\u2019t defend is one the summit decides for you.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a team reads a leader who won\u2019t decide as one who\u2019ll let ego and altitude decide instead. Make the allocation call, then hold it when it\u2019s unpopular.`:`Refusing the solo bid and honoring the turn-around is only leadership if the team watches you choose it against the pull of the summit and the funder\u2019s money. Say the hard call early and stand in it.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a team reads a leader who won\u2019t decide as one who\u2019ll let ego and altitude decide instead. Make the allocation call, then hold it when it\u2019s unpopular.`:`Refusing the solo bid and honoring the turn-around is only leadership if the team watches you choose it against the pull of the summit and the funder\u2019s money. Say the hard call early and stand in it.`}`,
       `Discipline that only survives an easy allocation was never discipline. The test is three bottles, five climbers, and the strongest one threatening to go alone \u2014 that\u2019s the one you\u2019re graded on.`,
     ],
     people:(x)=>[

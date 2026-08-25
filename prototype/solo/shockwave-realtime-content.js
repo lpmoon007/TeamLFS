@@ -377,7 +377,7 @@ window.SCENARIO = {
       `Protect one week of runway you don’t think you’ll need. In a crisis, the reserve you kept is the option nobody else has.`,
     ],
     decisiveness: (x) => [
-      x.buzzerCount ? `You went to the buzzer ${x.buzzerCount} time${x.buzzerCount > 1 ? 's' : ''}. Waiting isn’t gathering — once you’ve asked, the next move is to commit, not to circle.` : `You committed, but late. Ask fast, then close — the value of a decision decays every day it sits.`,
+      x.buzzerCount ? `You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount > 1 ? 's' : ''}. Waiting isn’t gathering — once you’ve asked, the next move is to commit, not to circle.` : `You committed, but late. Ask fast, then close — the value of a decision decays every day it sits.`,
       `Separate the two jobs: gather hard and quickly, then decide cleanly. Blending them is how good leaders freeze.`,
       `A 70%-right call made on Day 3 usually beats a 90%-right call made on Day 7. Speed is part of the answer.`,
     ],

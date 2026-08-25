@@ -353,7 +353,7 @@ window.SCENARIO = {
     ],
     courage:(x)=>[
       `When the easy move (find a villain, look decisive) and the right move (hold the crew, refuse the hunt) split apart, name why you won\u2019t hunt out loud. A leader who lets fear pick a scapegoat buys calm now and pays for it with everyone\u2019s trust later.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a crew reads a leader who won\u2019t decide as one who\u2019ll let fear decide instead. Make the call to hold them together, then stand in it when a scapegoat would be easier.`:`Refusing the witch-hunt is only leadership if the crew watches you do it against the pull of their fear and your own need to look in control. Say the hard call early and hold it when it\u2019s unpopular.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a crew reads a leader who won\u2019t decide as one who\u2019ll let fear decide instead. Make the call to hold them together, then stand in it when a scapegoat would be easier.`:`Refusing the witch-hunt is only leadership if the crew watches you do it against the pull of their fear and your own need to look in control. Say the hard call early and hold it when it\u2019s unpopular.`}`,
       `Composure that only survives a calm crew was never composure. The test is six frightened people, four seats, and a valve that looks like treason \u2014 that\u2019s the one you\u2019re graded on.`,
     ],
     people:(x)=>[

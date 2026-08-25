@@ -354,7 +354,7 @@ window.SCENARIO = {
     ],
     courage:(x)=>[
       `When the easy move (file clean, hit the window) and the right move (disclose, take the delay) split apart, name the cost of disclosure out loud. A truth you\u2019ll only tell when it\u2019s free isn\u2019t a value \u2014 it\u2019s a convenience.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a team reads a leader who won\u2019t decide as one who\u2019ll let the window decide instead. Make the disclosure call, then stand in it when it costs you the date.`:`Choosing the truth over the deadline is only leadership if the team watches you do it against the pull of the window and the sunk cost. Say the hard call early and hold it when it\u2019s unpopular.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a team reads a leader who won\u2019t decide as one who\u2019ll let the window decide instead. Make the disclosure call, then stand in it when it costs you the date.`:`Choosing the truth over the deadline is only leadership if the team watches you do it against the pull of the window and the sunk cost. Say the hard call early and hold it when it\u2019s unpopular.`}`,
       `Integrity that only survives a slow week was never integrity. The test is the closing window with a signal in the appendix \u2014 that\u2019s the one you\u2019re graded on.`,
     ],
     people:(x)=>[

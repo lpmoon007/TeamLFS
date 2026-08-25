@@ -347,7 +347,7 @@ window.SCENARIO = {
     ],
     courage:(x)=>[
       `When the easy move (push on, chase the summit) and the right move (honor the turn-back) split apart, name the cost of turning around out loud. A turn-back time you won\u2019t defend is a turn-back time the summit decides for you.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a team reads a leader who won\u2019t decide as one who\u2019ll let the mountain decide instead. Make the call, then hold it at the turnaround.`:`Turning back is only leadership if the team sees you choose it against the pull of the summit and the sunk cost. Say the hard call early and stand in it when it\u2019s unpopular.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a team reads a leader who won\u2019t decide as one who\u2019ll let the mountain decide instead. Make the call, then hold it at the turnaround.`:`Turning back is only leadership if the team sees you choose it against the pull of the summit and the sunk cost. Say the hard call early and stand in it when it\u2019s unpopular.`}`,
       `Discipline that only survives a bad forecast was never discipline. The test is the open window with the summit in reach \u2014 that\u2019s the one you\u2019re graded on.`,
     ],
     people:(x)=>[

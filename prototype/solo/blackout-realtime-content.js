@@ -358,7 +358,7 @@ window.SCENARIO = {
     ],
     courage:(x)=>[
       `When the easy move (announce recovery) and the right move (hold the line until verified) split apart, name the cost of holding out loud. Staying on divert while the board wants good news is leadership only if you can say why.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a floor running blind reads a Commander who won\u2019t decide as one who won\u2019t protect them. Decide, then hold.`:`Holding the line on safety is only leadership if people see you choose it against the popular path. Say the hard call early and stand in it.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 a floor running blind reads a Commander who won\u2019t decide as one who won\u2019t protect them. Decide, then hold.`:`Holding the line on safety is only leadership if people see you choose it against the popular path. Say the hard call early and stand in it.`}`,
       `\u201cRecovered\u201d that only survives a good news cycle was never recovery. The test is the exhausted, pressured week when everyone wants you to declare victory \u2014 that\u2019s the one you\u2019re graded on.`,
     ],
     people:(x)=>[

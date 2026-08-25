@@ -336,7 +336,7 @@ window.SCENARIO = {
     ],
     courage:(x)=>[
       `When the easy move (give the crowd a name) and the right move (refuse) split apart, name the price of the right one out loud to your team. Naming the cost is how you commit to paying it.`,
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 holding a line you haven\u2019t committed to reads as flinching. Decide, then hold.`:`Holding under pressure is only leadership if the room sees you choose it. Say the hard call early and stand in it.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 holding a line you haven\u2019t committed to reads as flinching. Decide, then hold.`:`Holding under pressure is only leadership if the room sees you choose it. Say the hard call early and stand in it.`}`,
       `The moment you frame a concession as \u201cjust pragmatic,\u201d ask whether it\u2019s pragmatism or a quiet flinch. Some are; some aren\u2019t. This one deserved the question.`,
     ],
     people:(x)=>[

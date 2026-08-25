@@ -338,7 +338,7 @@ window.SCENARIO = {
       `Price the invisible line. Attrition is booked six months and 1.5x-salary away from the win that caused it \u2014 count them on the same page and the trade stops looking close.`,
     ],
     standard:(x)=>[
-      `${x.buzzerCount?`You went to the buzzer ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 in a talent crisis, waiting is its own decision, and the best people read it as a no.`:`You saw the pattern and moved slowly on it. Every week you don\u2019t confront the star, another strong person quietly decides you never will.`}`,
+      `${x.buzzerCount?`You let the clock nearly run out ${x.buzzerCount} time${x.buzzerCount>1?'s':''} \u2014 in a talent crisis, waiting is its own decision, and the best people read it as a no.`:`You saw the pattern and moved slowly on it. Every week you don\u2019t confront the star, another strong person quietly decides you never will.`}`,
       `Confronting Kai isn\u2019t punishing brilliance \u2014 it\u2019s refusing to let brilliance buy a pass on how people are treated. Name the specific behavior and the specific standard, not the person\u2019s worth.`,
       `The ultimatum was the test the whole company was watching. Folding to a threat teaches every leader that threats work; holding teaches them the bar is real for everyone.`,
     ],
