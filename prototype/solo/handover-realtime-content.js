@@ -39,10 +39,10 @@ window.SCENARIO = {
     title:'Handover',
     role:'You are the founder and CEO of Ashford Instruments — the company you started in a garage 25 years ago. You\u2019ve decided it\u2019s time to hand it over to Maya Chen.',
     paras:[
-      'This is not a script. The year runs in real time across four decisive acts, and the people around the transition bring you what they know as the days pass. You can wait for them — or reach out to any of them, Maya included, any time, and ask. Some of them are holding the thing you most need to face.',
+      'This isn’t a script. The year plays out in real time over four turning points, and the people around the handover bring you what they know as the days pass. You can wait for them — or reach out to any of them, Maya included, anytime, and ask. Some of them are holding the thing you most need to face.',
       'Ashford is you. Every big customer relationship, every hard-won process, every instinct about what the company will and won\u2019t do lives in your head, and people have relied on that for a quarter-century. Maya is capable and ready — but the company has never known anyone else in the chair.',
     ],
-    setup:'Each act you\u2019ll hear the people around you out, then write your call in your own words and send it. Decide early and time jumps ahead; let an act run out and the transition drifts while you deliberate. <b>The test:</b> can you hand over the whole truth and the whole authority — and make yourself genuinely unnecessary — when everything that made you great pulls the other way?',
+    setup:'Each time a big decision lands, you\u2019ll hear the people around you out, then write your call in your own words and send it. Decide early and the story jumps ahead; wait too long and the handover drifts while you sit on it. <b>The real test:</b> can you hand over the whole truth and the whole job — and make yourself genuinely unnecessary — when everything that made you great pulls the other way?',
   },
 
   DISPOSITIONS: {

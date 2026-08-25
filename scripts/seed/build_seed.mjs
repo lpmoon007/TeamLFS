@@ -50,11 +50,12 @@ const SCN = {
   id: uuid('scn:the-signal'),
   title: 'The Signal',
   summary:
-    'Leadership Failure Simulator — Champion Iron Executive Team. A senior federal ' +
-    'representative offers Champion a time-sensitive green-industrial partnership ' +
-    'requiring a coordinated executive response within 72 hours. Every team member ' +
-    'holds domain-specific knowledge material to the decision; whether, when, and to ' +
-    'whom they share it is what the simulation measures.',
+    'You’re on the executive team at Champion Iron, a Canadian iron-ore producer. A senior ' +
+    'federal official has just put a rare offer on the table: a government-backed green-steel ' +
+    'partnership — but your whole team has to agree on a coordinated answer within 72 hours. ' +
+    'Here’s the catch: each of you knows something the others don’t, and the deal turns on ' +
+    'whether the right facts reach the room in time. What it comes down to is simple — whether ' +
+    'you share what you know, when it counts, with the people who need it.',
 };
 
 // --- Seats (7) ----------------------------------------------------------------

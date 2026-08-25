@@ -26,7 +26,7 @@ delete from organizations where id = '47a58f37-fe8f-52ba-93ef-f24bfbf67398';
 insert into organizations (id, name) values ('47a58f37-fe8f-52ba-93ef-f24bfbf67398', 'Champion Iron');
 
 -- scenarios
-insert into scenarios (id, org_id, title, summary) values ('aab5b18a-f6b5-50e4-a1a6-d6dcbaa1be35', '47a58f37-fe8f-52ba-93ef-f24bfbf67398', 'The Signal', 'Leadership Failure Simulator — Champion Iron Executive Team. A senior federal representative offers Champion a time-sensitive green-industrial partnership requiring a coordinated executive response within 72 hours. Every team member holds domain-specific knowledge material to the decision; whether, when, and to whom they share it is what the simulation measures.');
+insert into scenarios (id, org_id, title, summary) values ('aab5b18a-f6b5-50e4-a1a6-d6dcbaa1be35', '47a58f37-fe8f-52ba-93ef-f24bfbf67398', 'The Signal', 'You’re on the executive team at Champion Iron, a Canadian iron-ore producer. A senior federal official has just put a rare offer on the table: a government-backed green-steel partnership — but your whole team has to agree on a coordinated answer within 72 hours. Here’s the catch: each of you knows something the others don’t, and the deal turns on whether the right facts reach the room in time. What it comes down to is simple — whether you share what you know, when it counts, with the people who need it.');
 
 -- seats
 insert into seats (id, scenario_id, key, name, role, meta) values ('6779202e-6554-52f6-947b-a2ec6948283f', 'aab5b18a-f6b5-50e4-a1a6-d6dcbaa1be35', 'david', 'David Cataford', 'CEO', '{"brief_document_key":"brief_david"}'::jsonb);
