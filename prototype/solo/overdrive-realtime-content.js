@@ -40,7 +40,7 @@ window.SCENARIO = {
       'This is not a script. The crisis runs in real time across four decision windows, and your team brings you what they know as the days pass. You can wait for them — or reach out to any of them, any time, and ask. Some of them are sitting on the thing you most need to see.',
       'Cardinal is built on one sacred promise: <b>we always deliver.</b> Blizzard, breakdown, 3 a.m. — the fuel gets there. But to always deliver, drivers run past their hours and logs get "adjusted." Everyone knows; no one says it; the trucks keep rolling.',
     ],
-    setup:'Each window you\u2019ll hear your team out, then write your call in your own words and send it. Decide early and time jumps ahead. Let a window run out and the fleet keeps rolling on fumes while you deliberate. <b>The test:</b> can you protect what makes Cardinal great without letting it get someone killed — before the cost no one is measuring measures itself?',
+    setup:'Each time a decision lands, you\u2019ll hear your team out, then write your call in your own words and send it. Decide early and time jumps ahead; wait too long and the fleet keeps rolling on fumes while you deliberate. <b>The real test:</b> can you protect what makes Cardinal great without letting it get someone killed — before a cost nobody\u2019s tracking catches up with you?',
   },
 
   DISPOSITIONS: {

@@ -310,7 +310,7 @@ window.SCENARIO = {
       'This is not a script. The week runs in real time, and your team brings you what they know across the days. You can wait for them — or reach out to any of them, any time, and ask.',
       'Each week you’ll hear your team out, then write the call in your own words and send it. Decide early and time jumps ahead. Let the week run out and the world moves without you.',
     ],
-    setup: 'You’ll be graded on two things: the outcome for Halcyon Air, and your leadership through the process. The openness of the team you walk in with is set by the trust you’ve earned before.',
+    setup: 'By morning, everyone’s looking to you for a plan. Over the coming weeks you’ll weigh routes, jobs, and cash against the trust of the people who fly and fix these planes. You’ll be judged on two things — whether Halcyon comes through the shock, and how you led people through it. And how openly your team levels with you depends on the trust you’d built before it hit.',
   },
 
   /* ---------------- SCENARIO HOOKS ---------------- */

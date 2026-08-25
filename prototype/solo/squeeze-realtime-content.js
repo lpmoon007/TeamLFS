@@ -42,7 +42,7 @@ window.SCENARIO = {
       'This is not a script. The crisis runs in real time across four months, and your team brings you what they know as the days pass. You can wait for them — or reach out to any of them, any time, and ask. Some of them are holding the thing you most need to hear.',
       'Delph isn\u2019t dying — but the margin that kept everyone employed has evaporated. The cash that used to feel comfortable now has a number of months attached to it, and every month you decide who absorbs the pain.',
     ],
-    setup:'Each month you\u2019ll hear your team out, then write your call in your own words and send it. Decide early and time jumps ahead; let a month run out and the squeeze tightens while you deliberate. <b>The test:</b> under real scarcity, do you distribute the pain fairly and tell the truth — or protect the top and yourself while the floor pays? Scarcity is where a company finds out who it really protects.',
+    setup:'Each month, you\u2019ll hear your team out, then write your call in your own words and send it. Decide early and time jumps ahead; wait too long and the squeeze tightens while you sit on it. <b>The real test:</b> under real scarcity, do you spread the pain fairly and tell the truth — or protect the top and yourself while the floor pays? Scarcity is where a company finds out who it really protects.',
   },
 
   DISPOSITIONS: {
